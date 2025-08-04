@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New COD Order - {{ site_name }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8fafc;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #dc2626, #ef4444);
+            color: white;
+            padding: 20px;
+            border-radius: 8px 8px 0 0;
+            margin: -30px -30px 30px -30px;
+        }
+        .urgent-badge {
+            background: #fef2f2;
+            border: 2px solid #ef4444;
+            color: #dc2626;
+            padding: 10px 15px;
+            border-radius: 6px;
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        .order-details {
+            background-color: #f3f4f6;
+            padding: 20px;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+        .order-details h3 {
+            margin-top: 0;
+            color: #2563eb;
+        }
+        .amount {
+            font-size: 24px;
+            font-weight: bold;
+            color: #059669;
+        }
+        .button {
+            display: inline-block;
+            background: #2563eb;
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 6px;
+            margin: 20px 0;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚨 URGENT: New COD Order</h1>
+        </div>
+        
+        <div class="urgent-badge">
+            ⚠️ CASH ON DELIVERY ORDER REQUIRES IMMEDIATE ATTENTION
+        </div>
+        
+        <div class="content">
+            <p>A new Cash on Delivery order has been placed and requires your immediate attention.</p>
+            
+            <div class="order-details">
+                <h3>Order Details</h3>
+                <p><strong>Order Number:</strong> {{ data.order_number }}</p>
+                <p><strong>Customer:</strong> {{ data.customer_name }}</p>
+                <p><strong>Phone:</strong> {{ data.customer_phone }}</p>
+                <p><strong>Total Amount:</strong> <span class="amount">UGX {{ data.total_amount }}</span></p>
+                <p><strong>Order Time:</strong> {{ notification.created_at|date:"F d, Y \a\t g:i A" }}</p>
+            </div>
+            
+            <div style="text-align: center;">
+                <a href="{{ admin_url }}/orders/{{ data.order_id }}" class="button">
+                    View Order Details
+                </a>
+            </div>
+            
+            <p><strong>Next Steps:</strong></p>
+            <ol>
+                <li>Review the order details</li>
+                <li>Contact the customer to confirm</li>
+                <li>Arrange for delivery</li>
+                <li>Update order status accordingly</li>
+            </ol>
+        </div>
+        
+        <div class="footer">
+            <p>This notification was sent immediately upon order placement.</p>
+            <p>Login to your admin dashboard for full order management.</p>
+        </div>
+    </div>
+</body>
+</html>

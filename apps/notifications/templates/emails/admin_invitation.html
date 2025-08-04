@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Invitation - {{ site_name }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8fafc;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #2563eb, #3b82f6);
+            color: white;
+            padding: 20px;
+            border-radius: 8px 8px 0 0;
+            margin: -30px -30px 30px -30px;
+            text-align: center;
+        }
+        .button {
+            display: inline-block;
+            background: #2563eb;
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 6px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .button:hover {
+            background: #1e40af;
+        }
+        .expiry-notice {
+            background-color: #fef3c7;
+            border: 1px solid #f59e0b;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        .footer {
+            border-top: 1px solid #e5e7eb;
+            padding-top: 20px;
+            text-align: center;
+            color: #6b7280;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>{{ site_name }}</h1>
+            <p>Admin Invitation</p>
+        </div>
+        
+        <div class="content">
+            <h2>You've been invited to join as an administrator</h2>
+            
+            <p>Hello,</p>
+            
+            <p>You have been invited to join <strong>{{ site_name }}</strong> as an administrator. As an admin, you will have access to:</p>
+            
+            <ul>
+                <li>Product and category management</li>
+                <li>Order processing and tracking</li>
+                <li>Flash sales management</li>
+                <li>Homepage content management</li>
+                <li>User management and analytics</li>
+                <li>Real-time notifications for COD orders</li>
+            </ul>
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{{ registration_url }}" class="button">Accept Invitation & Register</a>
+            </div>
+            
+            <div class="expiry-notice">
+                <strong>⚠️ Important:</strong> This invitation expires on {{ expires_at|date:"F d, Y \a\t g:i A" }}. 
+                Please complete your registration before the expiry date.
+            </div>
+            
+            <p>If you didn't expect this invitation or have any questions, please contact the system administrator.</p>
+        </div>
+        
+        <div class="footer">
+            <p>This invitation was sent to {{ invitation.email }}</p>
+            <p>© {{ site_name }} - Uganda's Premier E-commerce Platform</p>
+        </div>
+    </div>
+</body>
+</html>
