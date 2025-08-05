@@ -86,6 +86,23 @@ class IsAdmin(BasePermission):
         return self.is_admin(request.user)
 
 
+class IsAdminUser(BasePermission):
+    """
+    Permission that allows access only to admin users.
+    Admin users must have emails ending with @shoponline.com
+    This is an alias for IsAdmin to maintain compatibility.
+    """
+    message = "Admin access required. You must be logged in with an admin account."
+
+    def has_permission(self, request, view):
+        if not super().has_permission(request, view):
+            return False
+        return self.is_admin(request.user)
+
+    def has_object_permission(self, request, view, obj):
+        return self.is_admin(request.user)
+
+
 class IsClient(BasePermission):
     """
     Permission that allows access only to client users.
@@ -573,6 +590,7 @@ class EmailDomainPermission(BasePermission):
 
 # Convenience permission combinations
 AdminOnly = IsAdmin
+AdminUserOnly = IsAdminUser  # Added for compatibility
 ClientOnly = IsClient
 AdminOrOwner = IsOwnerOrAdmin
 AdminOrReadOnly = IsAdminOrReadOnly
@@ -581,6 +599,10 @@ AdminOrReadOnly = IsAdminOrReadOnly
 class AdminPermissionMixin:
     """Mixin to add admin-only permission to views."""
     permission_classes = [IsAdmin]
+
+class AdminUserPermissionMixin:
+    """Mixin to add admin-user-only permission to views."""
+    permission_classes = [IsAdminUser]
 
 class ClientPermissionMixin:
     """Mixin to add client-only permission to views."""

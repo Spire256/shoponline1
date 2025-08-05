@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Confirmation - ShopOnline Uganda</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f8fafc;
+            color: #1e293b;
+        }
+        .container {
+            max-width: 650px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
+        }
+        .header p {
+            margin: 10px 0 0 0;
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .order-status {
+            background-color: #f0fdf4;
+            border: 2px solid #10b981;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .order-status h2 {
+            color: #059669;
+            margin: 0 0 10px 0;
+            font-size: 24px;
+        }
+        .order-number {
+            background-color: #eff6ff;
+            border: 1px solid #3b82f6;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .order-number strong {
+            color: #1e40af;
+            font-size: 18px;
+        }
+        .customer-info {
+            background-color: #f8fafc;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .customer-info h3 {
+            color: #1e40af;
+            margin: 0 0 15px 0;
+            font-size: 18px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            padding: 5px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        .info-label {
+            font-weight: 600;
+            color: #475569;
+        }
+        .info-value {
+            color: #1e293b;
+        }
+        .order-items {
+            margin: 30px 0;
+        }
+        .order-items h3 {
+            color: #1e40af;
+            margin-bottom: 20px;
+            font-size: 20px;
+        }
+        .item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            background-color: #ffffff;
+        }
+        .item-image {
+            width: 80px;
+            height: 80px;
+            border-radius: 6px;
+            object-fit: cover;
+            margin-right: 15px;
+            border: 1px solid #e2e8f0;
+        }
+        .item-details {
+            flex: 1;
+        }
+        .item-name {
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 5px;
+            font-size: 16px;
+        }
+        .item-price {
+            color: #2563eb;
+            font-weight: 600;
+            font-size: 16px;
+        }
+        .item-quantity {
+            color: #64748b;
+            font-size: 14px;
+        }
+        .order-summary {
+            background-color: #f1f5f9;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 30px 0;
+        }
+        .order-summary h3 {
+            color: #1e40af;
+            margin: 0 0 20px 0;
+            font-size: 20px;
+        }
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 12px 0;
+            padding: 8px 0;
+        }
+        .summary-row.total {
+            border-top: 2px solid #2563eb;
+            font-weight: 700;
+            font-size: 18px;
+            color: #1e40af;
+            padding-top: 15px;
+            margin-top: 15px;
+        }
+        .payment-info {
+            background-color: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .payment-info h4 {
+            color: #92400e;
+            margin: 0 0 10px 0;
+        }
+        .payment-mobile-money {
+            background-color: #eff6ff;
+            border: 1px solid #3b82f6;
+        }
+        .payment-mobile-money h4 {
+            color: #1e40af;
+        }
+        .next-steps {
+            background-color: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 30px 0;
+        }
+        .next-steps h3 {
+            color: #0369a1;
+            margin: 0 0 15px 0;
+        }
+        .next-steps ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .next-steps li {
+            margin: 8px 0;
+            color: #475569;
+        }
+        .contact-support {
+            text-align: center;
+            margin: 30px 0;
+            padding: 20px;
+            background-color: #f8fafc;
+            border-radius: 8px;
+        }
+        .contact-support h4 {
+            color: #1e40af;
+            margin: 0 0 10px 0;
+        }
+        .footer {
+            background-color: #f8fafc;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e2e8f0;
+        }
+        .footer p {
+            margin: 5px 0;
+            color: #64748b;
+            font-size: 14px;
+        }
+        @media (max-width: 600px) {
+            .container {
+                margin: 10px;
+                border-radius: 8px;
+            }
+            .content {
+                padding: 20px 15px;
+            }
+            .item {
+                flex-direction: column;
+                text-align: center;
+            }
+            .item-image {
+                margin-right: 0;
+                margin-bottom: 10px;
+            }
+            .info-row {
+                flex-direction: column;
+            }
+            .summary-row {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛍️ Order Confirmed!</h1>
+            <p>Thank you for shopping with ShopOnline Uganda</p>
+        </div>
+        
+        <div class="content">
+            <div class="order-status">
+                <h2>✅ Your Order is Confirmed</h2>
+                <p>We've received your order and it's being processed.</p>
+            </div>
+            
+            <div class="order-number">
+                <p>Order Number: <strong>{{ order.order_number }}</strong></p>
+                <p>Order Date: <strong>{{ order.created_at|date:"F d, Y \a\t g:i A" }}</strong></p>
+            </div>
+            
+            <div class="customer-info">
+                <h3>👤 Customer Information</h3>
+                <div class="info-row">
+                    <span class="info-label">Name:</span>
+                    <span class="info-value">{{ order.customer_name }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Email:</span>
+                    <span class="info-value">{{ order.customer_email }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Phone:</span>
+                    <span class="info-value">{{ order.customer_phone }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Delivery Address:</span>
+                    <span class="info-value">{{ order.delivery_address }}</span>
+                </div>
+            </div>
+            
+            <div class="order-items">
+                <h3>📦 Order Items</h3>
+                {% for item in order.items.all %}
+                <div class="item">
+                    {% if item.product.featured_image %}
+                    <img src="{{ item.product.featured_image.url }}" alt="{{ item.product.name }}" class="item-image">
+                    {% else %}
+                    <div class="item-image" style="background-color: #f1f5f9; display: flex; align-items: center; justify-content: center; color: #64748b;">
+                        📷
+                    </div>
+                    {% endif %}
+                    <div class="item-details">
+                        <div class="item-name">{{ item.product.name }}</div>
+                        <div class="item-quantity">Quantity: {{ item.quantity }}</div>
+                        <div class="item-price">UGX {{ item.price|floatformat:0|add:","|cut:" " }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <div class="order-summary">
+                <h3>💰 Order Summary</h3>
+                <div class="summary-row">
+                    <span>Subtotal:</span>
+                    <span>UGX {{ order.subtotal|floatformat:0|add:","|cut:" " }}</span>
+                </div>
+                {% if order.tax_amount > 0 %}
+                <div class="summary-row">
+                    <span>Tax (VAT 18%):</span>
+                    <span>UGX {{ order.tax_amount|floatformat:0|add:","|cut:" " }}</span>
+                </div>
+                {% endif %}
+                {% if order.delivery_fee > 0 %}
+                <div class="summary-row">
+                    <span>Delivery Fee:</span>
+                    <span>UGX {{ order.delivery_fee|floatformat:0|add:","|cut:" " }}</span>
+                </div>
+                {% endif %}
+                <div class="summary-row total">
+                    <span>Total Amount:</span>
+                    <span>UGX {{ order.total_amount|floatformat:0|add:","|cut:" " }}</span>
+                </div>
+            </div>
+            
+            {% if order.payment_method == 'cod' %}
+            <div class="payment-info">
+                <h4>💵 Payment Method: Cash on Delivery</h4>
+                <p><strong>Important:</strong> Please have the exact amount ready when our delivery team arrives.</p>
+                <p>Total to pay: <strong>UGX {{ order.total_amount|floatformat:0|add:","|cut:" " }}</strong></p>
+            </div>
+            {% else %}
+            <div class="payment-info payment-mobile-money">
+                <h4>📱 Payment Method: {{ order.get_payment_method_display }}</h4>
+                {% if order.payment_status == 'completed' %}
+                <p>✅ <strong>Payment Completed Successfully</strong></p>
+                {% else %}
+                <p>⏳ Payment is being processed. You'll receive a confirmation once completed.</p>
+                {% endif %}
+            </div>
+            {% endif %}
+            
+            <div class="next-steps">
+                <h3>📋 What Happens Next?</h3>
+                <ul>
+                    <li><strong>Order Processing:</strong> We'll prepare your items for delivery (1-2 business days)</li>
+                    <li><strong>Quality Check:</strong> Each item is carefully inspected before packaging</li>
+                    <li><strong>Delivery:</strong> Your order will be delivered to your specified address</li>
+                    <li><strong>Updates:</strong> You'll receive SMS/email updates on your order status</li>
+                    {% if order.payment_method == 'cod' %}
+                    <li><strong>Payment:</strong> Pay cash when you receive your order</li>
+                    {% endif %}
+                </ul>
+            </div>
+            
+            <div class="contact-support">
+                <h4>Need Help?</h4>
+                <p>If you have any questions about your order, please contact us:</p>
+                <p><strong>📧 Email:</strong> support@shoponline.com</p>
+                <p><strong>📞 Phone:</strong> +256 700 123 456</p>
+                <p><strong>💬 WhatsApp:</strong> +256 700 123 456</p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p><strong>ShopOnline Uganda</strong></p>
+            <p>Your Trusted E-commerce Partner</p>
+            <p style="font-size: 12px; color: #94a3b8; margin-top: 20px;">
+                © {{ current_year }} ShopOnline Uganda. All rights reserved.<br>
+                Kampala, Uganda | East Africa Time (EAT)
+            </p>
+        </div>
+    </div>
+</body>
+</html>

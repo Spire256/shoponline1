@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COD Order Alert - ShopOnline Uganda Admin</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f8fafc;
+            color: #1e293b;
+        }
+        .container {
+            max-width: 650px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
+        }
+        .header p {
+            margin: 10px 0 0 0;
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .alert-badge {
+            background-color: #fef3c7;
+            border: 2px solid #f59e0b;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .alert-badge h2 {
+            color: #d97706;
+            margin: 0 0 10px 0;
+            font-size: 24px;
+        }
+        .urgent-info {
+            background-color: #fef2f2;
+            border: 2px solid #ef4444;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .urgent-info h3 {
+            color: #dc2626;
+            margin: 0 0 10px 0;
+            font-size: 18px;
+        }
+        .order-details {
+            background-color: #f8fafc;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 20px 0;
+        }
+        .order-details h3 {
+            color: #1e40af;
+            margin: 0 0 20px 0;
+            font-size: 20px;
+        }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 12px 0;
+            padding: 8px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        .detail-label {
+            font-weight: 600;
+            color: #475569;
+        }
+        .detail-value {
+            color: #1e293b;
+            font-weight: 500;
+        }
+        .customer-info {
+            background-color: #eff6ff;
+            border: 1px solid #3b82f6;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .customer-info h4 {
+            color: #1e40af;
+            margin: 0 0 15px 0;
+        }
+        .order-items {
+            margin: 25px 0;
+        }
+        .order-items h4 {
+            color: #1e40af;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        .item {
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .item-info {
+            flex: 1;
+        }
+        .item-name {
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 5px;
+        }
+        .item-details {
+            color: #64748b;
+            font-size: 14px;
+        }
+        .item-total {
+            color: #2563eb;
+            font-weight: 600;
+            font-size: 16px;
+        }
+        .payment-summary {
+            background-color: #f1f5f9;
+            border: 2px solid #2563eb;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 25px 0;
+        }
+        .payment-summary h4 {
+            color: #1e40af;
+            margin: 0 0 15px 0;
+            font-size: 18px;
+        }
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+        }
+        .summary-row.total {
+            border-top: 2px solid #2563eb;
+            padding-top: 15px;
+            margin-top: 15px;
+            font-weight: 700;
+            font-size: 20px;
+            color: #1e40af;
+        }
+        .action-required {
+            background-color: #fef2f2;
+            border: 2px solid #ef4444;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 25px 0;
+            text-align: center;
+        }
+        .action-required h3 {
+            color: #dc2626;
+            margin: 0 0 15px 0;
+        }
+        .action-required ul {
+            text-align: left;
+            color: #7f1d1d;
+            margin: 15px 0;
+        }
+        .action-required li {
+            margin: 8px 0;
+        }
+        .admin-actions {
+            background-color: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 25px 0;
+        }
+        .admin-actions h4 {
+            color: #0369a1;
+            margin: 0 0 15px 0;
+        }
+        .admin-actions .action-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+            color: white;
+            text-decoration: none;
+            padding: 12px 25px;
+            border-radius: 6px;
+            font-weight: 600;
+            margin: 5px 10px 5px 0;
+            font-size: 14px;
+        }
+        .contact-info {
+            background-color: #f8fafc;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 25px 0;
+            text-align: center;
+        }
+        .contact-info h4 {
+            color: #1e40af;
+            margin: 0 0 10px 0;
+        }
+        .footer {
+            background-color: #f8fafc;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e2e8f0;
+        }
+        .footer p {
+            margin: 5px 0;
+            color: #64748b;
+            font-size: 14px;
+        }
+        @media (max-width: 600px) {
+            .container {
+                margin: 10px;
+                border-radius: 8px;
+            }
+            .content {
+                padding: 20px 15px;
+            }
+            .detail-row {
+                flex-direction: column;
+            }
+            .detail-value {
+                margin-top: 5px;
+                font-weight: 600;
+            }
+            .item {
+                flex-direction: column;
+                text-align: center;
+            }
+            .item-total {
+                margin-top: 10px;
+            }
+            .summary-row {
+                flex-direction: column;
+            }
+            .admin-actions .action-button {
+                display: block;
+                margin: 10px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚨 COD Order Alert</h1>
+            <p>New Cash on Delivery Order Received</p>
+        </div>
+        
+        <div class="content">
+            <div class="alert-badge">
+                <h2>💵 Cash on Delivery Order</h2>
+                <p><strong>Action Required:</strong> Customer will pay on delivery</p>
+            </div>
+            
+            <div class="urgent-info">
+                <h3>⚡ Immediate Action Required</h3>
+                <p>A customer has placed a COD order and expects delivery. Please process this order immediately and coordinate delivery.</p>
+            </div>
+            
+            <div class="order-details">
+                <h3>📋 Order Information</h3>
+                <div class="detail-row">
+                    <span class="detail-label">Order Number:</span>
+                    <span class="detail-value"><strong>{{ order.order_number }}</strong></span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Order Date:</span>
+                    <span class="detail-value">{{ order.created_at|date:"F d, Y \a\t g:i A" }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Order Status:</span>
+                    <span class="detail-value">{{ order.get_status_display }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Total Items:</span>
+                    <span class="detail-value">{{ order.items.count }} item{{ order.items.count|pluralize }}</span>
+                </div>
+            </div>
+            
+            <div class="customer-info">
+                <h4>👤 Customer Details</h4>
+                <div class="detail-row">
+                    <span class="detail-label">Name:</span>
+                    <span class="detail-value"><strong>{{ order.customer_name }}</strong></span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Phone:</span>
+                    <span class="detail-value"><strong>{{ order.customer_phone }}</strong></span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Email:</span>
+                    <span class="detail-value">{{ order.customer_email }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Delivery Address:</span>
+                    <span class="detail-value"><strong>{{ order.delivery_address }}</strong></span>
+                </div>
+                {% if order.delivery_notes %}
+                <div class="detail-row">
+                    <span class="detail-label">Delivery Notes:</span>
+                    <span class="detail-value">{{ order.delivery_notes }}</span>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="order-items">
+                <h4>📦 Order Items</h4>
+                {% for item in order.items.all %}
+                <div class="item">
+                    <div class="item-info">
+                        <div class="item-name">{{ item.product.name }}</div>
+                        <div class="item-details">
+                            Quantity: {{ item.quantity }} × UGX {{ item.price|floatformat:0|add:","|cut:" " }}
+                        </div>
+                    </div>
+                    <div class="item-total">
+                        UGX {{ item.total_price|floatformat:0|add:","|cut:" " }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <div class="payment-summary">
+                <h4>💰 Payment Summary (COD)</h4>
+                <div class="summary-row">
+                    <span>Subtotal:</span>
+                    <span>UGX {{ order.subtotal|floatformat:0|add:","|cut:" " }}</span>
+                </div>
+                {% if order.tax_amount > 0 %}
+                <div class="summary-row">
+                    <span>Tax (VAT 18%):</span>
+                    <span>UGX {{ order.tax_amount|floatformat:0|add:","|cut:" " }}</span>
+                </div>
+                {% endif %}
+                {% if order.delivery_fee > 0 %}
+                <div class="summary-row">
+                    <span>Delivery Fee:</span>
+                    <span>UGX {{ order.delivery_fee|floatformat:0|add:","|cut:" " }}</span>
+                </div>
+                {% endif %}
+                <div class="summary-row total">
+                    <span>💵 Amount to Collect:</span>
+                    <span>UGX {{ order.total_amount|floatformat:0|add:","|cut:" " }}</span>
+                </div>
+            </div>
+            
+            <div class="action-required">
+                <h3>🎯 Action Required</h3>
+                <p><strong>Please take the following steps immediately:</strong></p>
+                <ul>
+                    <li><strong>Confirm Order:</strong> Mark order as confirmed in admin panel</li>
+                    <li><strong>Check Inventory:</strong> Verify all items are in stock</li>
+                    <li><strong>Prepare Items:</strong> Pack items for delivery</li>
+                    <li><strong>Contact Customer:</strong> Call to confirm delivery time and address</li>
+                    <li><strong>Arrange Delivery:</strong> Schedule delivery within 24-48 hours</li>
+                    <li><strong>Collect Payment:</strong> Ensure delivery team collects exact amount</li>
+                </ul>
+            </div>
+            
+            <div class="admin-actions">
+                <h4>🛠️ Quick Admin Actions</h4>
+                <p>Use these links to manage the order:</p>
+                <a href="{{ admin_order_url }}" class="action-button">View Order Details</a>
+                <a href="{{ admin_confirm_url }}" class="action-button">Confirm Order</a>
+                <a href="{{ admin_inventory_url }}" class="action-button">Check Inventory</a>
+            </div>
+            
+            <div class="contact-info">
+                <h4>📞 Customer Contact</h4>
+                <p><strong>Call Customer:</strong> <a href="tel:{{ order.customer_phone }}">{{ order.customer_phone }}</a></p>
+                <p><strong>Email Customer:</strong> <a href="mailto:{{ order.customer_email }}">{{ order.customer_email }}</a></p>
+                <p><strong>WhatsApp:</strong> <a href="https://wa.me/{{ order.customer_phone|cut:'+' }}">Send WhatsApp</a></p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p><strong>ShopOnline Uganda - Admin Panel</strong></p>
+            <p>COD Order Management System</p>
+            <p style="font-size: 12px; color: #94a3b8; margin-top: 20px;">
+                This is an automated admin notification.<br>
+                Please process this order within 2 hours of receipt.
+            </p>
+            <p style="font-size: 12px; color: #94a3b8;">
+                © {{ current_year }} ShopOnline Uganda. Internal Use Only.<br>
+                Admin Dashboard | Kampala, Uganda
+            </p>
+        </div>
+    </div>
+</body>
+</html>

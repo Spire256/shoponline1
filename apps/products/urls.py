@@ -6,6 +6,7 @@ URL configuration for product-related endpoints
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework_nested import routers
+#from rest_framework.routers import DefaultRouter
 
 from .views import (
     ProductViewSet, ProductImageViewSet, ProductAttributeViewSet,

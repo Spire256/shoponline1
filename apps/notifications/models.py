@@ -4,6 +4,8 @@
 
 # apps/notifications/models.py
 from django.db import models
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from apps.core.models import TimestampedModel
@@ -74,7 +76,10 @@ class Notification(TimestampedModel):
         blank=True
     )
     object_id = models.PositiveIntegerField(null=True, blank=True)
-    content_object = models.GenericForeignKey('content_type', 'object_id')
+    #content_object = models.GenericForeignKey('content_type', 'object_id')
+    content_object = GenericForeignKey('content_type', 'object_id')
+
+
     
     class Meta:
         ordering = ['-created_at']

@@ -9,7 +9,7 @@ from django.utils.text import slugify
 from decimal import Decimal
 
 from .models import Product, ProductImage, ProductAttribute, ProductVariant
-from apps.categories.serializers import CategoryBasicSerializer
+from apps.categories.serializers import CategoryListSerializer
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
@@ -75,7 +75,7 @@ class ProductVariantSerializer(serializers.ModelSerializer):
 class ProductListSerializer(serializers.ModelSerializer):
     """Serializer for product list view (minimal fields)"""
     
-    category = CategoryBasicSerializer(read_only=True)
+    category = CategoryListSerializer(read_only=True)
     main_image = ProductImageSerializer(read_only=True)
     is_in_stock = serializers.ReadOnlyField()
     is_on_sale = serializers.ReadOnlyField()
@@ -94,10 +94,19 @@ class ProductListSerializer(serializers.ModelSerializer):
         ]
 
 
+class ProductSerializer(ProductListSerializer):
+    """
+    General purpose product serializer.
+    This is an alias for ProductListSerializer to maintain compatibility.
+    Provides a standard product serializer for use across different apps.
+    """
+    pass
+
+
 class ProductDetailSerializer(serializers.ModelSerializer):
     """Serializer for detailed product view"""
     
-    category = CategoryBasicSerializer(read_only=True)
+    category = CategoryListSerializer(read_only=True)
     images = ProductImageSerializer(many=True, read_only=True)
     attributes = ProductAttributeSerializer(many=True, read_only=True)
     variants = ProductVariantSerializer(many=True, read_only=True)

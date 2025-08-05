@@ -63,6 +63,14 @@ class StandardResultsPagination(PageNumberPagination):
         return self.page_size
 
 
+class StandardResultsSetPagination(StandardResultsPagination):
+    """
+    Standard pagination class for most API endpoints.
+    This is an alias for StandardResultsPagination to maintain compatibility.
+    """
+    pass
+
+
 class ProductPagination(StandardResultsPagination):
     """
     Pagination for product listings with category-specific optimization.
@@ -599,6 +607,7 @@ def get_pagination_class(view_type='standard'):
     """
     pagination_classes = {
         'standard': StandardResultsPagination,
+        'standard_set': StandardResultsSetPagination,  # Added for compatibility
         'product': ProductPagination,
         'search': SearchResultsPagination,
         'admin': AdminPagination,

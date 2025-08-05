@@ -12,6 +12,8 @@ ALLOWED_HOSTS = [
     get_env_variable('ALLOWED_HOST', 'shoponline.ug'),
     'www.shoponline.ug',
     get_env_variable('SERVER_IP', ''),
+    'localhost',
+    '127.0.0.1',
 ]
 
 # Security headers

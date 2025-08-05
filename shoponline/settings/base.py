@@ -8,19 +8,19 @@ import os
 from pathlib import Path
 from datetime import timedelta
 from django.core.exceptions import ImproperlyConfigured
+from decouple import config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
+from django.core.exceptions import ImproperlyConfigured
+from decouple import config
+
 def get_env_variable(var_name, default=None):
-    """Get environment variable or raise exception."""
     try:
-        return os.environ[var_name]
+        return config(var_name, default=default)
     except KeyError:
-        if default is not None:
-            return default
-        error_msg = f"Set the {var_name} environment variable"
-        raise ImproperlyConfigured(error_msg)
+        raise ImproperlyConfigured(f"Set the {var_name} environment variable")
 
 def get_bool_env(var_name, default=False):
     """Get boolean environment variable."""
@@ -29,6 +29,14 @@ def get_bool_env(var_name, default=False):
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = get_env_variable('SECRET_KEY')
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = config('DEBUG', default=True, cast=bool)
+
+# Parse ALLOWED_HOSTS from environment variable
+ALLOWED_HOSTS_STR = config('ALLOWED_HOSTS', default='localhost,127.0.0.1')
+ALLOWED_HOSTS = [host.strip() for host in ALLOWED_HOSTS_STR.split(',')]
+
+
 
 # Application definition
 DJANGO_APPS = [
@@ -111,13 +119,10 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': get_env_variable('DB_NAME', 'shoponline_db'),
-        'USER': get_env_variable('DB_USER', 'postgres'),
+        'USER': get_env_variable('DB_USER', 'shoponline_user'),
         'PASSWORD': get_env_variable('DB_PASSWORD'),
         'HOST': get_env_variable('DB_HOST', 'localhost'),
-        'PORT': get_env_variable('DB_PORT', '5432'),
-        'OPTIONS': {
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-        },
+        'PORT': get_env_variable('DB_PORT', '5433'),
     }
 }
 

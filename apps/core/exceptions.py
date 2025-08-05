@@ -11,7 +11,6 @@ Provides specific exception classes for different error scenarios:
 """
 
 from rest_framework import status
-from rest_framework.views import exception_handler
 from rest_framework.response import Response
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils import timezone
@@ -492,6 +491,8 @@ def custom_exception_handler(exc, context):
     """
     Custom exception handler for DRF that handles ShopOnline exceptions.
     """
+    from rest_framework.views import exception_handler  # Moved import here
+    
     # Handle ShopOnline API exceptions
     if isinstance(exc, ShopOnlineAPIException):
         logger.error(f"ShopOnline API Exception: {exc.error_code} - {exc.detail}", 

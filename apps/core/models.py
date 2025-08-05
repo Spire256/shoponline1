@@ -39,6 +39,28 @@ class TimestampMixin(models.Model):
         abstract = True
 
 
+# Alias for backward compatibility - some apps might import TimeStampedModel
+class TimeStampedModel(TimestampMixin):
+    """
+    Abstract model that provides timestamp fields for creation and modification.
+    This is an alias for TimestampMixin to maintain backward compatibility.
+    """
+    
+    class Meta:
+        abstract = True
+
+
+# Another alias for different naming conventions
+class TimestampedModel(TimestampMixin):
+    """
+    Abstract model that provides timestamp fields for creation and modification.
+    This is another alias for TimestampMixin to handle different naming conventions.
+    """
+    
+    class Meta:
+        abstract = True
+
+
 class UUIDMixin(models.Model):
     """
     Abstract model that provides UUID primary key.

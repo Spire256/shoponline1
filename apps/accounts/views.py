@@ -15,6 +15,7 @@ from .serializers import (
 )
 from .services.invitation_service import InvitationService
 from .permissions import IsAdminUser
+from django.utils import timezone
 
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
