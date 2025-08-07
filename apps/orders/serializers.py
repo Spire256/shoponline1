@@ -7,6 +7,7 @@ from decimal import Decimal
 from .models import Order, OrderItem, OrderStatusHistory, OrderNote, CODVerification
 from apps.products.models import Product
 from apps.flash_sales.models import FlashSale, FlashSaleProduct
+from django.utils import timezone
 
 User = get_user_model()
 
