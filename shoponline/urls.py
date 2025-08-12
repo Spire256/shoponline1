@@ -10,11 +10,20 @@ from django.conf.urls.static import static
 from django.views.generic import TemplateView
 from rest_framework.routers import DefaultRouter
 from rest_framework.documentation import include_docs_urls
+from django.http import JsonResponse
 
 # API version prefix
 API_VERSION = 'v1'
 
+def api_home(request):
+    return JsonResponse({
+        'message': 'ShopOnline Uganda API',
+        'version': API_VERSION,
+        'status': 'active'
+    })
+
 urlpatterns = [
+    path('', api_home, name='home'),
     # Admin interface
     path('admin/', admin.site.urls),
     

@@ -2,12 +2,47 @@
 
 # Create your models here.
 # apps/accounts/models.py
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
 from django.utils import timezone
 from django.core.validators import EmailValidator
 import uuid
 from datetime import timedelta
+
+
+class CustomUserManager(BaseUserManager):
+    """Custom user manager for email-based authentication"""
+    
+    def create_user(self, email, password=None, **extra_fields):
+        """Create and return a regular user with an email and password."""
+        if not email:
+            raise ValueError('The Email field must be set')
+        
+        email = self.normalize_email(email)
+        user = self.model(email=email, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+    
+    def create_superuser(self, email, password=None, **extra_fields):
+        """Create and return a superuser with an email and password."""
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        extra_fields.setdefault('is_active', True)
+        
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError('Superuser must have is_staff=True.')
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError('Superuser must have is_superuser=True.')
+        
+        # Set default values if not provided
+        if 'first_name' not in extra_fields:
+            extra_fields['first_name'] = 'Admin'
+        if 'last_name' not in extra_fields:
+            extra_fields['last_name'] = 'User'
+        
+        return self.create_user(email, password, **extra_fields)
+
 
 class User(AbstractUser):
     """Custom user model with email-based authentication and role management"""
@@ -32,6 +67,9 @@ class User(AbstractUser):
     username = None
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['first_name', 'last_name']
+    
+    # Use custom manager
+    objects = CustomUserManager()
     
     class Meta:
         db_table = 'accounts_user'
@@ -121,5 +159,3 @@ class AdminInvitation(models.Model):
         """Mark invitation as expired"""
         self.status = 'expired'
         self.save()
-
-

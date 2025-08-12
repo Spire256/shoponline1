@@ -30,7 +30,7 @@ def get_bool_env(var_name, default=False):
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = get_env_variable('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DEBUG', default=True, cast=bool)
+DEBUG = config('DEBUG', default=False, cast=bool)
 
 # Parse ALLOWED_HOSTS from environment variable
 ALLOWED_HOSTS_STR = config('ALLOWED_HOSTS', default='localhost,127.0.0.1')
@@ -88,7 +88,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'apps.core.middleware.RateLimitMiddleware',
+    'apps.core.middleware.RateLimitingMiddleware',
     'apps.core.middleware.RequestLoggingMiddleware',
 ]
 
@@ -354,6 +354,8 @@ IMAGEKIT_CACHEFILE_NAMER = 'imagekit.cachefiles.namers.source_group_pk_hash'
 IMAGEKIT_SPEC_CACHEFILE_NAMER = 'imagekit.cachefiles.namers.source_group_pk_hash'
 
 # Logging Configuration
+# Replace the LOGGING configuration in your base.py with this:
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -377,7 +379,7 @@ LOGGING = {
             'formatter': 'verbose',
         },
         'console': {
-            'level': 'DEBUG',
+            'level': 'INFO',  # Changed from DEBUG to INFO
             'class': 'logging.StreamHandler',
             'formatter': 'simple'
         },
@@ -389,11 +391,17 @@ LOGGING = {
     },
     'root': {
         'handlers': ['console'],
+        'level': 'INFO',  # Added this line
     },
     'loggers': {
         'django': {
             'handlers': ['file', 'console'],
             'level': 'INFO',
+            'propagate': False,
+        },
+        'django.utils.autoreload': {  # Add this logger to silence file watching
+            'handlers': [],
+            'level': 'WARNING',
             'propagate': False,
         },
         'apps': {
@@ -413,7 +421,6 @@ LOGGING = {
         },
     },
 }
-
 # Security Settings
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
