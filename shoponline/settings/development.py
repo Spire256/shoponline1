@@ -49,6 +49,9 @@ CACHES = {
     }
 }
 
+# Frontend URL for invitation emails
+FRONTEND_URL = 'http://localhost:3000'  # or whatever your frontend URL is
+
 # Development logging
 LOGGING['handlers']['console']['level'] = 'DEBUG'
 LOGGING['loggers']['django']['level'] = 'DEBUG'
