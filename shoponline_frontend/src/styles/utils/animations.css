@@ -1,0 +1,689 @@
+/* Animation Utilities for Ugandan E-commerce Platform */
+
+/* Transition Properties */
+.transition-none { transition: none; }
+.transition-all { transition: var(--transition-all); }
+.transition-colors { transition: color var(--transition-normal), background-color var(--transition-normal), border-color var(--transition-normal); }
+.transition-opacity { transition: opacity var(--transition-normal); }
+.transition-shadow { transition: box-shadow var(--transition-normal); }
+.transition-transform { transition: transform var(--transition-normal); }
+
+/* Transition Duration */
+.duration-75 { transition-duration: var(--duration-75); }
+.duration-100 { transition-duration: var(--duration-100); }
+.duration-150 { transition-duration: var(--duration-150); }
+.duration-200 { transition-duration: var(--duration-200); }
+.duration-300 { transition-duration: var(--duration-300); }
+.duration-500 { transition-duration: var(--duration-500); }
+.duration-700 { transition-duration: var(--duration-700); }
+.duration-1000 { transition-duration: var(--duration-1000); }
+
+/* Transition Timing Function */
+.ease-linear { transition-timing-function: var(--ease-linear); }
+.ease-in { transition-timing-function: var(--ease-in); }
+.ease-out { transition-timing-function: var(--ease-out); }
+.ease-in-out { transition-timing-function: var(--ease-in-out); }
+
+/* Transform */
+.transform { transform: var(--transform); }
+.transform-none { transform: none; }
+
+/* Scale */
+.scale-0 { transform: scale(0); }
+.scale-50 { transform: scale(0.5); }
+.scale-75 { transform: scale(0.75); }
+.scale-90 { transform: scale(0.9); }
+.scale-95 { transform: scale(0.95); }
+.scale-100 { transform: scale(1); }
+.scale-105 { transform: scale(1.05); }
+.scale-110 { transform: scale(1.1); }
+.scale-125 { transform: scale(1.25); }
+.scale-150 { transform: scale(1.5); }
+
+/* Rotate */
+.rotate-0 { transform: rotate(0deg); }
+.rotate-1 { transform: rotate(1deg); }
+.rotate-2 { transform: rotate(2deg); }
+.rotate-3 { transform: rotate(3deg); }
+.rotate-6 { transform: rotate(6deg); }
+.rotate-12 { transform: rotate(12deg); }
+.rotate-45 { transform: rotate(45deg); }
+.rotate-90 { transform: rotate(90deg); }
+.rotate-180 { transform: rotate(180deg); }
+.-rotate-180 { transform: rotate(-180deg); }
+.-rotate-90 { transform: rotate(-90deg); }
+.-rotate-45 { transform: rotate(-45deg); }
+.-rotate-12 { transform: rotate(-12deg); }
+.-rotate-6 { transform: rotate(-6deg); }
+.-rotate-3 { transform: rotate(-3deg); }
+.-rotate-2 { transform: rotate(-2deg); }
+.-rotate-1 { transform: rotate(-1deg); }
+
+/* Translate */
+.translate-x-0 { transform: translateX(0); }
+.translate-x-1 { transform: translateX(0.25rem); }
+.translate-x-2 { transform: translateX(0.5rem); }
+.translate-x-3 { transform: translateX(0.75rem); }
+.translate-x-4 { transform: translateX(1rem); }
+.translate-x-full { transform: translateX(100%); }
+.-translate-x-full { transform: translateX(-100%); }
+.-translate-x-4 { transform: translateX(-1rem); }
+.-translate-x-3 { transform: translateX(-0.75rem); }
+.-translate-x-2 { transform: translateX(-0.5rem); }
+.-translate-x-1 { transform: translateX(-0.25rem); }
+
+.translate-y-0 { transform: translateY(0); }
+.translate-y-1 { transform: translateY(0.25rem); }
+.translate-y-2 { transform: translateY(0.5rem); }
+.translate-y-3 { transform: translateY(0.75rem); }
+.translate-y-4 { transform: translateY(1rem); }
+.translate-y-full { transform: translateY(100%); }
+.-translate-y-full { transform: translateY(-100%); }
+.-translate-y-4 { transform: translateY(-1rem); }
+.-translate-y-3 { transform: translateY(-0.75rem); }
+.-translate-y-2 { transform: translateY(-0.5rem); }
+.-translate-y-1 { transform: translateY(-0.25rem); }
+
+/* Skew */
+.skew-x-0 { transform: skewX(0deg); }
+.skew-x-1 { transform: skewX(1deg); }
+.skew-x-2 { transform: skewX(2deg); }
+.skew-x-3 { transform: skewX(3deg); }
+.skew-x-6 { transform: skewX(6deg); }
+.skew-x-12 { transform: skewX(12deg); }
+.-skew-x-12 { transform: skewX(-12deg); }
+.-skew-x-6 { transform: skewX(-6deg); }
+.-skew-x-3 { transform: skewX(-3deg); }
+.-skew-x-2 { transform: skewX(-2deg); }
+.-skew-x-1 { transform: skewX(-1deg); }
+
+.skew-y-0 { transform: skewY(0deg); }
+.skew-y-1 { transform: skewY(1deg); }
+.skew-y-2 { transform: skewY(2deg); }
+.skew-y-3 { transform: skewY(3deg); }
+.skew-y-6 { transform: skewY(6deg); }
+.skew-y-12 { transform: skewY(12deg); }
+.-skew-y-12 { transform: skewY(-12deg); }
+.-skew-y-6 { transform: skewY(-6deg); }
+.-skew-y-3 { transform: skewY(-3deg); }
+.-skew-y-2 { transform: skewY(-2deg); }
+.-skew-y-1 { transform: skewY(-1deg); }
+
+/* Keyframe Animations */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes ping {
+  75%, 100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+@keyframes pulse {
+  50% { opacity: 0.5; }
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(-25%);
+    animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+  }
+  50% {
+    transform: none;
+    animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes slideInUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes slideInDown {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes zoomIn {
+  from { 
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    opacity: 1;
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes zoomOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes shake {
+  10%, 90% { transform: translate3d(-1px, 0, 0); }
+  20%, 80% { transform: translate3d(2px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+  40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+
+@keyframes flash {
+  0%, 50%, 100% { opacity: 1; }
+  25%, 75% { opacity: 0; }
+}
+
+@keyframes rubberBand {
+  from { transform: scale3d(1, 1, 1); }
+  30% { transform: scale3d(1.25, 0.75, 1); }
+  40% { transform: scale3d(0.75, 1.25, 1); }
+  50% { transform: scale3d(1.15, 0.85, 1); }
+  65% { transform: scale3d(0.95, 1.05, 1); }
+  75% { transform: scale3d(1.05, 0.95, 1); }
+  to { transform: scale3d(1, 1, 1); }
+}
+
+@keyframes heartbeat {
+  0% { transform: scale(1); }
+  14% { transform: scale(1.3); }
+  28% { transform: scale(1); }
+  42% { transform: scale(1.3); }
+  70% { transform: scale(1); }
+}
+
+/* Flash Sale Specific Animations */
+@keyframes flashSaleGlow {
+  0%, 100% { 
+    box-shadow: 0 0 5px var(--primary-blue);
+  }
+  50% { 
+    box-shadow: 0 0 20px var(--primary-blue), 0 0 30px var(--accent-blue);
+  }
+}
+
+@keyframes countdownPulse {
+  0%, 100% {
+    transform: scale(1);
+    background-color: var(--flash-sale-timer-bg);
+  }
+  50% {
+    transform: scale(1.05);
+    background-color: rgba(239, 68, 68, 0.1);
+  }
+}
+
+@keyframes urgentBlink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0.3; }
+}
+
+/* Animation Classes */
+.animate-spin { animation: spin 1s linear infinite; }
+.animate-ping { animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite; }
+.animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+.animate-bounce { animation: bounce 1s infinite; }
+
+.animate-fade-in { animation: fadeIn 0.3s ease-out; }
+.animate-fade-out { animation: fadeOut 0.3s ease-out; }
+
+.animate-slide-in-left { animation: slideInLeft 0.3s ease-out; }
+.animate-slide-in-right { animation: slideInRight 0.3s ease-out; }
+.animate-slide-in-up { animation: slideInUp 0.3s ease-out; }
+.animate-slide-in-down { animation: slideInDown 0.3s ease-out; }
+
+.animate-zoom-in { animation: zoomIn 0.3s ease-out; }
+.animate-zoom-out { animation: zoomOut 0.3s ease-out; }
+
+.animate-shake { animation: shake 0.82s cubic-bezier(0.36, 0.07, 0.19, 0.97) both; }
+.animate-flash { animation: flash 2s infinite; }
+.animate-rubber-band { animation: rubberBand 1s; }
+.animate-heartbeat { animation: heartbeat 1.5s ease-in-out infinite both; }
+
+/* Flash Sale Animations */
+.animate-flash-sale-glow { animation: flashSaleGlow 2s ease-in-out infinite; }
+.animate-countdown-pulse { animation: countdownPulse 1s ease-in-out infinite; }
+.animate-urgent-blink { animation: urgentBlink 0.5s ease-in-out infinite; }
+
+/* Hover Animations */
+.hover-scale:hover { transform: scale(1.05); }
+.hover-scale-sm:hover { transform: scale(1.02); }
+.hover-scale-lg:hover { transform: scale(1.1); }
+
+.hover-lift:hover { 
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.hover-lift-sm:hover { 
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.hover-rotate:hover { transform: rotate(5deg); }
+.hover-rotate-reverse:hover { transform: rotate(-5deg); }
+
+/* Loading Animations */
+.loading-spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 2px solid var(--border-color);
+  border-top: 2px solid var(--primary-blue);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.loading-dots::after {
+  content: '';
+  animation: loadingDots 1.5s infinite;
+}
+
+@keyframes loadingDots {
+  0%, 20% { content: '.'; }
+  40% { content: '..'; }
+  60%, 100% { content: '...'; }
+}
+
+.loading-bar {
+  position: relative;
+  overflow: hidden;
+  background-color: var(--bg-tertiary);
+  border-radius: var(--border-radius-full);
+}
+
+.loading-bar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, transparent, var(--primary-blue), transparent);
+  animation: loadingBar 2s infinite;
+}
+
+@keyframes loadingBar {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+/* Stagger Animation Classes */
+.stagger-children > * {
+  animation-delay: calc(var(--stagger-delay, 100ms) * var(--i, 0));
+}
+
+.stagger-100 { --stagger-delay: 100ms; }
+.stagger-150 { --stagger-delay: 150ms; }
+.stagger-200 { --stagger-delay: 200ms; }
+
+/* Page Transition Animations */
+.page-enter {
+  opacity: 0;
+  transform: translateX(100px);
+}
+
+.page-enter-active {
+  opacity: 1;
+  transform: translateX(0);
+  transition: opacity 300ms, transform 300ms;
+}
+
+.page-exit {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.page-exit-active {
+  opacity: 0;
+  transform: translateX(-100px);
+  transition: opacity 300ms, transform 300ms;
+}
+
+/* Modal Animations */
+.modal-backdrop-enter {
+  opacity: 0;
+}
+
+.modal-backdrop-enter-active {
+  opacity: 1;
+  transition: opacity 200ms ease-out;
+}
+
+.modal-backdrop-exit {
+  opacity: 1;
+}
+
+.modal-backdrop-exit-active {
+  opacity: 0;
+  transition: opacity 200ms ease-in;
+}
+
+.modal-content-enter {
+  opacity: 0;
+  transform: scale(0.9) translateY(-50px);
+}
+
+.modal-content-enter-active {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+  transition: opacity 300ms ease-out, transform 300ms ease-out;
+}
+
+.modal-content-exit {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+.modal-content-exit-active {
+  opacity: 0;
+  transform: scale(0.9) translateY(-50px);
+  transition: opacity 200ms ease-in, transform 200ms ease-in;
+}
+
+/* Dropdown Animations */
+.dropdown-enter {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.dropdown-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 200ms ease-out, transform 200ms ease-out;
+}
+
+.dropdown-exit {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.dropdown-exit-active {
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 150ms ease-in, transform 150ms ease-in;
+}
+
+/* Product Card Animations */
+.product-card-hover {
+  transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+}
+
+.product-card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+
+.product-image-zoom {
+  transition: transform var(--transition-slow);
+}
+
+.product-image-zoom:hover {
+  transform: scale(1.1);
+}
+
+/* Button Animations */
+.btn-click {
+  transition: transform var(--transition-fast);
+}
+
+.btn-click:active {
+  transform: scale(0.98);
+}
+
+.btn-pulse:hover {
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.btn-glow:hover {
+  box-shadow: 0 0 20px rgba(37, 99, 235, 0.5);
+}
+
+/* Cart Animations */
+.cart-add {
+  animation: rubberBand 0.8s;
+}
+
+.cart-remove {
+  animation: zoomOut 0.3s ease-out;
+}
+
+.cart-count-update {
+  animation: bounce 0.6s;
+}
+
+/* Flash Sale Timer Animation */
+.timer-digit {
+  transition: all 0.3s ease;
+}
+
+.timer-urgent {
+  animation: urgentBlink 1s ease-in-out infinite;
+  color: var(--error-color);
+}
+
+.timer-warning {
+  animation: pulse 2s ease-in-out infinite;
+  color: var(--warning-color);
+}
+
+/* Form Animations */
+.form-error-shake {
+  animation: shake 0.5s ease-in-out;
+}
+
+.form-success-glow {
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+  animation: pulse 1s ease-in-out;
+}
+
+/* Notification Animations */
+.notification-slide-in {
+  animation: slideInRight 0.3s ease-out;
+}
+
+.notification-slide-out {
+  animation: slideInRight 0.3s ease-out reverse;
+}
+
+.notification-bounce {
+  animation: bounce 0.5s ease-out;
+}
+
+/* Progress Animations */
+.progress-bar {
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary-blue), var(--accent-blue));
+  transition: width 0.5s ease-out;
+  border-radius: inherit;
+}
+
+.progress-indeterminate::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, transparent, var(--primary-blue), transparent);
+  animation: loadingBar 2s infinite;
+}
+
+/* Skeleton Loading Animations */
+@keyframes skeleton-loading {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-secondary) 50%, var(--bg-tertiary) 75%);
+  background-size: 200px 100%;
+  animation: skeleton-loading 1.5s infinite;
+}
+
+/* Interactive Animations */
+.interactive-hover {
+  transition: all var(--transition-normal);
+}
+
+.interactive-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.interactive-click:active {
+  transform: scale(0.98);
+}
+
+/* E-commerce Specific Animations */
+.add-to-cart-animation {
+  animation: rubberBand 0.6s ease-out;
+}
+
+.price-change-animation {
+  animation: flash 1s ease-out;
+}
+
+.stock-low-animation {
+  animation: pulse 2s ease-in-out infinite;
+  color: var(--warning-color);
+}
+
+.new-badge-animation {
+  animation: bounce 2s ease-in-out infinite;
+}
+
+/* Admin Dashboard Animations */
+.stat-card-hover {
+  transition: all var(--transition-normal);
+}
+
+.stat-card-hover:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-blue);
+}
+
+.admin-action-loading {
+  position: relative;
+  pointer-events: none;
+}
+
+.admin-action-loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 1rem;
+  height: 1rem;
+  margin: -0.5rem 0 0 -0.5rem;
+  border: 2px solid transparent;
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Mobile Specific Animations */
+@media (max-width: 768px) {
+  .hover-scale:hover { transform: none; }
+  .hover-lift:hover { transform: none; }
+  
+  .mobile-tap:active {
+    transform: scale(0.95);
+    transition: transform 0.1s ease;
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .animate-spin,
+  .animate-ping,
+  .animate-pulse,
+  .animate-bounce { 
+    animation: none; 
+  }
+  
+  .hover-scale:hover,
+  .hover-lift:hover,
+  .hover-rotate:hover {
+    transform: none;
+  }
+  
+  .transition-all,
+  .transition-colors,
+  .transition-opacity,
+  .transition-shadow,
+  .transition-transform {
+    transition: none;
+  }
+}
+
+/* Performance Optimized Animations */
+.will-change-transform { will-change: transform; }
+.will-change-opacity { will-change: opacity; }
+.will-change-auto { will-change: auto; }
+
+/* GPU Acceleration */
+.gpu-accelerated {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Animation Delays */
+.delay-75 { animation-delay: 75ms; }
+.delay-100 { animation-delay: 100ms; }
+.delay-150 { animation-delay: 150ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-500 { animation-delay: 500ms; }
+.delay-700 { animation-delay: 700ms; }
+.delay-1000 { animation-delay: 1000ms; }
+
+/* Animation Fill Mode */
+.fill-none { animation-fill-mode: none; }
+.fill-forwards { animation-fill-mode: forwards; }
+.fill-backwards { animation-fill-mode: backwards; }
+.fill-both { animation-fill-mode: both; }
+
+/* Animation Play State */
+.paused { animation-play-state: paused; }
+.running { animation-play-state: running; }

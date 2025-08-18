@@ -1,0 +1,467 @@
+/* FlashSaleTimer.css */
+
+/* Base Timer Styles */
+.flash-sale-timer {
+  background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+  border-radius: 16px;
+  padding: 20px;
+  color: white;
+  box-shadow: 0 8px 32px rgba(255, 107, 107, 0.3);
+  position: relative;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+.flash-sale-timer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  animation: shine 3s infinite;
+}
+
+@keyframes shine {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+/* Size Variations */
+.flash-sale-timer.small {
+  padding: 12px;
+  border-radius: 12px;
+}
+
+.flash-sale-timer.medium {
+  padding: 20px;
+  border-radius: 16px;
+}
+
+.flash-sale-timer.large {
+  padding: 28px;
+  border-radius: 20px;
+}
+
+/* Layout Variations */
+.flash-sale-timer.horizontal .timer-display {
+  flex-direction: row;
+  gap: 8px;
+}
+
+.flash-sale-timer.vertical .timer-display {
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Status Classes */
+.flash-sale-timer.timer-upcoming {
+  background: linear-gradient(135deg, #4834d4, #686de0);
+  box-shadow: 0 8px 32px rgba(72, 52, 212, 0.3);
+}
+
+.flash-sale-timer.timer-running {
+  background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+  box-shadow: 0 8px 32px rgba(255, 107, 107, 0.3);
+}
+
+.flash-sale-timer.timer-expired {
+  background: linear-gradient(135deg, #636e72, #2d3436);
+  box-shadow: 0 8px 32px rgba(99, 110, 114, 0.3);
+}
+
+/* Urgency Classes */
+.flash-sale-timer.critical {
+  background: linear-gradient(135deg, #e55656, #c0392b);
+  animation: pulse 1.5s ease-in-out infinite alternate;
+}
+
+.flash-sale-timer.urgent {
+  background: linear-gradient(135deg, #fd79a8, #e84393);
+  animation: pulse 2s ease-in-out infinite alternate;
+}
+
+.flash-sale-timer.warning {
+  background: linear-gradient(135deg, #fdcb6e, #e17055);
+}
+
+.flash-sale-timer.normal {
+  background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+}
+
+.flash-sale-timer.expired {
+  background: linear-gradient(135deg, #636e72, #2d3436);
+  opacity: 0.8;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); box-shadow: 0 8px 32px rgba(255, 107, 107, 0.3); }
+  100% { transform: scale(1.02); box-shadow: 0 12px 40px rgba(255, 107, 107, 0.5); }
+}
+
+/* Timer Header */
+.timer-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.timer-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.timer-status {
+  font-size: 0.95rem;
+  margin: 0;
+  opacity: 0.9;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Timer Container */
+.timer-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Timer Display */
+.timer-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.time-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  padding: 12px 8px;
+  min-width: 60px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.time-value {
+  font-size: 1.8rem;
+  font-weight: 800;
+  line-height: 1;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.time-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-top: 4px;
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.time-separator {
+  font-size: 1.5rem;
+  font-weight: 700;
+  opacity: 0.6;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0.3; }
+}
+
+/* Expired State */
+.timer-expired-message {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 1.2rem;
+  font-weight: 600;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.expired-icon {
+  font-size: 1.5rem;
+  opacity: 0.8;
+}
+
+.expired-text {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Progress Bar */
+.timer-progress {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #00b894, #00a085);
+  border-radius: 3px;
+  transition: width 1s ease;
+  position: relative;
+}
+
+.progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  animation: progress-shine 2s infinite;
+}
+
+@keyframes progress-shine {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.progress-text {
+  text-align: center;
+  font-size: 0.8rem;
+  margin-top: 8px;
+  opacity: 0.9;
+  font-weight: 500;
+}
+
+/* Timer Messages */
+.timer-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.upcoming-message {
+  background: rgba(116, 185, 255, 0.2);
+  border-color: rgba(116, 185, 255, 0.3);
+}
+
+.urgent-message {
+  background: rgba(255, 193, 7, 0.2);
+  border-color: rgba(255, 193, 7, 0.3);
+  animation: glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes glow {
+  0% { box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3); }
+  100% { box-shadow: 0 4px 16px rgba(255, 193, 7, 0.6); }
+}
+
+.message-icon {
+  font-size: 1rem;
+}
+
+/* Sale Info */
+.sale-info {
+  width: 100%;
+  text-align: center;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.discount-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.discount-text {
+  font-size: 1.1rem;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.max-discount {
+  font-size: 0.8rem;
+  opacity: 0.8;
+  font-weight: 400;
+}
+
+/* Size Responsive Adjustments */
+.flash-sale-timer.small .timer-title {
+  font-size: 1.1rem;
+}
+
+.flash-sale-timer.small .time-value {
+  font-size: 1.4rem;
+}
+
+.flash-sale-timer.small .time-unit {
+  padding: 8px 6px;
+  min-width: 45px;
+}
+
+.flash-sale-timer.small .time-label {
+  font-size: 0.65rem;
+}
+
+.flash-sale-timer.large .timer-title {
+  font-size: 1.8rem;
+}
+
+.flash-sale-timer.large .time-value {
+  font-size: 2.2rem;
+}
+
+.flash-sale-timer.large .time-unit {
+  padding: 16px 12px;
+  min-width: 75px;
+}
+
+.flash-sale-timer.large .time-label {
+  font-size: 0.85rem;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .flash-sale-timer {
+    padding: 16px;
+  }
+
+  .timer-title {
+    font-size: 1.3rem;
+  }
+
+  .time-value {
+    font-size: 1.5rem;
+  }
+
+  .time-unit {
+    min-width: 50px;
+    padding: 10px 6px;
+  }
+
+  .time-label {
+    font-size: 0.7rem;
+  }
+
+  .timer-display {
+    gap: 6px;
+  }
+
+  .time-separator {
+    font-size: 1.2rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .flash-sale-timer {
+    padding: 12px;
+  }
+
+  .timer-title {
+    font-size: 1.1rem;
+  }
+
+  .time-value {
+    font-size: 1.3rem;
+  }
+
+  .time-unit {
+    min-width: 42px;
+    padding: 8px 4px;
+  }
+
+  .time-label {
+    font-size: 0.65rem;
+  }
+
+  .timer-display {
+    gap: 4px;
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  .flash-sale-timer {
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  }
+
+  .time-unit {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .timer-message {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+  .flash-sale-timer {
+    border: 2px solid white;
+  }
+
+  .time-unit {
+    border: 2px solid rgba(255, 255, 255, 0.8);
+  }
+
+  .timer-message {
+    border: 1px solid rgba(255, 255, 255, 0.8);
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .flash-sale-timer::before,
+  .progress-fill::after,
+  .time-separator,
+  .urgent-message {
+    animation: none;
+  }
+
+  .flash-sale-timer.critical,
+  .flash-sale-timer.urgent {
+    animation: none;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .flash-sale-timer {
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+    border: 1px solid #ccc;
+  }
+
+  .time-unit {
+    background: #f5f5f5 !important;
+    border: 1px solid #ddd !important;
+  }
+}

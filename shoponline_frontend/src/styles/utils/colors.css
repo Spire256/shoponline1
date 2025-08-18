@@ -1,0 +1,287 @@
+/* Color Utilities - Blue Palette for Ugandan E-commerce Platform */
+
+/* Background Colors */
+.bg-primary { background-color: var(--bg-primary); }
+.bg-secondary { background-color: var(--bg-secondary); }
+.bg-tertiary { background-color: var(--bg-tertiary); }
+.bg-accent { background-color: var(--bg-accent); }
+
+/* Blue Background Colors */
+.bg-blue { background-color: var(--primary-blue); }
+.bg-blue-dark { background-color: var(--dark-blue); }
+.bg-blue-light { background-color: var(--light-blue); }
+.bg-blue-accent { background-color: var(--accent-blue); }
+.bg-blue-muted { background-color: var(--muted-blue); }
+.bg-blue-pale { background-color: var(--pale-blue); }
+.bg-blue-very-pale { background-color: var(--very-pale-blue); }
+
+/* Status Background Colors */
+.bg-success { background-color: var(--success-color); }
+.bg-success-light { background-color: var(--success-bg); }
+.bg-warning { background-color: var(--warning-color); }
+.bg-warning-light { background-color: var(--warning-bg); }
+.bg-error { background-color: var(--error-color); }
+.bg-error-light { background-color: var(--error-bg); }
+.bg-info { background-color: var(--info-color); }
+.bg-info-light { background-color: var(--info-bg); }
+
+/* Uganda Context Colors */
+.bg-uganda-yellow { background-color: var(--uganda-yellow); }
+.bg-uganda-red { background-color: var(--uganda-red); }
+.bg-uganda-black { background-color: var(--uganda-black); }
+
+/* Mobile Money Colors */
+.bg-mtn { background-color: var(--mtn-primary); }
+.bg-mtn-secondary { background-color: var(--mtn-secondary); }
+.bg-airtel { background-color: var(--airtel-primary); }
+.bg-airtel-secondary { background-color: var(--airtel-secondary); }
+
+/* Gradient Backgrounds */
+.bg-gradient-blue {
+  background: linear-gradient(135deg, var(--primary-blue), var(--accent-blue));
+}
+
+.bg-gradient-blue-dark {
+  background: linear-gradient(135deg, var(--dark-blue), var(--primary-blue));
+}
+
+.bg-gradient-blue-light {
+  background: linear-gradient(135deg, var(--light-blue), var(--muted-blue));
+}
+
+.bg-gradient-flash-sale {
+  background: var(--flash-sale-bg);
+}
+
+/* Text Colors */
+.text-primary { color: var(--text-primary); }
+.text-secondary { color: var(--text-secondary); }
+.text-tertiary { color: var(--text-tertiary); }
+.text-muted { color: var(--text-muted); }
+.text-inverse { color: var(--text-inverse); }
+
+/* Blue Text Colors */
+.text-blue { color: var(--primary-blue); }
+.text-blue-dark { color: var(--dark-blue); }
+.text-blue-light { color: var(--light-blue); }
+.text-blue-accent { color: var(--accent-blue); }
+.text-blue-muted { color: var(--muted-blue); }
+
+/* Status Text Colors */
+.text-success { color: var(--success-color); }
+.text-warning { color: var(--warning-color); }
+.text-error { color: var(--error-color); }
+.text-info { color: var(--info-color); }
+
+/* White and Black */
+.text-white { color: #ffffff; }
+.text-black { color: #000000; }
+.bg-white { background-color: #ffffff; }
+.bg-black { background-color: #000000; }
+.bg-transparent { background-color: transparent; }
+
+/* Border Colors */
+.border-primary { border-color: var(--border-color); }
+.border-light { border-color: var(--border-color-light); }
+.border-dark { border-color: var(--border-color-dark); }
+.border-blue { border-color: var(--primary-blue); }
+.border-blue-light { border-color: var(--light-blue); }
+.border-blue-muted { border-color: var(--muted-blue); }
+
+/* Status Border Colors */
+.border-success { border-color: var(--success-color); }
+.border-warning { border-color: var(--warning-color); }
+.border-error { border-color: var(--error-color); }
+.border-info { border-color: var(--info-color); }
+
+/* Order Status Colors */
+.status-pending {
+  background-color: var(--warning-bg);
+  color: var(--warning-color);
+  border-color: var(--warning-color);
+}
+
+.status-confirmed {
+  background-color: var(--info-bg);
+  color: var(--info-color);
+  border-color: var(--info-color);
+}
+
+.status-processing {
+  background-color: var(--pale-blue);
+  color: var(--primary-blue);
+  border-color: var(--primary-blue);
+}
+
+.status-shipped {
+  background-color: var(--pale-blue);
+  color: var(--accent-blue);
+  border-color: var(--accent-blue);
+}
+
+.status-delivered {
+  background-color: var(--success-bg);
+  color: var(--success-color);
+  border-color: var(--success-color);
+}
+
+.status-cancelled {
+  background-color: var(--error-bg);
+  color: var(--error-color);
+  border-color: var(--error-color);
+}
+
+/* Flash Sale Colors */
+.flash-sale-badge {
+  background: var(--flash-sale-bg);
+  color: white;
+}
+
+.flash-sale-urgent {
+  background-color: var(--flash-sale-urgent);
+  color: white;
+  animation: pulse 1s infinite;
+}
+
+.flash-sale-timer {
+  background-color: var(--flash-sale-timer-bg);
+  color: var(--text-primary);
+  backdrop-filter: blur(10px);
+}
+
+/* Cart Badge Colors */
+.cart-badge {
+  background-color: var(--cart-count-bg);
+  color: white;
+}
+
+.cart-total {
+  background-color: var(--cart-total-bg);
+  color: white;
+}
+
+/* Hover Effects */
+.hover-blue:hover { background-color: var(--primary-blue); color: white; }
+.hover-blue-light:hover { background-color: var(--light-blue); }
+.hover-blue-dark:hover { background-color: var(--dark-blue); }
+
+.hover-text-blue:hover { color: var(--primary-blue); }
+.hover-text-blue-dark:hover { color: var(--dark-blue); }
+
+.hover-border-blue:hover { border-color: var(--primary-blue); }
+
+/* Focus Effects */
+.focus-blue:focus {
+  border-color: var(--primary-blue);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.focus-ring:focus {
+  outline: 2px solid var(--primary-blue);
+  outline-offset: 2px;
+}
+
+/* Active Effects */
+.active-blue {
+  background-color: var(--primary-blue);
+  color: white;
+}
+
+.active-text-blue {
+  color: var(--primary-blue);
+  font-weight: var(--font-semibold);
+}
+
+/* Disabled Colors */
+.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.disabled-bg {
+  background-color: var(--bg-tertiary);
+  color: var(--text-muted);
+}
+
+/* Link Colors */
+.link-blue {
+  color: var(--primary-blue);
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  transition: text-decoration-color var(--transition-normal);
+}
+
+.link-blue:hover {
+  text-decoration-color: var(--primary-blue);
+}
+
+/* Color Opacity Variants */
+.bg-blue-10 { background-color: rgba(37, 99, 235, 0.1); }
+.bg-blue-20 { background-color: rgba(37, 99, 235, 0.2); }
+.bg-blue-30 { background-color: rgba(37, 99, 235, 0.3); }
+.bg-blue-50 { background-color: rgba(37, 99, 235, 0.5); }
+.bg-blue-70 { background-color: rgba(37, 99, 235, 0.7); }
+.bg-blue-90 { background-color: rgba(37, 99, 235, 0.9); }
+
+/* Text Opacity Variants */
+.text-blue-10 { color: rgba(37, 99, 235, 0.1); }
+.text-blue-20 { color: rgba(37, 99, 235, 0.2); }
+.text-blue-30 { color: rgba(37, 99, 235, 0.3); }
+.text-blue-50 { color: rgba(37, 99, 235, 0.5); }
+.text-blue-70 { color: rgba(37, 99, 235, 0.7); }
+.text-blue-90 { color: rgba(37, 99, 235, 0.9); }
+
+/* Special Theme Colors for Uganda */
+.uganda-flag-gradient {
+  background: linear-gradient(
+    to right,
+    var(--uganda-black) 0%,
+    var(--uganda-yellow) 33%,
+    var(--uganda-red) 66%,
+    var(--uganda-black) 100%
+  );
+}
+
+/* Mobile Money Theme Colors */
+.mtn-theme {
+  background-color: var(--mtn-primary);
+  color: var(--mtn-secondary);
+}
+
+.airtel-theme {
+  background-color: var(--airtel-primary);
+  color: var(--airtel-secondary);
+}
+
+/* Interactive States */
+.interactive:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.interactive:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Color Contrast Utilities */
+.high-contrast {
+  filter: contrast(1.2);
+}
+
+.low-contrast {
+  filter: contrast(0.8);
+}
+
+/* Glassmorphism Effect */
+.glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.glass-blue {
+  background: rgba(37, 99, 235, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(37, 99, 235, 0.2);
+}

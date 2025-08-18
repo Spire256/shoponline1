@@ -1,0 +1,476 @@
+/* Analytics.css - Blue theme analytics styles */
+
+/* Base Analytics Styles */
+.analytics-container {
+  @apply min-h-screen bg-gray-50 p-6;
+}
+
+.analytics-header {
+  @apply mb-8;
+}
+
+.analytics-title {
+  @apply text-3xl font-bold text-gray-900 mb-2;
+}
+
+.analytics-subtitle {
+  @apply text-gray-600 text-lg;
+}
+
+/* Stats Cards */
+.stats-card {
+  @apply bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all duration-300;
+}
+
+.stats-card:hover {
+  @apply border-blue-300 shadow-lg transform -translate-y-1;
+}
+
+.stats-card-header {
+  @apply flex items-center justify-between;
+}
+
+.stats-card-content {
+  @apply flex-1;
+}
+
+.stats-card-label {
+  @apply text-sm font-medium text-gray-600 mb-2;
+}
+
+.stats-card-value {
+  @apply text-3xl font-bold text-gray-900 mb-2;
+}
+
+.stats-card-change {
+  @apply flex items-center text-sm font-medium;
+}
+
+.stats-card-change.positive {
+  @apply text-green-600;
+}
+
+.stats-card-change.negative {
+  @apply text-red-600;
+}
+
+.stats-card-icon {
+  @apply p-4 rounded-full flex items-center justify-center;
+}
+
+.stats-card-icon.blue {
+  @apply bg-blue-500;
+}
+
+.stats-card-icon.green {
+  @apply bg-green-500;
+}
+
+.stats-card-icon.purple {
+  @apply bg-purple-500;
+}
+
+.stats-card-icon.yellow {
+  @apply bg-yellow-500;
+}
+
+.stats-card-icon.orange {
+  @apply bg-orange-500;
+}
+
+.stats-card-icon.red {
+  @apply bg-red-500;
+}
+
+/* Chart Containers */
+.chart-container {
+  @apply bg-white rounded-xl shadow-sm border border-gray-200 p-6;
+}
+
+.chart-header {
+  @apply flex justify-between items-center mb-6;
+}
+
+.chart-title {
+  @apply text-xl font-semibold text-gray-900;
+}
+
+.chart-controls {
+  @apply flex gap-2;
+}
+
+.chart-control-button {
+  @apply px-4 py-2 rounded-lg font-medium transition-all duration-200;
+}
+
+.chart-control-button.active {
+  @apply bg-blue-600 text-white shadow-md;
+}
+
+.chart-control-button.inactive {
+  @apply bg-gray-100 text-gray-700 hover:bg-gray-200;
+}
+
+/* Period Selector */
+.period-selector {
+  @apply relative inline-block;
+}
+
+.period-select {
+  @apply px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900;
+}
+
+/* Alert Cards */
+.alert-card {
+  @apply rounded-lg p-4 border-l-4;
+}
+
+.alert-card.warning {
+  @apply bg-yellow-50 border-yellow-400;
+}
+
+.alert-card.info {
+  @apply bg-blue-50 border-blue-400;
+}
+
+.alert-card.error {
+  @apply bg-red-50 border-red-400;
+}
+
+.alert-card.success {
+  @apply bg-green-50 border-green-400;
+}
+
+.alert-card-content {
+  @apply flex items-center;
+}
+
+.alert-card-icon {
+  @apply h-5 w-5 mr-3;
+}
+
+.alert-card-text {
+  @apply font-medium text-gray-800;
+}
+
+.alert-card-value {
+  @apply text-2xl font-bold text-gray-900;
+}
+
+/* Data Tables */
+.analytics-table {
+  @apply min-w-full divide-y divide-gray-200 rounded-lg overflow-hidden;
+}
+
+.analytics-table-header {
+  @apply bg-gray-50;
+}
+
+.analytics-table-header-cell {
+  @apply px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider;
+}
+
+.analytics-table-body {
+  @apply bg-white divide-y divide-gray-200;
+}
+
+.analytics-table-row {
+  @apply hover:bg-gray-50 transition-colors duration-150;
+}
+
+.analytics-table-cell {
+  @apply px-6 py-4 whitespace-nowrap;
+}
+
+.analytics-table-cell-primary {
+  @apply text-sm font-medium text-gray-900;
+}
+
+.analytics-table-cell-secondary {
+  @apply text-sm text-gray-500;
+}
+
+/* Progress Bars */
+.progress-bar-container {
+  @apply w-full bg-gray-200 rounded-full h-3;
+}
+
+.progress-bar {
+  @apply h-3 rounded-full transition-all duration-500 ease-out;
+}
+
+.progress-bar.blue {
+  @apply bg-gradient-to-r from-blue-400 to-blue-600;
+}
+
+.progress-bar.green {
+  @apply bg-gradient-to-r from-green-400 to-green-600;
+}
+
+.progress-bar.yellow {
+  @apply bg-gradient-to-r from-yellow-400 to-yellow-600;
+}
+
+.progress-bar.purple {
+  @apply bg-gradient-to-r from-purple-400 to-purple-600;
+}
+
+/* Insight Cards */
+.insight-card {
+  @apply p-4 rounded-lg text-center;
+}
+
+.insight-card.blue {
+  @apply bg-blue-50;
+}
+
+.insight-card.green {
+  @apply bg-green-50;
+}
+
+.insight-card.purple {
+  @apply bg-purple-50;
+}
+
+.insight-card.orange {
+  @apply bg-orange-50;
+}
+
+.insight-card-value {
+  @apply text-2xl font-bold mb-2;
+}
+
+.insight-card-value.blue {
+  @apply text-blue-600;
+}
+
+.insight-card-value.green {
+  @apply text-green-600;
+}
+
+.insight-card-value.purple {
+  @apply text-purple-600;
+}
+
+.insight-card-value.orange {
+  @apply text-orange-600;
+}
+
+.insight-card-label {
+  @apply text-sm font-medium;
+}
+
+.insight-card-label.blue {
+  @apply text-blue-700;
+}
+
+.insight-card-label.green {
+  @apply text-green-700;
+}
+
+.insight-card-label.purple {
+  @apply text-purple-700;
+}
+
+.insight-card-label.orange {
+  @apply text-orange-700;
+}
+
+.insight-card-description {
+  @apply text-xs;
+}
+
+.insight-card-description.blue {
+  @apply text-blue-600;
+}
+
+.insight-card-description.green {
+  @apply text-green-600;
+}
+
+.insight-card-description.purple {
+  @apply text-purple-600;
+}
+
+.insight-card-description.orange {
+  @apply text-orange-600;
+}
+
+/* Status Badges */
+.status-badge {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+}
+
+.status-badge.active {
+  @apply bg-green-100 text-green-800;
+}
+
+.status-badge.inactive {
+  @apply bg-gray-100 text-gray-800;
+}
+
+.status-badge.vip {
+  @apply bg-yellow-100 text-yellow-800;
+}
+
+.status-badge.premium {
+  @apply bg-blue-100 text-blue-800;
+}
+
+.status-badge.regular {
+  @apply bg-gray-100 text-gray-800;
+}
+
+/* Loading States */
+.analytics-loading {
+  @apply animate-pulse;
+}
+
+.analytics-loading .loading-bar {
+  @apply bg-gray-200 rounded h-8 mb-4;
+}
+
+.analytics-loading .loading-card {
+  @apply bg-gray-200 rounded-lg h-32;
+}
+
+.analytics-loading .loading-chart {
+  @apply bg-gray-200 rounded-lg h-96;
+}
+
+/* Error States */
+.analytics-error {
+  @apply bg-red-50 border border-red-200 rounded-lg p-6;
+}
+
+.analytics-error-content {
+  @apply flex items-start;
+}
+
+.analytics-error-icon {
+  @apply h-5 w-5 text-red-400 mr-3 mt-0.5;
+}
+
+.analytics-error-title {
+  @apply text-sm font-medium text-red-800;
+}
+
+.analytics-error-message {
+  @apply text-sm text-red-700 mt-1;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .analytics-container {
+    @apply p-4;
+  }
+
+  .stats-card {
+    @apply p-4;
+  }
+
+  .stats-card-value {
+    @apply text-2xl;
+  }
+
+  .chart-container {
+    @apply p-4;
+  }
+
+  .chart-header {
+    @apply flex-col items-start gap-4;
+  }
+
+  .chart-controls {
+    @apply w-full justify-start overflow-x-auto;
+  }
+
+  .analytics-table-cell {
+    @apply px-4 py-3;
+  }
+}
+
+@media (max-width: 640px) {
+  .analytics-title {
+    @apply text-2xl;
+  }
+
+  .stats-card-icon {
+    @apply p-3;
+  }
+
+  .chart-control-button {
+    @apply px-3 py-2 text-sm;
+  }
+
+  .insight-card-value {
+    @apply text-xl;
+  }
+}
+
+/* Custom Chart Styles */
+.recharts-wrapper {
+  @apply font-sans;
+}
+
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+  @apply stroke-gray-200;
+}
+
+.recharts-tooltip-wrapper {
+  @apply shadow-lg;
+}
+
+/* Hover Effects */
+.stats-card:hover .stats-card-icon {
+  @apply scale-105 transition-transform duration-200;
+}
+
+.chart-control-button:hover:not(.active) {
+  @apply bg-gray-200 transform scale-105 transition-all duration-200;
+}
+
+.analytics-table-row:hover {
+  @apply bg-blue-50;
+}
+
+/* Animation Classes */
+.fade-in {
+  @apply animate-fadeIn;
+}
+
+.slide-in {
+  @apply animate-slideIn;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Blue Theme Specific Overrides */
+.analytics-primary {
+  @apply bg-blue-600;
+}
+
+.analytics-secondary {
+  @apply bg-blue-50;
+}
+
+.analytics-accent {
+  @apply text-blue-600;
+}
+
+.analytics-border {
+  @apply border-blue-200;
+}
+
+.analytics-hover {
+  @apply hover:border-blue-300 hover:shadow-blue-100;
+}

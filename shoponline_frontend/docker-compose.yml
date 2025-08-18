@@ -1,0 +1,114 @@
+version: '3.8'
+
+services:
+  # Frontend Service
+  frontend:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - REACT_APP_API_BASE_URL=http://localhost:8000/api/v1
+        - REACT_APP_WS_BASE_URL=ws://localhost:8000/ws
+        - REACT_APP_ENVIRONMENT=development
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true
+      - REACT_APP_API_BASE_URL=http://backend:8000/api/v1
+      - REACT_APP_WS_BASE_URL=ws://backend:8000/ws
+      - REACT_APP_DEBUG_MODE=true
+    depends_on:
+      - backend
+    networks:
+      - shoponline-network
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+
+  # Backend Service (assuming it exists)
+  backend:
+    image: shoponline-backend:latest
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=True
+      - DATABASE_URL=postgresql://shoponline:password@postgres:5432/shoponline_db
+      - REDIS_URL=redis://redis:6379/0
+      - CORS_ALLOWED_ORIGINS=http://localhost:3000,http://frontend:3000
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - shoponline-network
+    restart: unless-stopped
+    volumes:
+      - backend_media:/app/media
+      - backend_static:/app/static
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=shoponline_db
+      - POSTGRES_USER=shoponline
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_HOST_AUTH_METHOD=trust
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - shoponline-network
+    restart: unless-stopped
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - shoponline-network
+    restart: unless-stopped
+
+  # Nginx Reverse Proxy (Development)
+  nginx:
+    image: nginx:1.24-alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/dev.conf:/etc/nginx/nginx.conf
+      - backend_static:/usr/share/nginx/html/static
+      - backend_media:/usr/share/nginx/html/media
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - shoponline-network
+    restart: unless-stopped
+
+# Named volumes for data persistence
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  backend_media:
+    driver: local
+  backend_static:
+    driver: local
+
+# Custom network
+networks:
+  shoponline-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

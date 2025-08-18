@@ -1,0 +1,550 @@
+/* Dark Blue Theme Variant for Ugandan E-commerce Platform */
+
+/* Dark Blue Theme Variables */
+.dark-blue-theme {
+  /* Primary Palette - Darker Blues */
+  --primary-blue: #1e40af;
+  --primary-blue-rgb: 30, 64, 175;
+  --dark-blue: #1e3a8a;
+  --dark-blue-rgb: 30, 58, 138;
+  --light-blue: #2563eb;
+  --light-blue-rgb: 37, 99, 235;
+  --accent-blue: #3b82f6;
+  --accent-blue-rgb: 59, 130, 246;
+  --muted-blue: #60a5fa;
+  --muted-blue-rgb: 96, 165, 250;
+  --pale-blue: #93c5fd;
+  --pale-blue-rgb: 147, 197, 253;
+  --very-pale-blue: #dbeafe;
+  --very-pale-blue-rgb: 219, 234, 254;
+
+  /* Dark Background Hierarchy */
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --bg-quaternary: #475569;
+  --bg-accent: #1e3a8a;
+  --bg-hover: rgba(30, 64, 175, 0.1);
+  --bg-active: rgba(30, 64, 175, 0.2);
+
+  /* Dark Text Hierarchy */
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-tertiary: #94a3b8;
+  --text-quaternary: #64748b;
+  --text-muted: #475569;
+  --text-inverse: #0f172a;
+  --text-on-primary: #ffffff;
+  --text-on-secondary: #ffffff;
+
+  /* Dark Border Colors */
+  --border-primary: #334155;
+  --border-secondary: #475569;
+  --border-tertiary: #64748b;
+  --border-focus: var(--light-blue);
+  --border-error: #ef4444;
+  --border-success: #10b981;
+
+  /* Component Backgrounds */
+  --header-bg: var(--bg-primary);
+  --header-border: var(--border-primary);
+  --footer-bg: var(--bg-secondary);
+  --sidebar-bg: var(--bg-primary);
+  --sidebar-border: var(--border-primary);
+  --card-bg: var(--bg-secondary);
+  --card-border: var(--border-primary);
+  --modal-bg: var(--bg-secondary);
+  --modal-backdrop: rgba(0, 0, 0, 0.8);
+
+  /* Interactive States */
+  --hover-bg: var(--bg-hover);
+  --active-bg: var(--bg-active);
+  --focus-ring: 0 0 0 3px rgba(var(--light-blue-rgb), 0.2);
+  --focus-ring-error: 0 0 0 3px rgba(239, 68, 68, 0.2);
+}
+
+/* Dark Blue Theme Application */
+body.dark-blue-theme {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+/* Header Dark Theme */
+.header.dark-blue-theme {
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.header.dark-blue-theme .logo {
+  color: var(--light-blue);
+}
+
+.header.dark-blue-theme .nav-link {
+  color: var(--text-secondary);
+}
+
+.header.dark-blue-theme .nav-link:hover,
+.header.dark-blue-theme .nav-link.active {
+  color: var(--light-blue);
+}
+
+/* Button Dark Theme */
+.btn-primary.dark-blue-theme {
+  background: var(--primary-blue);
+  color: var(--text-on-primary);
+  border: 1px solid var(--primary-blue);
+}
+
+.btn-primary.dark-blue-theme:hover {
+  background: var(--light-blue);
+  border-color: var(--light-blue);
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+}
+
+.btn-secondary.dark-blue-theme {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-primary);
+}
+
+.btn-secondary.dark-blue-theme:hover {
+  background: var(--bg-quaternary);
+  border-color: var(--light-blue);
+}
+
+/* Card Dark Theme */
+.card.dark-blue-theme {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+}
+
+.card.dark-blue-theme:hover {
+  border-color: var(--light-blue);
+  box-shadow: 0 4px 20px rgba(30, 64, 175, 0.3);
+}
+
+/* Product Card Dark Theme */
+.product-card.dark-blue-theme {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+}
+
+.product-card.dark-blue-theme:hover {
+  border-color: var(--light-blue);
+  box-shadow: 0 8px 30px rgba(30, 64, 175, 0.3);
+  transform: translateY(-3px);
+}
+
+.product-price.dark-blue-theme {
+  color: var(--light-blue);
+}
+
+/* Flash Sale Dark Theme */
+.flash-sale-card.dark-blue-theme {
+  background: linear-gradient(135deg, var(--dark-blue), var(--primary-blue));
+  box-shadow: 0 8px 32px rgba(30, 64, 175, 0.4);
+}
+
+.flash-sale-card.dark-blue-theme::before {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+}
+
+.flash-sale-timer.dark-blue-theme {
+  background: rgba(15, 23, 42, 0.9);
+  color: #ef4444;
+  border: 1px solid var(--border-primary);
+}
+
+/* Form Dark Theme */
+.form-input.dark-blue-theme {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  color: var(--text-primary);
+}
+
+.form-input.dark-blue-theme:focus {
+  border-color: var(--light-blue);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.form-input.dark-blue-theme::placeholder {
+  color: var(--text-quaternary);
+}
+
+/* Admin Dashboard Dark Theme */
+.admin-sidebar.dark-blue-theme {
+  background: var(--bg-primary);
+  border-right: 1px solid var(--border-primary);
+}
+
+.admin-sidebar-item.dark-blue-theme {
+  color: var(--text-secondary);
+}
+
+.admin-sidebar-item.dark-blue-theme:hover {
+  background: var(--bg-hover);
+  color: var(--light-blue);
+}
+
+.admin-sidebar-item.active.dark-blue-theme {
+  background: rgba(30, 64, 175, 0.2);
+  color: var(--light-blue);
+  border-right: 3px solid var(--light-blue);
+}
+
+.admin-stat-card.dark-blue-theme {
+  background: linear-gradient(135deg, var(--dark-blue), var(--primary-blue));
+  border: 1px solid var(--border-primary);
+}
+
+/* Table Dark Theme */
+.table.dark-blue-theme {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+}
+
+.table.dark-blue-theme th {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.table.dark-blue-theme tr:hover {
+  background: var(--bg-hover);
+}
+
+/* Modal Dark Theme */
+.modal.dark-blue-theme {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+}
+
+.modal-backdrop.dark-blue-theme {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+/* Dropdown Dark Theme */
+.dropdown.dark-blue-theme {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.dropdown-item.dark-blue-theme:hover {
+  background: var(--bg-hover);
+  color: var(--light-blue);
+}
+
+/* Search Dark Theme */
+.search-input.dark-blue-theme {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  color: var(--text-primary);
+}
+
+.search-input.dark-blue-theme::placeholder {
+  color: var(--text-quaternary);
+}
+
+.search-results.dark-blue-theme {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+}
+
+/* Payment Method Dark Theme */
+.payment-method.dark-blue-theme {
+  background: var(--bg-tertiary);
+  border: 2px solid var(--border-primary);
+}
+
+.payment-method.selected.dark-blue-theme {
+  border-color: var(--light-blue);
+  background: rgba(59, 130, 246, 0.1);
+}
+
+/* Notification Dark Theme */
+.notification.dark-blue-theme {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-left: 4px solid var(--light-blue);
+}
+
+/* Loading Dark Theme */
+.loading-spinner.dark-blue-theme {
+  border-color: var(--border-primary);
+  border-top-color: var(--light-blue);
+}
+
+.loading-overlay.dark-blue-theme {
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(4px);
+}
+
+/* Category Dark Theme */
+.category-card.dark-blue-theme {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+}
+
+.category-card.dark-blue-theme:hover {
+  border-color: var(--light-blue);
+  box-shadow: 0 8px 30px rgba(30, 64, 175, 0.4);
+}
+
+/* Cart Dark Theme */
+.cart-item.dark-blue-theme {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+}
+
+.cart-total.dark-blue-theme {
+  background: rgba(30, 64, 175, 0.2);
+  color: var(--light-blue);
+}
+
+/* Checkout Dark Theme */
+.checkout-step.dark-blue-theme {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+}
+
+.checkout-step.active.dark-blue-theme {
+  background: rgba(30, 64, 175, 0.2);
+  border-color: var(--light-blue);
+}
+
+/* Badge Dark Theme */
+.badge.dark-blue-theme {
+  background: var(--primary-blue);
+  color: white;
+}
+
+.badge-secondary.dark-blue-theme {
+  background: var(--bg-quaternary);
+  color: var(--text-secondary);
+}
+
+/* Alert Dark Theme */
+.alert-info.dark-blue-theme {
+  background: rgba(30, 64, 175, 0.1);
+  color: var(--light-blue);
+  border-left-color: var(--light-blue);
+}
+
+/* Toggle Dark Theme */
+.toggle.dark-blue-theme {
+  background: var(--bg-quaternary);
+}
+
+.toggle.checked.dark-blue-theme {
+  background: var(--primary-blue);
+}
+
+/* Checkbox Dark Theme */
+.checkbox.dark-blue-theme {
+  border: 2px solid var(--border-primary);
+  background: var(--bg-tertiary);
+}
+
+.checkbox.checked.dark-blue-theme {
+  background: var(--primary-blue);
+  border-color: var(--primary-blue);
+}
+
+/* Radio Dark Theme */
+.radio.dark-blue-theme {
+  border: 2px solid var(--border-primary);
+  background: var(--bg-tertiary);
+}
+
+.radio.checked.dark-blue-theme {
+  border-color: var(--light-blue);
+}
+
+.radio.checked.dark-blue-theme::after {
+  background: var(--light-blue);
+}
+
+/* Slider Dark Theme */
+.slider.dark-blue-theme {
+  background: var(--bg-quaternary);
+}
+
+.slider-track.dark-blue-theme {
+  background: var(--primary-blue);
+}
+
+.slider-thumb.dark-blue-theme {
+  background: var(--light-blue);
+  border: 2px solid var(--bg-primary);
+}
+
+/* Tab Dark Theme */
+.tab.dark-blue-theme {
+  color: var(--text-secondary);
+  border-bottom: 2px solid transparent;
+}
+
+.tab.active.dark-blue-theme {
+  color: var(--light-blue);
+  border-bottom-color: var(--light-blue);
+}
+
+/* Breadcrumb Dark Theme */
+.breadcrumb.dark-blue-theme {
+  color: var(--text-tertiary);
+}
+
+.breadcrumb-link.dark-blue-theme {
+  color: var(--light-blue);
+}
+
+/* Filter Dark Theme */
+.filter-container.dark-blue-theme {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+}
+
+.filter-chip.dark-blue-theme {
+  background: var(--bg-quaternary);
+  color: var(--text-secondary);
+}
+
+.filter-chip.active.dark-blue-theme {
+  background: var(--primary-blue);
+  color: white;
+}
+
+/* Pagination Dark Theme */
+.pagination.dark-blue-theme {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+}
+
+.pagination-item.dark-blue-theme {
+  color: var(--text-secondary);
+}
+
+.pagination-item.dark-blue-theme:hover {
+  background: var(--bg-hover);
+  color: var(--light-blue);
+}
+
+.pagination-item.active.dark-blue-theme {
+  background: var(--primary-blue);
+  color: white;
+}
+
+/* Special Effects for Dark Theme */
+.glow-effect.dark-blue-theme {
+  box-shadow: 0 0 20px rgba(30, 64, 175, 0.5);
+}
+
+.glass-effect.dark-blue-theme {
+  background: rgba(30, 58, 138, 0.1);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+/* Uganda Context in Dark Theme */
+.uganda-accent.dark-blue-theme {
+  border-left: 4px solid var(--uganda-yellow);
+  background: rgba(252, 220, 0, 0.05);
+}
+
+/* Mobile Money Dark Theme */
+.mtn-payment.dark-blue-theme {
+  background: linear-gradient(135deg, #ffcc00, #1e3a8a);
+  color: var(--text-primary);
+  border: 1px solid rgba(255, 204, 0, 0.3);
+}
+
+.airtel-payment.dark-blue-theme {
+  background: linear-gradient(135deg, #ed1c24, var(--bg-tertiary));
+  color: var(--text-primary);
+  border: 1px solid rgba(237, 28, 36, 0.3);
+}
+
+/* Dark Theme Specific Animations */
+@keyframes darkGlow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(30, 64, 175, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(30, 64, 175, 0.6), 0 0 40px rgba(59, 130, 246, 0.3);
+  }
+}
+
+.flash-sale-card.dark-blue-theme {
+  background: linear-gradient(135deg, var(--dark-blue), var(--primary-blue));
+  animation: darkGlow 3s ease-in-out infinite;
+}
+
+/* Scrollbar Dark Theme */
+.dark-blue-theme ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dark-blue-theme ::-webkit-scrollbar-track {
+  background: var(--bg-tertiary);
+}
+
+.dark-blue-theme ::-webkit-scrollbar-thumb {
+  background: var(--primary-blue);
+  border-radius: 4px;
+}
+
+.dark-blue-theme ::-webkit-scrollbar-thumb:hover {
+  background: var(--light-blue);
+}
+
+/* Selection Dark Theme */
+.dark-blue-theme ::selection {
+  background-color: var(--primary-blue);
+  color: white;
+}
+
+.dark-blue-theme ::-moz-selection {
+  background-color: var(--primary-blue);
+  color: white;
+}
+
+/* Focus States Dark Theme */
+.dark-blue-theme *:focus-visible {
+  outline: 2px solid var(--light-blue);
+  outline-offset: 2px;
+}
+
+/* Link Dark Theme */
+.dark-blue-theme a {
+  color: var(--light-blue);
+}
+
+.dark-blue-theme a:hover {
+  color: var(--accent-blue);
+}
+
+/* Code Dark Theme */
+.dark-blue-theme code {
+  background: var(--bg-quaternary);
+  color: var(--light-blue);
+  border: 1px solid var(--border-primary);
+}
+
+.dark-blue-theme pre {
+  background: var(--bg-quaternary);
+  border: 1px solid var(--border-primary);
+}
+
+/* Responsive Dark Theme Adjustments */
+@media (max-width: 768px) {
+  .dark-blue-theme .header {
+    background: var(--bg-primary);
+  }
+  
+  .dark-blue-theme .modal {
+    margin: var(--space-lg);
+  }
+}

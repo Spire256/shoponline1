@@ -1,0 +1,412 @@
+/* App.css - Application specific styles */
+
+.App {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-secondary);
+}
+
+/* App loading states */
+.app-loading {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-light) 100%);
+}
+
+.app-loading-content {
+  text-align: center;
+  color: var(--text-white);
+}
+
+.app-loading-spinner {
+  width: 60px;
+  height: 60px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top: 4px solid var(--text-white);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto var(--spacing-md);
+}
+
+.app-loading-text {
+  font-size: var(--text-lg);
+  font-weight: 500;
+  margin-bottom: var(--spacing-sm);
+}
+
+.app-loading-subtext {
+  font-size: var(--text-sm);
+  opacity: 0.8;
+}
+
+/* Route transition animations */
+.route-transition-enter {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.route-transition-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 300ms ease-out, transform 300ms ease-out;
+}
+
+.route-transition-exit {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.route-transition-exit-active {
+  opacity: 0;
+  transform: translateY(-20px);
+  transition: opacity 300ms ease-in, transform 300ms ease-in;
+}
+
+/* App-wide scroll behavior */
+.app-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Main content area */
+.main-content {
+  flex: 1;
+  padding-top: var(--spacing-lg);
+  padding-bottom: var(--spacing-2xl);
+}
+
+/* Page wrapper styles */
+.page-wrapper {
+  min-height: calc(100vh - 140px); /* Account for header and footer */
+  display: flex;
+  flex-direction: column;
+}
+
+.page-content {
+  flex: 1;
+  padding: var(--spacing-lg) 0;
+}
+
+/* Blue theme page backgrounds */
+.page-blue-gradient {
+  background: linear-gradient(135deg, var(--pale-blue) 0%, var(--light-blue) 50%, var(--bg-secondary) 100%);
+  min-height: 100vh;
+}
+
+.page-blue-subtle {
+  background-color: var(--bg-blue-subtle);
+}
+
+/* Admin specific app styles */
+.admin-app {
+  background-color: var(--bg-tertiary);
+}
+
+.admin-main-content {
+  margin-left: 250px; /* Account for sidebar */
+  padding: var(--spacing-lg);
+  min-height: calc(100vh - 60px); /* Account for admin header */
+  transition: margin-left var(--transition-normal);
+}
+
+@media (max-width: 1024px) {
+  .admin-main-content {
+    margin-left: 0;
+    padding: var(--spacing-md);
+  }
+}
+
+/* Error boundary styles */
+.error-boundary {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-secondary);
+  padding: var(--spacing-xl);
+}
+
+.error-boundary-content {
+  text-align: center;
+  max-width: 500px;
+}
+
+.error-boundary-icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto var(--spacing-lg);
+  color: var(--error);
+}
+
+.error-boundary-title {
+  font-size: var(--text-2xl);
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-md);
+}
+
+.error-boundary-message {
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-lg);
+  line-height: 1.6;
+}
+
+.error-boundary-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  justify-content: center;
+}
+
+/* Offline indicator */
+.offline-indicator {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background-color: var(--warning);
+  color: var(--text-white);
+  text-align: center;
+  padding: var(--spacing-sm);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  z-index: var(--z-fixed);
+  transform: translateY(-100%);
+  transition: transform var(--transition-normal);
+}
+
+.offline-indicator.show {
+  transform: translateY(0);
+}
+
+/* Update available notification */
+.update-notification {
+  position: fixed;
+  bottom: var(--spacing-lg);
+  right: var(--spacing-lg);
+  background-color: var(--primary-blue);
+  color: var(--text-white);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  max-width: 300px;
+  z-index: var(--z-modal);
+  animation: slideInUp 0.3s ease-out;
+}
+
+.update-notification-content {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.update-notification-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.update-notification-text {
+  flex: 1;
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+.update-notification-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-sm);
+}
+
+.update-notification-btn {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-white);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.update-notification-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.update-notification-btn.primary {
+  background-color: var(--text-white);
+  color: var(--primary-blue);
+  border-color: var(--text-white);
+}
+
+.update-notification-btn.primary:hover {
+  background-color: var(--bg-secondary);
+}
+
+/* Toast notifications positioning */
+.toast-container {
+  position: fixed;
+  top: var(--spacing-lg);
+  right: var(--spacing-lg);
+  z-index: var(--z-modal);
+  pointer-events: none;
+}
+
+.toast-container > * {
+  pointer-events: auto;
+}
+
+/* Global scroll styles for consistency */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary-blue-lighter) var(--bg-tertiary);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--primary-blue-lighter);
+  border-radius: var(--radius-sm);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-blue);
+}
+
+/* Page animations */
+@keyframes slideInUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* App-wide responsive adjustments */
+@media (max-width: 768px) {
+  .main-content {
+    padding-top: var(--spacing-md);
+    padding-bottom: var(--spacing-xl);
+  }
+  
+  .page-content {
+    padding: var(--spacing-md) 0;
+  }
+  
+  .update-notification {
+    bottom: var(--spacing-md);
+    right: var(--spacing-md);
+    left: var(--spacing-md);
+    max-width: none;
+  }
+  
+  .toast-container {
+    top: var(--spacing-md);
+    right: var(--spacing-md);
+    left: var(--spacing-md);
+  }
+}
+
+@media (max-width: 480px) {
+  .error-boundary {
+    padding: var(--spacing-md);
+  }
+  
+  .error-boundary-actions {
+    flex-direction: column;
+  }
+  
+  .app-loading-content {
+    padding: var(--spacing-md);
+  }
+}
+
+/* Performance optimizations */
+.gpu-accelerated {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* Focus management for accessibility */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 6px;
+  background: var(--primary-blue);
+  color: var(--text-white);
+  padding: 8px;
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  z-index: var(--z-modal);
+  transition: top var(--transition-fast);
+}
+
+.skip-link:focus {
+  top: 6px;
+}
+
+/* Print styles for the entire app */
+@media print {
+  .App {
+    background: white !important;
+  }
+  
+  .no-print,
+  .admin-sidebar,
+  .notification-center,
+  .toast-container,
+  .update-notification,
+  .offline-indicator {
+    display: none !important;
+  }
+  
+  .main-content,
+  .admin-main-content {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+}
