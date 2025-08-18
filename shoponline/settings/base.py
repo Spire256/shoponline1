@@ -10,11 +10,11 @@ from datetime import timedelta
 from django.core.exceptions import ImproperlyConfigured
 from decouple import config
 
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-from django.core.exceptions import ImproperlyConfigured
-from decouple import config
+
 
 def get_env_variable(var_name, default=None):
     try:
