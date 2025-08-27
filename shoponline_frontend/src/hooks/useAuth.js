@@ -33,14 +33,25 @@ export const useAuth = () => {
     isClient,
   } = context;
 
-  // Enhanced login with error handling and loading state management
+  // Enhanced login with proper credentials object handling
   const loginUser = useCallback(
     async credentials => {
       try {
-        const result = await login(credentials.email, credentials.password);
+        // Handle both object and separate parameter formats
+        let loginCredentials;
+        if (typeof credentials === 'object' && credentials.email && credentials.password) {
+          loginCredentials = credentials;
+        } else if (typeof credentials === 'string') {
+          // Handle case where email and password are separate parameters
+          const password = arguments[1];
+          loginCredentials = { email: credentials, password };
+        } else {
+          throw new Error('Invalid credentials format');
+        }
+
+        const result = await login(loginCredentials);
 
         if (result.success) {
-          // Could add analytics tracking here
           console.log('User logged in successfully');
           return result;
         } else {
@@ -48,32 +59,42 @@ export const useAuth = () => {
         }
       } catch (error) {
         console.error('Login error in hook:', error);
-        return { success: false, error: 'Login failed' };
+        return { success: false, error: error.message || 'Login failed' };
       }
     },
     [login]
   );
 
-  // Enhanced register client with validation
+  // Enhanced register client with proper validation
   const registerClientUser = useCallback(
     async userData => {
       try {
+        // Map form fields to API format
+        const mappedData = {
+          email: userData.email,
+          first_name: userData.firstName || userData.first_name,
+          last_name: userData.lastName || userData.last_name,
+          password: userData.password,
+          password_confirm: userData.passwordConfirm || userData.password_confirm,
+          phone_number: userData.phoneNumber || userData.phone_number || '',
+        };
+
         // Basic validation
-        if (!userData.email?.endsWith('@gmail.com')) {
+        if (!mappedData.email?.endsWith('@gmail.com')) {
           return {
             success: false,
             error: { email: ['Only @gmail.com emails are allowed for client registration'] },
           };
         }
 
-        if (userData.password !== userData.password_confirm) {
+        if (mappedData.password !== mappedData.password_confirm) {
           return {
             success: false,
-            error: { password: ['Passwords do not match'] },
+            error: { password_confirm: ['Passwords do not match'] },
           };
         }
 
-        const result = await registerClient(userData);
+        const result = await registerClient(mappedData);
 
         if (result.success) {
           console.log('Client registered successfully');
@@ -82,34 +103,41 @@ export const useAuth = () => {
         return result;
       } catch (error) {
         console.error('Registration error in hook:', error);
-        return { success: false, error: 'Registration failed' };
+        return { success: false, error: error.message || 'Registration failed' };
       }
     },
     [registerClient]
   );
 
-  // Enhanced register admin with invitation validation
+  // Enhanced register admin with proper token handling
   const registerAdminUser = useCallback(
     async userData => {
       try {
-        // Validate invitation token first
-        const invitationResult = await validateInvitation(userData.invitation_token);
+        // Map form fields to API format
+        const mappedData = {
+          first_name: userData.firstName || userData.first_name,
+          last_name: userData.lastName || userData.last_name,
+          password: userData.password,
+          password_confirm: userData.passwordConfirm || userData.password_confirm,
+          invitation_token: userData.invitationToken || userData.invitation_token,
+        };
 
-        if (!invitationResult.success) {
+        // Validate required fields
+        if (!mappedData.invitation_token) {
           return {
             success: false,
-            error: { invitation_token: [invitationResult.error] },
+            error: { invitation_token: ['Invitation token is required'] },
           };
         }
 
-        if (userData.password !== userData.password_confirm) {
+        if (mappedData.password !== mappedData.password_confirm) {
           return {
             success: false,
-            error: { password: ['Passwords do not match'] },
+            error: { password_confirm: ['Passwords do not match'] },
           };
         }
 
-        const result = await registerAdmin(userData);
+        const result = await registerAdmin(mappedData);
 
         if (result.success) {
           console.log('Admin registered successfully');
@@ -118,34 +146,41 @@ export const useAuth = () => {
         return result;
       } catch (error) {
         console.error('Admin registration error in hook:', error);
-        return { success: false, error: 'Admin registration failed' };
+        return { success: false, error: error.message || 'Admin registration failed' };
       }
     },
-    [registerAdmin, validateInvitation]
+    [registerAdmin]
   );
 
-  // Enhanced logout with cleanup
+  // Enhanced logout with proper cleanup
   const logoutUser = useCallback(async () => {
     try {
       await logout();
-
-      // Clear any additional app state if needed
-      // Could dispatch events to other contexts here
       console.log('User logged out successfully');
-
       return { success: true };
     } catch (error) {
       console.error('Logout error in hook:', error);
-      // Still clear local state even if server logout fails
+      // Still return success since local cleanup should happen regardless
       return { success: true };
     }
   }, [logout]);
 
-  // Update profile with optimistic updates
+  // Update profile with proper data mapping
   const updateUserProfile = useCallback(
     async profileData => {
       try {
-        const result = await updateProfile(profileData);
+        // Handle both FormData and regular object
+        let updateData = profileData;
+
+        // If it's FormData, convert to regular object for processing
+        if (profileData instanceof FormData) {
+          updateData = {};
+          for (let [key, value] of profileData.entries()) {
+            updateData[key] = value;
+          }
+        }
+
+        const result = await updateProfile(updateData);
 
         if (result.success) {
           console.log('Profile updated successfully');
@@ -154,13 +189,13 @@ export const useAuth = () => {
         return result;
       } catch (error) {
         console.error('Profile update error in hook:', error);
-        return { success: false, error: 'Failed to update profile' };
+        return { success: false, error: error.message || 'Failed to update profile' };
       }
     },
     [updateProfile]
   );
 
-  // Check if user has specific permission
+  // Check if user has specific permission (basic implementation)
   const hasPermission = useCallback(
     permission => {
       if (!isAuthenticated || !user) return false;
@@ -168,9 +203,19 @@ export const useAuth = () => {
       // Admin users have all permissions
       if (isAdmin()) return true;
 
-      // Add specific permission logic here
-      const userPermissions = user.permissions || [];
-      return userPermissions.includes(permission);
+      // Basic permission mapping - expand as needed
+      const clientPermissions = [
+        'view_profile',
+        'edit_profile',
+        'place_orders',
+        'view_orders',
+        'make_payments',
+        'view_products',
+        'view_categories',
+        'view_flash_sales',
+      ];
+
+      return clientPermissions.includes(permission);
     },
     [isAuthenticated, user, isAdmin]
   );
@@ -191,6 +236,10 @@ export const useAuth = () => {
 
     if (user.first_name && user.last_name) {
       return `${user.first_name} ${user.last_name}`;
+    }
+
+    if (user.full_name) {
+      return user.full_name;
     }
 
     return user.email || '';
@@ -216,9 +265,12 @@ export const useAuth = () => {
     if (!accessToken) return false;
 
     try {
-      // Decode JWT token to check expiry
-      const tokenPayload = JSON.parse(atob(accessToken.split('.')[1]));
-      const expiryTime = tokenPayload.exp * 1000; // Convert to milliseconds
+      // Simple JWT decode - just get the payload
+      const tokenParts = accessToken.split('.');
+      if (tokenParts.length !== 3) return true;
+
+      const payload = JSON.parse(atob(tokenParts[1]));
+      const expiryTime = payload.exp * 1000; // Convert to milliseconds
       const currentTime = Date.now();
       const fiveMinutes = 5 * 60 * 1000;
 
@@ -263,8 +315,11 @@ export const useAuth = () => {
     }
 
     try {
-      // Make a test API call to validate token
-      const response = await fetch('/api/accounts/profile/', {
+      // Get the base URL from environment
+      const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+      const apiUrl = baseUrl.includes('/api/v1') ? baseUrl : `${baseUrl}/api/v1`;
+
+      const response = await fetch(`${apiUrl}/auth/profile/`, {
         headers: getAuthHeader(),
       });
 
@@ -294,6 +349,24 @@ export const useAuth = () => {
     clearError();
   }, [clearError]);
 
+  // Enhanced invitation validation
+  const validateInvitationToken = useCallback(
+    async token => {
+      try {
+        if (!token) {
+          return { success: false, error: 'Token is required' };
+        }
+
+        const result = await validateInvitation(token);
+        return result;
+      } catch (error) {
+        console.error('Invitation validation error:', error);
+        return { success: false, error: error.message || 'Failed to validate invitation' };
+      }
+    },
+    [validateInvitation]
+  );
+
   return {
     // State
     user,
@@ -310,7 +383,7 @@ export const useAuth = () => {
     registerAdmin: registerAdminUser,
     logout: logoutUser,
     updateProfile: updateUserProfile,
-    validateInvitation,
+    validateInvitation: validateInvitationToken,
     clearError: clearAuthError,
 
     // Permission Checks

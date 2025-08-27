@@ -2,16 +2,290 @@
 @tailwind components;
 @tailwind utilities;
 
-.layout {
-  background-color: #f8fafc; /* Light Background */
+/* CSS Variables aligned with your blue theme */
+:root {
+  --primary-blue: #2563eb;
+  --primary-blue-dark: #1e40af;
+  --primary-blue-light: #3b82f6;
+  --white: #ffffff;
+  --gray-50: #f8fafc;
+  --gray-100: #f1f5f9;
+  --gray-200: #e2e8f0;
+  --gray-300: #cbd5e1;
+  --gray-400: #94a3b8;
+  --gray-500: #64748b;
+  --gray-600: #475569;
+  --gray-700: #334155;
+  --gray-800: #1e293b;
+  --shadow-md: 0 4px 6px -1px rgba(37, 99, 235, 0.1), 0 2px 4px -1px rgba(37, 99, 235, 0.06);
+  --transition-normal: 300ms ease-in-out;
+  --header-height: 80px; /* Adjust this value to match your actual header height */
 }
 
-.layout main {
-  background-color: #ffffff; /* White for main content */
+/* Layout Structure */
+.layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--gray-50);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.layout-body {
+  display: flex;
+  flex: 1;
+  position: relative;
+  min-height: calc(100vh - var(--header-height) - 60px); /* Account for header and footer */
+}
+
+/* Sidebar positioning - now starts below header */
+.sidebar {
+  position: fixed;
+  top: var(--header-height); /* Start below header */
+  left: 0;
+  height: calc(100vh - var(--header-height)); /* Full height minus header */
+  z-index: 100;
+  background-color: var(--white);
+  border-right: 1px solid var(--gray-200);
+  box-shadow: var(--shadow-md);
+  transition: all var(--transition-normal);
+  overflow-y: auto; /* Allow scrolling if content is too tall */
+}
+
+/* Sidebar width states */
+.sidebar.expanded {
+  width: 17rem; /* 272px */
+}
+
+.sidebar.collapsed {
+  width: 4.5rem; /* 72px */
+}
+
+/* Main Content Area */
+.main-content {
+  flex: 1;
+  background-color: var(--white);
+  transition: margin-left var(--transition-normal);
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Sidebar positioning adjustments for main content */
+.main-content.with-sidebar.sidebar-expanded {
+  margin-left: 17rem; /* 272px - matches expanded sidebar width */
+}
+
+.main-content.with-sidebar.sidebar-collapsed {
+  margin-left: 4.5rem; /* 72px - matches collapsed sidebar width */
+}
+
+.main-content.without-sidebar {
+  margin-left: 0;
+}
+
+/* Content container */
+.content-container {
+  flex: 1;
+  padding: 2rem 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* Override Tailwind container for better spacing */
+.content-container .container {
+  max-width: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Breadcrumb styling */
+.breadcrumb-container {
+  background: var(--white);
+  border-bottom: 1px solid var(--gray-200);
+  padding: 1rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .main-content.with-sidebar.sidebar-expanded {
+    margin-left: 15rem; /* 240px for tablets */
+  }
+  
+  .sidebar.expanded {
+    width: 15rem; /* 240px for tablets */
+  }
 }
 
 @media (max-width: 768px) {
+  .layout-body {
+    flex-direction: row; /* Keep horizontal layout */
+    position: relative;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: var(--header-height);
+    left: 0;
+    height: calc(100vh - var(--header-height));
+    z-index: 1000; /* Higher z-index for mobile overlay */
+    transform: translateX(-100%); /* Hide by default on mobile */
+    transition: transform var(--transition-normal);
+  }
+
+  /* Show sidebar when expanded on mobile */
+  .sidebar.expanded {
+    transform: translateX(0);
+    width: 16rem; /* 256px for mobile */
+  }
+
+  .sidebar.collapsed {
+    transform: translateX(-100%); /* Hide collapsed sidebar on mobile */
+  }
+
+  .main-content.with-sidebar.sidebar-expanded,
+  .main-content.with-sidebar.sidebar-collapsed {
+    margin-left: 0; /* Remove margin on mobile - sidebar becomes overlay */
+  }
+
+  .content-container {
+    padding: 1rem;
+  }
+
+  /* Overlay effect when sidebar is open on mobile */
+  .layout-body::before {
+    content: '';
+    position: fixed;
+    top: var(--header-height);
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    opacity: 0;
+    visibility: hidden;
+    transition: all var(--transition-normal);
+  }
+
+  /* Show overlay when sidebar is expanded on mobile */
+  .layout-body.sidebar-open::before {
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
+@media (max-width: 480px) {
+  .content-container {
+    padding: 0.75rem;
+  }
+  
+  .sidebar.expanded {
+    width: 14rem; /* 224px for small mobile */
+  }
+}
+
+/* HomePage specific adjustments */
+.homepage {
+  background-color: var(--gray-50);
+  margin: 0;
+  width: 100%;
+}
+
+.homepage .container {
+  max-width: 100%;
+  padding: 0 1rem;
+}
+
+/* Hero section adjustments for layout */
+.hero-section {
+  margin: -2rem -1rem 0 -1rem; /* Extend to edges */
+}
+
+.hero-section .container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+/* Section spacing adjustments */
+.featured-products,
+.category-showcase,
+.testimonials-section,
+.flash-sales-homepage {
+  margin-left: -1rem;
+  margin-right: -1rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+/* Newsletter section full width */
+.newsletter-section {
+  margin: 2rem -1rem 0 -1rem;
+}
+
+/* Ensure consistent spacing */
+.section-header,
+.products-grid,
+.categories-grid,
+.flash-products-grid,
+.testimonials-container {
+  width: 100%;
+}
+
+/* Fix any overflow issues */
+.main-content {
+  overflow-x: hidden;
+}
+
+/* Smooth transitions for layout changes */
+.layout-body > * {
+  transition: all var(--transition-normal);
+}
+
+/* Ensure sidebar content is visible and scrollable */
+.sidebar-content {
+  padding: 1rem;
+  height: 100%;
+  overflow-y: auto;
+}
+
+/* Print styles */
+@media print {
+  .layout-body {
+    display: block;
+  }
+  
+  .main-content {
+    margin-left: 0;
+  }
+  
+  .sidebar {
+    display: none;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
   .layout {
-    flex-direction: column;
+    border: 2px solid var(--gray-800);
+  }
+  
+  .main-content {
+    border: 1px solid var(--gray-800);
+  }
+  
+  .sidebar {
+    border: 2px solid var(--gray-800);
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .main-content,
+  .layout-body > *,
+  .layout-body::before,
+  .sidebar {
+    transition: none;
   }
 }

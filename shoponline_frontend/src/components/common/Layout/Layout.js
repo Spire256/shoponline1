@@ -1,16 +1,16 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Header from '../Header/Header';
 import Footer from '../Footer/Footer';
 import Sidebar from './Sidebar';
 import Breadcrumb from './Breadcrumb';
-//import AuthContext from '../../contexts/AuthContext';
 import AuthContext from '../../../contexts/AuthContext';
 import './Layout.css';
 
 const Layout = () => {
   const { user, isAuthenticated } = useContext(AuthContext);
   const location = useLocation();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Determine if current route is admin
   const isAdminRoute = location.pathname.startsWith('/admin');
@@ -21,23 +21,41 @@ const Layout = () => {
   // Show breadcrumb on non-root and non-admin routes
   const showBreadcrumb = location.pathname !== '/' && !isAdminRoute;
 
+  // Handle sidebar toggle
+  const handleSidebarToggle = (collapsed) => {
+    setSidebarCollapsed(collapsed);
+  };
+
   return (
-    <div className="layout min-h-screen flex flex-col">
+    <div className="layout">
+      {/* Header spans full width */}
       <Header />
-      <div className="flex flex-1">
+      
+      {/* Main content area with sidebar and content */}
+      <div className="layout-body">
         {showSidebar && (
-          <Sidebar isAdmin={isAdminRoute && isAuthenticated && user?.role === 'admin'} />
+          <Sidebar 
+            isAdmin={isAdminRoute && isAuthenticated && user?.role === 'admin'}
+            onToggle={handleSidebarToggle}
+          />
         )}
-        <main className="flex-1">
+        
+        {/* Main content area */}
+        <main 
+          className={`main-content ${showSidebar ? 'with-sidebar' : 'without-sidebar'} ${
+            sidebarCollapsed ? 'sidebar-collapsed' : 'sidebar-expanded'
+          }`}
+        >
           {showBreadcrumb && <Breadcrumb />}
-          <div className="container mx-auto px-4 py-8"> 
+          <div className="content-container">
             <Outlet />
           </div>
         </main>
       </div>
+      
       <Footer />
     </div>
   );
 };
-// Layout.css
+
 export default Layout;

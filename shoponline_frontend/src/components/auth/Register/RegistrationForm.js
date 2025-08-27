@@ -52,7 +52,7 @@ const RegistrationForm = ({
       }
     }
 
-    // Password confirmation
+    // Password confirmation - Fixed to use correct field name
     if (field.name === 'password_confirm') {
       if (value !== formData.password) {
         return 'Passwords do not match';
@@ -120,6 +120,7 @@ const RegistrationForm = ({
     setTouched(allTouched);
 
     if (validateForm()) {
+      // Submit form with proper field names for backend
       onSubmit(formData);
     }
   };

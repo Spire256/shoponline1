@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import RegistrationForm from './RegistrationForm';
-import invitationAPI from '../../../services/api/invitationAPI';
 
 const AdminRegister = () => {
   const [loading, setLoading] = useState(false);
@@ -11,7 +10,7 @@ const AdminRegister = () => {
   const [success, setSuccess] = useState('');
   const [invitationData, setInvitationData] = useState(null);
   const [token, setToken] = useState('');
-  const { registerAdmin } = useAuth();
+  const { registerAdmin, validateInvitation } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -28,11 +27,11 @@ const AdminRegister = () => {
     setError('');
 
     try {
-      const response = await invitationAPI.validateInvitation(invitationToken);
-      if (response.data.valid) {
+      const response = await validateInvitation(invitationToken);
+      if (response.success && response.data.valid) {
         setInvitationData(response.data);
       } else {
-        setError(response.data.error || 'Invalid invitation token');
+        setError(response.error || 'Invalid invitation token');
       }
     } catch (err) {
       setError('Failed to validate invitation. Please check the link.');
@@ -56,7 +55,10 @@ const AdminRegister = () => {
 
     try {
       const registrationData = {
-        ...formData,
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        password: formData.password,
+        password_confirm: formData.password_confirm,
         invitation_token: token,
       };
 
@@ -69,7 +71,21 @@ const AdminRegister = () => {
           navigate('/admin/dashboard');
         }, 2000);
       } else {
-        setError(response.error || 'Registration failed. Please try again.');
+        // Handle different types of errors from backend
+        if (typeof response.error === 'object' && response.error !== null) {
+          // Field-specific validation errors
+          const errorMessages = [];
+          Object.entries(response.error).forEach(([field, messages]) => {
+            if (Array.isArray(messages)) {
+              messages.forEach(msg => errorMessages.push(`${field}: ${msg}`));
+            } else {
+              errorMessages.push(`${field}: ${messages}`);
+            }
+          });
+          setError(errorMessages.join(', '));
+        } else {
+          setError(response.error || 'Registration failed. Please try again.');
+        }
       }
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
@@ -176,10 +192,39 @@ const AdminRegister = () => {
         <div className="register-note">
           <div className="note-icon">ℹ️</div>
           <div className="note-content">
-            <strong>Admin Access Required:</strong> You need a valid invitation token existing admin
-            to create an admin account.
+            <strong>Admin Access Required:</strong> You need a valid invitation token from an
+            existing admin to create an admin account.
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (error && !invitationData) {
+    return (
+      <div className="admin-register">
+        <div className="register-intro">
+          <h3 className="register-type-title">Admin Registration</h3>
+          <p className="register-type-description">
+            There was an issue with your invitation.
+          </p>
+        </div>
+
+        <div className="error-alert">
+          <div className="error-icon">⚠</div>
+          <span className="error-message">{error}</span>
+        </div>
+
+        <button 
+          onClick={() => {
+            setError('');
+            setToken('');
+            setInvitationData(null);
+          }} 
+          className="retry-button"
+        >
+          Try Again
+        </button>
       </div>
     );
   }
@@ -237,8 +282,8 @@ const AdminRegister = () => {
       <div className="register-note">
         <div className="note-icon">🛡️</div>
         <div className="note-content">
-          <strong>Admin Account:</strong> You'll have access to the admin dashboard products,
-          orders, and platform content.
+          <strong>Admin Account:</strong> You'll have access to the admin dashboard, manage
+          products, orders, and platform content.
         </div>
       </div>
     </div>

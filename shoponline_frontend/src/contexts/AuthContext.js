@@ -24,7 +24,7 @@ const initialState = {
   isAuthenticated: false,
   isLoading: true,
   error: null,
-  role: null, // 'admin' or 'client'
+  role: null,
 };
 
 // Auth reducer
@@ -80,7 +80,7 @@ const authReducer = (state, action) => {
       return {
         ...state,
         accessToken: action.payload.access,
-        refreshToken: action.payload.refresh,
+        refreshToken: action.payload.refresh || state.refreshToken,
       };
 
     case AUTH_ACTIONS.SET_LOADING:
@@ -107,10 +107,40 @@ const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
+  // Get API base URL
+  const getAPIBaseURL = () => {
+    const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+    return baseUrl.includes('/api/v1') ? baseUrl : `${baseUrl}/api/v1`;
+  };
+
   // Initialize auth state from localStorage on mount
   useEffect(() => {
     checkAuthStatus();
   }, []);
+
+  // Clear authentication storage
+  const clearAuthStorage = () => {
+    const keysToRemove = [
+      'user',
+      'accessToken',
+      'access_token',
+      'refreshToken',
+      'refresh_token',
+    ];
+    
+    keysToRemove.forEach(key => {
+      localStorage.removeItem(key);
+    });
+  };
+
+  // Store tokens with multiple keys for compatibility
+  const storeTokens = (user, tokens) => {
+    localStorage.setItem('user', JSON.stringify(user));
+    localStorage.setItem('accessToken', tokens.access);
+    localStorage.setItem('access_token', tokens.access);
+    localStorage.setItem('refreshToken', tokens.refresh);
+    localStorage.setItem('refresh_token', tokens.refresh);
+  };
 
   // Check authentication status function
   const checkAuthStatus = async () => {
@@ -123,10 +153,7 @@ export const AuthProvider = ({ children }) => {
 
       if (userData && accessToken && refreshToken) {
         const user = JSON.parse(userData);
-
-        // Get the base URL from environment
-        const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
-        const apiUrl = baseUrl.includes('/api/v1') ? baseUrl : `${baseUrl}/api/v1`;
+        const apiUrl = getAPIBaseURL();
 
         // Verify token is still valid by making a test request
         try {
@@ -151,17 +178,15 @@ export const AuthProvider = ({ children }) => {
             // Token expired, try to refresh
             const refreshResult = await refreshTokenMethod();
             if (!refreshResult.success) {
-              // Refresh failed, clear storage and set unauthenticated
               clearAuthStorage();
               dispatch({ type: AUTH_ACTIONS.LOGOUT });
             }
           } else {
-            // Other error, clear storage
             clearAuthStorage();
             dispatch({ type: AUTH_ACTIONS.LOGOUT });
           }
         } catch (error) {
-          // Network error or other issues, try with stored data
+          // Network error, use stored data
           console.warn('Auth check failed, using stored data:', error);
           dispatch({
             type: AUTH_ACTIONS.LOGIN_SUCCESS,
@@ -172,7 +197,6 @@ export const AuthProvider = ({ children }) => {
           });
         }
       } else {
-        // No stored auth data
         dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
       }
     } catch (error) {
@@ -181,30 +205,12 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Clear authentication storage
-  const clearAuthStorage = () => {
-    const keysToRemove = [
-      'user',
-      'accessToken',
-      'access_token',
-      'refreshToken',
-      'refresh_token',
-    ];
-    
-    keysToRemove.forEach(key => {
-      localStorage.removeItem(key);
-    });
-  };
-
-  // FIXED: Login function now accepts credentials object
+  // Login function - Fixed to match backend expectations
   const login = async (credentials) => {
     dispatch({ type: AUTH_ACTIONS.LOGIN_START });
 
     try {
-      // Get the base URL from environment
-      const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
-      const apiUrl = baseUrl.includes('/api/v1') ? baseUrl : `${baseUrl}/api/v1`;
-
+      const apiUrl = getAPIBaseURL();
       const response = await fetch(`${apiUrl}/auth/login/`, {
         method: 'POST',
         headers: {
@@ -219,12 +225,7 @@ export const AuthProvider = ({ children }) => {
       const data = await response.json();
 
       if (response.ok) {
-        // Store tokens and user data using multiple keys for compatibility
-        localStorage.setItem('user', JSON.stringify(data.user));
-        localStorage.setItem('accessToken', data.tokens.access);
-        localStorage.setItem('access_token', data.tokens.access);
-        localStorage.setItem('refreshToken', data.tokens.refresh);
-        localStorage.setItem('refresh_token', data.tokens.refresh);
+        storeTokens(data.user, data.tokens);
 
         dispatch({
           type: AUTH_ACTIONS.LOGIN_SUCCESS,
@@ -233,11 +234,12 @@ export const AuthProvider = ({ children }) => {
 
         return { success: true, user: data.user, data };
       } else {
+        const errorMessage = data.detail || data.error || 'Login failed';
         dispatch({
           type: AUTH_ACTIONS.LOGIN_FAILURE,
-          payload: data.error || data.detail || 'Login failed',
+          payload: errorMessage,
         });
-        return { success: false, error: data.error || data.detail || 'Login failed' };
+        return { success: false, error: errorMessage };
       }
     } catch (error) {
       const errorMessage = 'Network error. Please try again.';
@@ -249,31 +251,30 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Register client function
+  // Register client function - Fixed to match backend field names
   const registerClient = async (userData) => {
     dispatch({ type: AUTH_ACTIONS.REGISTER_START });
 
     try {
-      const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
-      const apiUrl = baseUrl.includes('/api/v1') ? baseUrl : `${baseUrl}/api/v1`;
-
+      const apiUrl = getAPIBaseURL();
       const response = await fetch(`${apiUrl}/auth/register/client/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(userData),
+        body: JSON.stringify({
+          email: userData.email,
+          first_name: userData.first_name || userData.firstName,
+          last_name: userData.last_name || userData.lastName,
+          password: userData.password,
+          password_confirm: userData.password_confirm || userData.passwordConfirm,
+        }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        // Store tokens and user data
-        localStorage.setItem('user', JSON.stringify(data.user));
-        localStorage.setItem('accessToken', data.tokens.access);
-        localStorage.setItem('access_token', data.tokens.access);
-        localStorage.setItem('refreshToken', data.tokens.refresh);
-        localStorage.setItem('refresh_token', data.tokens.refresh);
+        storeTokens(data.user, data.tokens);
 
         dispatch({
           type: AUTH_ACTIONS.REGISTER_SUCCESS,
@@ -284,7 +285,7 @@ export const AuthProvider = ({ children }) => {
       } else {
         dispatch({
           type: AUTH_ACTIONS.REGISTER_FAILURE,
-          payload: data.error || 'Registration failed',
+          payload: data,
         });
         return { success: false, error: data };
       }
@@ -298,31 +299,30 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Register admin function
+  // Register admin function - Fixed to match backend field names
   const registerAdmin = async (userData) => {
     dispatch({ type: AUTH_ACTIONS.REGISTER_START });
 
     try {
-      const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
-      const apiUrl = baseUrl.includes('/api/v1') ? baseUrl : `${baseUrl}/api/v1`;
-
+      const apiUrl = getAPIBaseURL();
       const response = await fetch(`${apiUrl}/auth/register/admin/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(userData),
+        body: JSON.stringify({
+          first_name: userData.first_name || userData.firstName,
+          last_name: userData.last_name || userData.lastName,
+          password: userData.password,
+          password_confirm: userData.password_confirm || userData.passwordConfirm,
+          invitation_token: userData.invitation_token || userData.invitationToken,
+        }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        // Store tokens and user data
-        localStorage.setItem('user', JSON.stringify(data.user));
-        localStorage.setItem('accessToken', data.tokens.access);
-        localStorage.setItem('access_token', data.tokens.access);
-        localStorage.setItem('refreshToken', data.tokens.refresh);
-        localStorage.setItem('refresh_token', data.tokens.refresh);
+        storeTokens(data.user, data.tokens);
 
         dispatch({
           type: AUTH_ACTIONS.REGISTER_SUCCESS,
@@ -333,7 +333,7 @@ export const AuthProvider = ({ children }) => {
       } else {
         dispatch({
           type: AUTH_ACTIONS.REGISTER_FAILURE,
-          payload: data.error || 'Registration failed',
+          payload: data,
         });
         return { success: false, error: data };
       }
@@ -350,13 +350,11 @@ export const AuthProvider = ({ children }) => {
   // Logout function
   const logout = async () => {
     try {
-      // Call logout endpoint to blacklist refresh token
       const refreshTokenValue = localStorage.getItem('refreshToken') || localStorage.getItem('refresh_token');
       const accessToken = localStorage.getItem('accessToken') || localStorage.getItem('access_token');
       
       if (refreshTokenValue) {
-        const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
-        const apiUrl = baseUrl.includes('/api/v1') ? baseUrl : `${baseUrl}/api/v1`;
+        const apiUrl = getAPIBaseURL();
 
         await fetch(`${apiUrl}/auth/logout/`, {
           method: 'POST',
@@ -370,7 +368,6 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      // Clear localStorage and state
       clearAuthStorage();
       dispatch({ type: AUTH_ACTIONS.LOGOUT });
     }
@@ -384,9 +381,7 @@ export const AuthProvider = ({ children }) => {
         throw new Error('No refresh token available');
       }
 
-      const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
-      const apiUrl = baseUrl.includes('/api/v1') ? baseUrl : `${baseUrl}/api/v1`;
-
+      const apiUrl = getAPIBaseURL();
       const response = await fetch(`${apiUrl}/auth/token/refresh/`, {
         method: 'POST',
         headers: {
@@ -412,7 +407,6 @@ export const AuthProvider = ({ children }) => {
 
         return { success: true, accessToken: data.access };
       } else {
-        // Refresh token is invalid, logout user
         logout();
         return { success: false, error: 'Session expired' };
       }
@@ -427,8 +421,7 @@ export const AuthProvider = ({ children }) => {
   const updateProfile = async (profileData) => {
     try {
       const accessToken = localStorage.getItem('accessToken') || localStorage.getItem('access_token');
-      const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
-      const apiUrl = baseUrl.includes('/api/v1') ? baseUrl : `${baseUrl}/api/v1`;
+      const apiUrl = getAPIBaseURL();
 
       const response = await fetch(`${apiUrl}/auth/profile/`, {
         method: 'PATCH',
@@ -442,7 +435,6 @@ export const AuthProvider = ({ children }) => {
       const data = await response.json();
 
       if (response.ok) {
-        // Update user data in localStorage
         const updatedUser = { ...state.user, ...data };
         localStorage.setItem('user', JSON.stringify(updatedUser));
 
@@ -464,9 +456,7 @@ export const AuthProvider = ({ children }) => {
   // Validate invitation token
   const validateInvitation = async (token) => {
     try {
-      const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
-      const apiUrl = baseUrl.includes('/api/v1') ? baseUrl : `${baseUrl}/api/v1`;
-
+      const apiUrl = getAPIBaseURL();
       const response = await fetch(`${apiUrl}/auth/invitations/validate/${token}/`);
       const data = await response.json();
       return response.ok ? { success: true, data } : { success: false, error: data.error };

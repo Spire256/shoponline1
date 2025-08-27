@@ -2,7 +2,7 @@
 import apiClient, { handleApiResponse, handleApiError, buildQueryString } from './apiClient';
 
 const invitationAPI = {
-  // Get all invitations (admin only)
+  // Get all invitations (admin only) - Fixed endpoint path
   getInvitations: async (params = {}) => {
     try {
       const queryString = buildQueryString(params);
@@ -14,10 +14,12 @@ const invitationAPI = {
     }
   },
 
-  // Create new admin invitation (admin only)
+  // Create new admin invitation (admin only) - Fixed to match backend expectations
   createInvitation: async invitationData => {
     try {
-      const response = await apiClient.post('/auth/invitations/', invitationData);
+      const response = await apiClient.post('/auth/invitations/', {
+        email: invitationData.email
+      });
       return handleApiResponse(response);
     } catch (error) {
       throw handleApiError(error);
@@ -34,18 +36,8 @@ const invitationAPI = {
     }
   },
 
-  // Update invitation (admin only)
-  updateInvitation: async (invitationId, updateData) => {
-    try {
-      const response = await apiClient.patch(`/auth/invitations/${invitationId}/`, updateData);
-      return handleApiResponse(response);
-    } catch (error) {
-      throw handleApiError(error);
-    }
-  },
-
-  // Delete invitation (admin only)
-  deleteInvitation: async invitationId => {
+  // Cancel/Delete invitation (admin only) - Fixed method name
+  cancelInvitation: async invitationId => {
     try {
       const response = await apiClient.delete(`/auth/invitations/${invitationId}/`);
       return handleApiResponse(response);
@@ -54,7 +46,7 @@ const invitationAPI = {
     }
   },
 
-  // Validate invitation token
+  // Validate invitation token - Fixed to match backend endpoint
   validateInvitation: async token => {
     try {
       const response = await apiClient.get(`/auth/invitations/validate/${token}/`);
@@ -64,130 +56,12 @@ const invitationAPI = {
     }
   },
 
-  // Cancel invitation (admin only)
-  cancelInvitation: async invitationId => {
-    try {
-      const response = await apiClient.post(`/auth/invitations/${invitationId}/cancel/`);
-      return handleApiResponse(response);
-    } catch (error) {
-      throw handleApiError(error);
-    }
-  },
-
-  // Resend invitation (admin only)
-  resendInvitation: async invitationId => {
-    try {
-      const response = await apiClient.post(`/auth/invitations/${invitationId}/resend/`);
-      return handleApiResponse(response);
-    } catch (error) {
-      throw handleApiError(error);
-    }
-  },
-
-  // Bulk invite admins (admin only)
-  bulkInvite: async invitationsData => {
-    try {
-      const response = await apiClient.post('/auth/invitations/bulk/', {
-        invitations: invitationsData,
-      });
-      return handleApiResponse(response);
-    } catch (error) {
-      throw handleApiError(error);
-    }
-  },
-
-  // Get invitation statistics (admin only)
-  getInvitationStats: async () => {
-    try {
-      const response = await apiClient.get('/auth/invitations/stats/');
-      return handleApiResponse(response);
-    } catch (error) {
-      throw handleApiError(error);
-    }
-  },
-
-  // Get pending invitations count (admin only)
-  getPendingCount: async () => {
-    try {
-      const response = await apiClient.get('/auth/invitations/pending-count/');
-      return handleApiResponse(response);
-    } catch (error) {
-      throw handleApiError(error);
-    }
-  },
-
-  // Bulk actions on invitations (admin only)
-  bulkAction: async (action, invitationIds) => {
-    try {
-      const response = await apiClient.post('/auth/invitations/bulk-action/', {
-        action,
-        invitation_ids: invitationIds,
-      });
-      return handleApiResponse(response);
-    } catch (error) {
-      throw handleApiError(error);
-    }
-  },
-
-  // Check if email can be invited
-  checkEmailAvailability: async email => {
-    try {
-      const response = await apiClient.post('/auth/invitations/check-email/', { email });
-      return handleApiResponse(response);
-    } catch (error) {
-      throw handleApiError(error);
-    }
-  },
-
-  // Get invitation by token (for registration page)
-  getInvitationByToken: async token => {
-    try {
-      const response = await apiClient.get(`/auth/invitations/token/${token}/`);
-      return handleApiResponse(response);
-    } catch (error) {
-      throw handleApiError(error);
-    }
-  },
-
-  // Accept invitation and complete registration
-  acceptInvitation: async (token, userData) => {
-    try {
-      const response = await apiClient.post(`/auth/invitations/${token}/accept/`, userData);
-      return handleApiResponse(response);
-    } catch (error) {
-      throw handleApiError(error);
-    }
-  },
-
-  // Decline invitation
-  declineInvitation: async token => {
-    try {
-      const response = await apiClient.post(`/auth/invitations/${token}/decline/`);
-      return handleApiResponse(response);
-    } catch (error) {
-      throw handleApiError(error);
-    }
-  },
-
-  // Get invitation history for an email
-  getInvitationHistory: async email => {
-    try {
-      const response = await apiClient.get(
-        `/auth/invitations/history/?email=${encodeURIComponent(email)}`
-      );
-      return handleApiResponse(response);
-    } catch (error) {
-      throw handleApiError(error);
-    }
-  },
-
-  // Utility functions
+  // Utility functions for frontend display
   formatInvitationData: invitation => {
     return {
       id: invitation.id,
       email: invitation.email,
       status: invitation.status,
-      statusDisplay: invitation.status_display,
       isExpired: invitation.is_expired,
       isValid: invitation.is_valid,
       invitedBy: invitation.invited_by_name,

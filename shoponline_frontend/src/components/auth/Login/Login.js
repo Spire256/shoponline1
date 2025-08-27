@@ -29,7 +29,8 @@ const Login = () => {
           navigate(from, { replace: true });
         }
       } else {
-        setError(response.error || 'Login failed. Please try again.');
+        // Handle specific error messages from backend
+        setError(response.error || 'Login failed. Please check your credentials.');
       }
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
@@ -46,9 +47,12 @@ const Login = () => {
           <div className="login-header">
             <div className="logo-container">
               <img
-                src="/assets/images/logo/logo-blue.svg.jpg"
+                src="/assets/images/logo/logo-blue.svg"
                 alt="ShopOnline Uganda"
                 className="login-logo"
+                onError={e => {
+                  e.target.src = '/favicon.ico'; // Fallback image
+                }}
               />
             </div>
             <h1 className="login-title">Welcome Back</h1>
@@ -113,7 +117,7 @@ const Login = () => {
                 <span>Flash Sales</span>
               </div>
               <div className="feature-item">
-                <div className="feature-icon">🛡️</div>
+                <div className="feature-icon">🛡</div>
                 <span>Secure Shopping</span>
               </div>
             </div>

@@ -15,13 +15,11 @@ class Category(BaseModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(
         max_length=100,
-        unique=True,
         validators=[MinLengthValidator(2)],
-        help_text="Category name (must be unique)"
+        help_text="Category name"
     )
     slug = models.SlugField(
         max_length=120,
-        unique=True,
         blank=True,
         help_text="URL-friendly version of the name (auto-generated)"
     )
@@ -71,24 +69,28 @@ class Category(BaseModel):
         verbose_name = 'Category'
         verbose_name_plural = 'Categories'
         ordering = ['sort_order', 'name']
+        # Remove unique constraint from model level since BaseModel handles soft deletes
+        # The uniqueness will be enforced in clean() method for active records only
         indexes = [
             models.Index(fields=['slug']),
             models.Index(fields=['is_active']),
             models.Index(fields=['featured']),
             models.Index(fields=['parent']),
             models.Index(fields=['sort_order']),
+            models.Index(fields=['name']),  # Add index for name lookups
         ]
 
     def __str__(self):
         return self.name
 
     def save(self, *args, **kwargs):
-        """Auto-generate slug if not provided"""
+        """Auto-generate slug if not provided and handle uniqueness"""
         if not self.slug:
             base_slug = slugify(self.name)
             slug = base_slug
             counter = 1
-            while Category.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+            # Only check against active (non-deleted) categories for slug uniqueness
+            while self.__class__.objects.filter(slug=slug).exclude(pk=self.pk).exists():
                 slug = f"{base_slug}-{counter}"
                 counter += 1
             self.slug = slug
@@ -162,7 +164,7 @@ class Category(BaseModel):
         """Get featured products from this category"""
         return self.products.filter(
             is_active=True,
-            featured=True
+            is_featured=True
         ).order_by('-created_at')[:limit]
 
     def can_be_deleted(self):
@@ -185,6 +187,24 @@ class Category(BaseModel):
     def clean(self):
         """Custom validation"""
         from django.core.exceptions import ValidationError
+        
+        # Check for name uniqueness among active (non-deleted) categories
+        # This handles the soft delete scenario properly
+        queryset = self.__class__.objects.filter(name__iexact=self.name)
+        if self.pk:
+            queryset = queryset.exclude(pk=self.pk)
+        
+        if queryset.exists():
+            raise ValidationError({'name': 'Category with this name already exists.'})
+        
+        # Check for slug uniqueness among active (non-deleted) categories
+        if self.slug:
+            slug_queryset = self.__class__.objects.filter(slug=self.slug)
+            if self.pk:
+                slug_queryset = slug_queryset.exclude(pk=self.pk)
+            
+            if slug_queryset.exists():
+                raise ValidationError({'slug': 'Category with this slug already exists.'})
         
         # Prevent self-referencing
         if self.parent == self:

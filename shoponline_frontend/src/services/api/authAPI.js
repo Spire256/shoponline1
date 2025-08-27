@@ -1,24 +1,19 @@
 // src/services/api/authAPI.js
 import apiClient, { handleApiResponse, handleApiError } from './apiClient';
 
-// Enhanced token management with multiple fallbacks (aligned with apiClient.js)
+// Enhanced token management with multiple fallbacks
 const getAccessToken = () => {
-  // Try multiple storage locations
   const sources = [
-    localStorage.getItem('access_token'),
     localStorage.getItem('accessToken'),
-    localStorage.getItem(process.env.REACT_APP_SESSION_STORAGE_KEY),
-    localStorage.getItem(process.env.REACT_APP_LOCAL_STORAGE_KEY)
+    localStorage.getItem('access_token'),
   ];
 
   for (const source of sources) {
     if (source) {
       try {
-        // Try to parse as JSON first
         const parsed = JSON.parse(source);
         return parsed.access || parsed.access_token || parsed.accessToken;
       } catch (e) {
-        // If not JSON, assume it's a plain token string
         return source;
       }
     }
@@ -28,10 +23,8 @@ const getAccessToken = () => {
 
 const getRefreshToken = () => {
   const sources = [
-    localStorage.getItem('refresh_token'),
     localStorage.getItem('refreshToken'),
-    localStorage.getItem(process.env.REACT_APP_SESSION_STORAGE_KEY),
-    localStorage.getItem(process.env.REACT_APP_LOCAL_STORAGE_KEY)
+    localStorage.getItem('refresh_token'),
   ];
 
   for (const source of sources) {
@@ -40,7 +33,6 @@ const getRefreshToken = () => {
         const parsed = JSON.parse(source);
         return parsed.refresh || parsed.refresh_token || parsed.refreshToken;
       } catch (e) {
-        // If not JSON and this is from refresh_token key, use as is
         if (source === localStorage.getItem('refresh_token') || 
             source === localStorage.getItem('refreshToken')) {
           return source;
@@ -51,59 +43,27 @@ const getRefreshToken = () => {
   return null;
 };
 
-// Store tokens with multiple storage locations
+// Store tokens with multiple keys for compatibility
 const storeTokens = (accessToken, refreshToken) => {
-  // Store with primary keys
   if (accessToken) {
+    localStorage.setItem('accessToken', accessToken);
     localStorage.setItem('access_token', accessToken);
-    localStorage.setItem('accessToken', accessToken); // Legacy support
   }
   if (refreshToken) {
+    localStorage.setItem('refreshToken', refreshToken);
     localStorage.setItem('refresh_token', refreshToken);
-    localStorage.setItem('refreshToken', refreshToken); // Legacy support
-  }
-
-  // Update other storage locations if they exist
-  if (process.env.REACT_APP_SESSION_STORAGE_KEY) {
-    try {
-      const existingData = localStorage.getItem(process.env.REACT_APP_SESSION_STORAGE_KEY);
-      const data = existingData ? JSON.parse(existingData) : {};
-      if (accessToken) data.access = accessToken;
-      if (refreshToken) data.refresh = refreshToken;
-      localStorage.setItem(process.env.REACT_APP_SESSION_STORAGE_KEY, JSON.stringify(data));
-    } catch (e) {
-      if (accessToken) {
-        localStorage.setItem(process.env.REACT_APP_SESSION_STORAGE_KEY, accessToken);
-      }
-    }
-  }
-
-  if (process.env.REACT_APP_LOCAL_STORAGE_KEY) {
-    try {
-      const existingData = localStorage.getItem(process.env.REACT_APP_LOCAL_STORAGE_KEY);
-      const data = existingData ? JSON.parse(existingData) : {};
-      if (accessToken) data.access = accessToken;
-      if (refreshToken) data.refresh = refreshToken;
-      localStorage.setItem(process.env.REACT_APP_LOCAL_STORAGE_KEY, JSON.stringify(data));
-    } catch (e) {
-      if (accessToken) {
-        localStorage.setItem(process.env.REACT_APP_LOCAL_STORAGE_KEY, accessToken);
-      }
-    }
   }
 };
 
 // Clear all tokens from all storage locations
 const clearAllTokens = () => {
   const keysToRemove = [
-    'access_token',
-    'accessToken', 
-    'refresh_token',
+    'accessToken',
+    'access_token', 
     'refreshToken',
+    'refresh_token',
     'user',
-    process.env.REACT_APP_SESSION_STORAGE_KEY,
-    process.env.REACT_APP_LOCAL_STORAGE_KEY
-  ].filter(Boolean);
+  ];
   
   keysToRemove.forEach(key => {
     localStorage.removeItem(key);
@@ -111,34 +71,76 @@ const clearAllTokens = () => {
 };
 
 const authAPI = {
-  // Client Registration
+  // Client Registration - Fixed to match backend field names
   registerClient: async userData => {
     try {
-      const response = await apiClient.post('/auth/register/client/', userData);
-      return handleApiResponse(response);
+      const response = await apiClient.post('/auth/register/client/', {
+        email: userData.email,
+        first_name: userData.first_name,
+        last_name: userData.last_name,
+        password: userData.password,
+        password_confirm: userData.password_confirm,
+      });
+      
+      const data = handleApiResponse(response);
+      
+      // Store tokens and user data
+      if (data.tokens) {
+        storeTokens(data.tokens.access, data.tokens.refresh);
+      }
+      
+      if (data.user) {
+        localStorage.setItem('user', JSON.stringify(data.user));
+      }
+      
+      return data;
     } catch (error) {
       throw handleApiError(error);
     }
   },
 
-  // Admin Registration (with invitation token)
+  // Admin Registration - Fixed to match backend field names
   registerAdmin: async userData => {
     try {
-      const response = await apiClient.post('/auth/register/admin/', userData);
-      return handleApiResponse(response);
+      const response = await apiClient.post('/auth/register/admin/', {
+        first_name: userData.first_name,
+        last_name: userData.last_name,
+        password: userData.password,
+        password_confirm: userData.password_confirm,
+        invitation_token: userData.invitation_token,
+      });
+      
+      const data = handleApiResponse(response);
+      
+      // Store tokens and user data
+      if (data.tokens) {
+        storeTokens(data.tokens.access, data.tokens.refresh);
+      }
+      
+      if (data.user) {
+        localStorage.setItem('user', JSON.stringify(data.user));
+      }
+      
+      return data;
     } catch (error) {
       throw handleApiError(error);
     }
   },
 
-  // Login
+  // Login - Fixed to match backend expectations
   login: async credentials => {
     try {
-      const response = await apiClient.post('/auth/login/', credentials);
+      const response = await apiClient.post('/auth/login/', {
+        email: credentials.email,
+        password: credentials.password,
+      });
+      
       const data = handleApiResponse(response);
 
-      // Store tokens using enhanced storage method
-      storeTokens(data.access, data.refresh);
+      // Store tokens and user data
+      if (data.tokens) {
+        storeTokens(data.tokens.access, data.tokens.refresh);
+      }
       
       if (data.user) {
         localStorage.setItem('user', JSON.stringify(data.user));
@@ -162,7 +164,6 @@ const authAPI = {
     } catch (error) {
       console.warn('Logout request failed:', error);
     } finally {
-      // Clear all storage locations
       clearAllTokens();
     }
   },
@@ -181,12 +182,11 @@ const authAPI = {
 
       const data = handleApiResponse(response);
 
-      // Store tokens using enhanced storage method
+      // Store new tokens
       storeTokens(data.access, data.refresh);
 
       return data;
     } catch (error) {
-      // Clear tokens on refresh failure
       clearAllTokens();
       throw handleApiError(error);
     }
@@ -196,7 +196,12 @@ const authAPI = {
   getProfile: async () => {
     try {
       const response = await apiClient.get('/auth/profile/');
-      return handleApiResponse(response);
+      const data = handleApiResponse(response);
+      
+      // Update stored user data
+      localStorage.setItem('user', JSON.stringify(data));
+      
+      return data;
     } catch (error) {
       throw handleApiError(error);
     }
@@ -222,50 +227,10 @@ const authAPI = {
     }
   },
 
-  // Change Password
-  changePassword: async passwordData => {
+  // Validate invitation token
+  validateInvitation: async token => {
     try {
-      const response = await apiClient.post('/auth/change-password/', passwordData);
-      return handleApiResponse(response);
-    } catch (error) {
-      throw handleApiError(error);
-    }
-  },
-
-  // Forgot Password
-  forgotPassword: async email => {
-    try {
-      const response = await apiClient.post('/auth/forgot-password/', { email });
-      return handleApiResponse(response);
-    } catch (error) {
-      throw handleApiError(error);
-    }
-  },
-
-  // Reset Password
-  resetPassword: async resetData => {
-    try {
-      const response = await apiClient.post('/auth/reset-password/', resetData);
-      return handleApiResponse(response);
-    } catch (error) {
-      throw handleApiError(error);
-    }
-  },
-
-  // Verify Email
-  verifyEmail: async token => {
-    try {
-      const response = await apiClient.post('/auth/verify-email/', { token });
-      return handleApiResponse(response);
-    } catch (error) {
-      throw handleApiError(error);
-    }
-  },
-
-  // Resend Email Verification
-  resendEmailVerification: async () => {
-    try {
-      const response = await apiClient.post('/auth/resend-verification/');
+      const response = await apiClient.get(`/auth/invitations/validate/${token}/`);
       return handleApiResponse(response);
     } catch (error) {
       throw handleApiError(error);
@@ -294,20 +259,17 @@ const authAPI = {
         refreshToken: refreshToken,
       };
     } catch (error) {
-      // If profile request fails, clear storage and return unauthenticated
       clearAllTokens();
-
       return { isAuthenticated: false, user: null };
     }
   },
 
-  // Check if user is authenticated
+  // Helper methods
   isAuthenticated: () => {
     const token = getAccessToken();
     return Boolean(token);
   },
 
-  // Get user role
   getUserRole: () => {
     try {
       const userData = localStorage.getItem('user');
@@ -322,17 +284,14 @@ const authAPI = {
     }
   },
 
-  // Check if user is admin
   isAdmin: () => {
     return authAPI.getUserRole() === 'admin';
   },
 
-  // Check if user is client
   isClient: () => {
     return authAPI.getUserRole() === 'client';
   },
 
-  // Get stored user data
   getUserData: () => {
     try {
       const userData = localStorage.getItem('user');
@@ -343,32 +302,14 @@ const authAPI = {
     }
   },
 
-  // Store user data
-  storeUserData: userData => {
-    localStorage.setItem('user', JSON.stringify(userData));
-  },
-
-  // Clear all auth data
   clearAuthData: () => {
     clearAllTokens();
   },
 
-  // Validate invitation token
-  validateInvitation: async token => {
-    try {
-      const response = await apiClient.get(`/auth/invitations/validate/${token}/`);
-      return handleApiResponse(response);
-    } catch (error) {
-      throw handleApiError(error);
-    }
-  },
-
-  // Get current access token (uses enhanced token retrieval)
   getAccessToken: () => {
     return getAccessToken();
   },
 
-  // Get current refresh token (uses enhanced token retrieval)
   getRefreshToken: () => {
     return getRefreshToken();
   },

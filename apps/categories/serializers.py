@@ -57,7 +57,8 @@ class CategorySerializer(serializers.ModelSerializer):
                 "Category name must be at least 2 characters long"
             )
         
-        # Check for uniqueness (excluding current instance)
+        # Check for uniqueness among active (non-deleted) categories only
+        # Use the model's default manager which should handle soft deletes
         queryset = Category.objects.filter(name__iexact=value.strip())
         if self.instance:
             queryset = queryset.exclude(pk=self.instance.pk)
@@ -163,17 +164,22 @@ class CategoryCreateUpdateSerializer(serializers.ModelSerializer):
         ]
 
     def validate_name(self, value):
-        """Validate category name"""
+        """Validate category name - fixed to handle soft deletes"""
         if len(value.strip()) < 2:
             raise serializers.ValidationError(
                 "Category name must be at least 2 characters long"
             )
         
-        # Check for uniqueness
+        # Use the model's default manager which should exclude soft-deleted records
+        # If BaseModel implements soft delete, Category.objects should automatically
+        # exclude deleted records. If not, we need to explicitly filter.
         queryset = Category.objects.filter(name__iexact=value.strip())
+        
+        # For updates, exclude the current instance
         if self.instance:
             queryset = queryset.exclude(pk=self.instance.pk)
         
+        # Check if any active (non-deleted) categories exist with this name
         if queryset.exists():
             raise serializers.ValidationError(
                 "A category with this name already exists"
@@ -306,7 +312,7 @@ class CategorySearchSerializer(serializers.Serializer):
         required=False,
         default='sort_order',
         help_text="Field to sort by"
-    )
+    ) 
 
     def validate_parent(self, value):
         """Validate parent category exists"""

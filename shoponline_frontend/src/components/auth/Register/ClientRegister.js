@@ -16,18 +16,41 @@ const ClientRegister = () => {
     setSuccess('');
 
     try {
-      const response = await registerClient(formData);
+      // Convert form data to match backend expectations
+      const registrationData = {
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        email: formData.email,
+        password: formData.password,
+        password_confirm: formData.password_confirm,
+      };
+
+      const response = await registerClient(registrationData);
 
       if (response.success) {
-        setSuccess('Registration successful! You can now sign in.');
-        // Redirect to login after 2 seconds
+        setSuccess('Registration successful! You are now logged in.');
+        // Auto-redirect to home page after successful registration
         setTimeout(() => {
-          navigate('/auth/login', {
-            state: { message: 'Registration successful! Please sign in.' },
+          navigate('/', {
+            state: { message: 'Welcome to ShopOnline Uganda!' },
           });
         }, 2000);
       } else {
-        setError(response.error || 'Registration failed. Please try again.');
+        // Handle different types of errors from backend
+        if (typeof response.error === 'object' && response.error !== null) {
+          // Field-specific validation errors
+          const errorMessages = [];
+          Object.entries(response.error).forEach(([field, messages]) => {
+            if (Array.isArray(messages)) {
+              messages.forEach(msg => errorMessages.push(`${field}: ${msg}`));
+            } else {
+              errorMessages.push(`${field}: ${messages}`);
+            }
+          });
+          setError(errorMessages.join(', '));
+        } else {
+          setError(response.error || 'Registration failed. Please try again.');
+        }
       }
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
@@ -119,8 +142,8 @@ const ClientRegister = () => {
       <div className="register-note">
         <div className="note-icon">ℹ️</div>
         <div className="note-content">
-          <strong>Note:</strong> Please use a valid Gmail address for customer registration. receive
-          order updates and promotional offers on this email.
+          <strong>Note:</strong> Please use a valid Gmail address for customer registration. You'll
+          receive order updates and promotional offers on this email.
         </div>
       </div>
     </div>

@@ -26,7 +26,7 @@ import Register from './components/auth/Register/Register';
 import AdminRegister from './components/auth/Register/AdminRegister';
 import ForgotPassword from './components/auth/ForgotPassword/ForgotPassword';
 
-// Import admin pages - using only existing ones from architecture
+// Import admin pages
 import AdminDashboardPage from './pages/AdminPages/AdminDashboardPage';
 import AdminLoginPage from './pages/AdminPages/AdminLoginPage';
 import AdminRegisterPage from './pages/AdminPages/AdminRegisterPage';
@@ -68,86 +68,57 @@ function App() {
   return (
     <div className="App">
       <Routes>
-        {/* Public Routes */}
-        <Route
-          path="/"
-          element={
-            <Layout>
-              <HomePage />
-            </Layout>
-          }
-        />
+        {/* Main Layout Routes - Using Outlet pattern */}
+        <Route path="/" element={<Layout />}>
+          {/* Public Routes */}
+          <Route index element={<HomePage />} />
+          <Route path="categories/:slug" element={<CategoryPage />} />
+          <Route path="products/:slug" element={<ProductPage />} />
+          <Route path="flash-sales" element={<FlashSalesPage />} />
+          <Route path="search" element={<SearchPage />} />
+          <Route path="cart" element={<CartPage />} />
+          
+          {/* Client Protected Routes */}
+          <Route
+            path="checkout"
+            element={
+              <ClientRoute>
+                <CheckoutPage />
+              </ClientRoute>
+            }
+          />
+          
+          <Route
+            path="profile"
+            element={
+              <ClientRoute>
+                <ProfilePage />
+              </ClientRoute>
+            }
+          />
+        </Route>
 
-        <Route
-          path="/categories/:slug"
-          element={
-            <Layout>
-              <CategoryPage />
-            </Layout>
-          }
-        />
-
-        <Route
-          path="/products/:slug"
-          element={
-            <Layout>
-              <ProductPage />
-            </Layout>
-          }
-        />
-
-        <Route
-          path="/flash-sales"
-          element={
-            <Layout>
-              <FlashSalesPage />
-            </Layout>
-          }
-        />
-
-        <Route
-          path="/search"
-          element={
-            <Layout>
-              <SearchPage />
-            </Layout>
-          }
-        />
-
-        <Route
-          path="/cart"
-          element={
-            <Layout>
-              <CartPage />
-            </Layout>
-          }
-        />
-
-        {/* Authentication Routes */}
+        {/* Authentication Routes - Standalone (no layout) */}
         <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
-
         <Route path="/register" element={user ? <Navigate to="/" replace /> : <Register />} />
-
         <Route
           path="/admin/register/:token"
           element={
             user?.role === 'admin' ? <Navigate to="/admin/dashboard" replace /> : <AdminRegister />
           }
         />
-
         <Route
           path="/forgot-password"
           element={user ? <Navigate to="/" replace /> : <ForgotPassword />}
         />
 
-        {/* Admin Authentication Routes */}
+        {/* Admin Authentication Routes - Standalone */}
         <Route
           path="/admin/login"
           element={
             user?.role === 'admin' ? <Navigate to="/admin/dashboard" replace /> : <AdminLoginPage />
           }
         />
-
         <Route
           path="/admin/register-page"
           element={
@@ -159,95 +130,24 @@ function App() {
           }
         />
 
-        {/* Client Protected Routes */}
-        <Route
-          path="/checkout"
-          element={
-            <ClientRoute>
-              <Layout>
-                <CheckoutPage />
-              </Layout>
-            </ClientRoute>
-          }
-        />
-
-        <Route
-          path="/profile"
-          element={
-            <ClientRoute>
-              <Layout>
-                <ProfilePage />
-              </Layout>
-            </ClientRoute>
-          }
-        />
-
-        {/* Admin Protected Routes */}
+        {/* Admin Routes - Using AdminLayout with Outlet */}
         <Route
           path="/admin"
           element={
             <AdminRoute>
-              <Navigate to="/admin/dashboard" replace />
+              <AdminLayout />
             </AdminRoute>
           }
-        />
+        >
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<AdminDashboardPage />} />
+          <Route path="products" element={<ProductManagementPage />} />
+          <Route path="orders" element={<OrderManagementPage />} />
+          <Route path="flash-sales" element={<FlashSalesManagementPage />} />
+          <Route path="homepage" element={<HomepageManagementPage />} />
+        </Route>
 
-        <Route
-          path="/admin/dashboard"
-          element={
-            <AdminRoute>
-              <AdminLayout>
-                <AdminDashboardPage />
-              </AdminLayout>
-            </AdminRoute>
-          }
-        />
-
-        <Route
-          path="/admin/products"
-          element={
-            <AdminRoute>
-              <AdminLayout>
-                <ProductManagementPage />
-              </AdminLayout>
-            </AdminRoute>
-          }
-        />
-
-        <Route
-          path="/admin/orders"
-          element={
-            <AdminRoute>
-              <AdminLayout>
-                <OrderManagementPage />
-              </AdminLayout>
-            </AdminRoute>
-          }
-        />
-
-        <Route
-          path="/admin/flash-sales"
-          element={
-            <AdminRoute>
-              <AdminLayout>
-                <FlashSalesManagementPage />
-              </AdminLayout>
-            </AdminRoute>
-          }
-        />
-
-        <Route
-          path="/admin/homepage"
-          element={
-            <AdminRoute>
-              <AdminLayout>
-                <HomepageManagementPage />
-              </AdminLayout>
-            </AdminRoute>
-          }
-        />
-
-        {/* Error Routes */}
+        {/* Error Routes - Standalone */}
         <Route path="/unauthorized" element={<Unauthorized />} />
         <Route path="/server-error" element={<ServerError />} />
         <Route path="*" element={<NotFound />} />

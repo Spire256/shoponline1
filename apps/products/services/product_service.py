@@ -208,16 +208,16 @@ class ProductService:
             )['avg'] or Decimal('0'),
         }
         
-        # Top categories by product count
+        # Top categories by product count - use a different field name for annotation
         top_categories = Category.objects.annotate(
-            product_count=Count('products', filter=Q(products__is_active=True))
-        ).order_by('-product_count')[:5]
+            active_product_count=Count('products', filter=Q(products__is_active=True))
+        ).order_by('-active_product_count')[:5]
         
         stats['top_categories'] = [
             {
                 'id': cat.id,
                 'name': cat.name,
-                'product_count': cat.product_count
+                'product_count': cat.active_product_count  # Use the annotated field
             }
             for cat in top_categories
         ]

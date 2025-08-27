@@ -22,11 +22,6 @@ const getBaseURL = () => {
   return `${baseUrl}/api/${API_VERSION}`;
 };
 
-// Log the final URL for debugging
-if (process.env.REACT_APP_DEBUG_MODE === 'true') {
-  console.log('🔧 API Base URL configured:', getBaseURL());
-}
-
 // Create axios instance with default configuration
 const apiClient = axios.create({
   baseURL: getBaseURL(),
@@ -37,39 +32,18 @@ const apiClient = axios.create({
   },
 });
 
-// Add request/response logging for development
-if (process.env.REACT_APP_DEBUG_MODE === 'true') {
-  apiClient.interceptors.request.use(request => {
-    console.log('🚀 Starting Request:', request.method?.toUpperCase(), request.url);
-    return request;
-  });
-  
-  apiClient.interceptors.response.use(
-    response => {
-      console.log('✅ Response:', response.status, response.config.url);
-      return response;
-    },
-    error => {
-      console.error('❌ Response Error:', error.response?.status, error.config?.url);
-      return Promise.reject(error);
-    }
-  );
-}
-
 // Enhanced token management with multiple fallbacks
 const getAccessToken = () => {
-  // Try multiple storage locations
+  // Try multiple storage locations for backward compatibility
   const sources = [
-    localStorage.getItem('access_token'),
     localStorage.getItem('accessToken'),
-    localStorage.getItem(process.env.REACT_APP_SESSION_STORAGE_KEY),
-    localStorage.getItem(process.env.REACT_APP_LOCAL_STORAGE_KEY)
+    localStorage.getItem('access_token'),
   ];
 
   for (const source of sources) {
     if (source) {
       try {
-        // Try to parse as JSON first
+        // Try to parse as JSON first (if it was stored as object)
         const parsed = JSON.parse(source);
         return parsed.access || parsed.access_token || parsed.accessToken;
       } catch (e) {
@@ -83,10 +57,8 @@ const getAccessToken = () => {
 
 const getRefreshToken = () => {
   const sources = [
-    localStorage.getItem('refresh_token'),
     localStorage.getItem('refreshToken'),
-    localStorage.getItem(process.env.REACT_APP_SESSION_STORAGE_KEY),
-    localStorage.getItem(process.env.REACT_APP_LOCAL_STORAGE_KEY)
+    localStorage.getItem('refresh_token'),
   ];
 
   for (const source of sources) {
@@ -105,6 +77,7 @@ const getRefreshToken = () => {
   }
   return null;
 };
+
 // Request interceptor to add JWT token
 apiClient.interceptors.request.use(
   config => {
@@ -113,6 +86,10 @@ apiClient.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // Add request ID for tracking
+    config.headers['X-Request-ID'] = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
     return config;
   },
   error => {
@@ -144,18 +121,13 @@ apiClient.interceptors.response.use(
           const { access } = response.data;
           
           // Store the new access token
-          localStorage.setItem('access_token', access);
+          localStorage.setItem('accessToken', access);
+          localStorage.setItem('access_token', access); // Backward compatibility
           
-          // Update other storage locations if they exist
-          if (process.env.REACT_APP_SESSION_STORAGE_KEY) {
-            const existingData = localStorage.getItem(process.env.REACT_APP_SESSION_STORAGE_KEY);
-            try {
-              const data = existingData ? JSON.parse(existingData) : {};
-              data.access = access;
-              localStorage.setItem(process.env.REACT_APP_SESSION_STORAGE_KEY, JSON.stringify(data));
-            } catch (e) {
-              localStorage.setItem(process.env.REACT_APP_SESSION_STORAGE_KEY, access);
-            }
+          // If new refresh token is provided, store it too
+          if (response.data.refresh) {
+            localStorage.setItem('refreshToken', response.data.refresh);
+            localStorage.setItem('refresh_token', response.data.refresh);
           }
 
           // Retry original request with new token
@@ -165,20 +137,20 @@ apiClient.interceptors.response.use(
       } catch (refreshError) {
         // Refresh failed, clear all tokens and redirect to login
         const keysToRemove = [
-          'access_token',
-          'accessToken', 
-          'refresh_token',
+          'accessToken',
+          'access_token', 
           'refreshToken',
-          process.env.REACT_APP_SESSION_STORAGE_KEY,
-          process.env.REACT_APP_LOCAL_STORAGE_KEY
-        ].filter(Boolean);
+          'refresh_token',
+          'user'
+        ];
         
         keysToRemove.forEach(key => {
           localStorage.removeItem(key);
         });
         
-        // Redirect to login
-        window.location.href = '/login';
+        // Dispatch logout event
+        window.dispatchEvent(new CustomEvent('authError', { detail: 'Token refresh failed' }));
+        
         return Promise.reject(refreshError);
       }
     }
@@ -190,7 +162,7 @@ apiClient.interceptors.response.use(
 // File upload instance for multipart/form-data requests
 const fileUploadClient = axios.create({
   baseURL: getBaseURL(),
-  timeout: parseInt(process.env.REACT_APP_API_TIMEOUT) * 2 || 20000, // Longer timeout for file uploads
+  timeout: parseInt(process.env.REACT_APP_API_TIMEOUT) * 2 || 20000,
   headers: {
     'Content-Type': 'multipart/form-data',
   },
@@ -229,17 +201,12 @@ fileUploadClient.interceptors.response.use(
           );
 
           const { access } = response.data;
+          localStorage.setItem('accessToken', access);
           localStorage.setItem('access_token', access);
           
-          if (process.env.REACT_APP_SESSION_STORAGE_KEY) {
-            const existingData = localStorage.getItem(process.env.REACT_APP_SESSION_STORAGE_KEY);
-            try {
-              const data = existingData ? JSON.parse(existingData) : {};
-              data.access = access;
-              localStorage.setItem(process.env.REACT_APP_SESSION_STORAGE_KEY, JSON.stringify(data));
-            } catch (e) {
-              localStorage.setItem(process.env.REACT_APP_SESSION_STORAGE_KEY, access);
-            }
+          if (response.data.refresh) {
+            localStorage.setItem('refreshToken', response.data.refresh);
+            localStorage.setItem('refresh_token', response.data.refresh);
           }
 
           originalRequest.headers.Authorization = `Bearer ${access}`;
@@ -247,19 +214,18 @@ fileUploadClient.interceptors.response.use(
         }
       } catch (refreshError) {
         const keysToRemove = [
-          'access_token',
-          'accessToken', 
-          'refresh_token',
+          'accessToken',
+          'access_token', 
           'refreshToken',
-          process.env.REACT_APP_SESSION_STORAGE_KEY,
-          process.env.REACT_APP_LOCAL_STORAGE_KEY
-        ].filter(Boolean);
+          'refresh_token',
+          'user'
+        ];
         
         keysToRemove.forEach(key => {
           localStorage.removeItem(key);
         });
         
-        window.location.href = '/login';
+        window.dispatchEvent(new CustomEvent('authError', { detail: 'Token refresh failed' }));
         return Promise.reject(refreshError);
       }
     }
@@ -292,7 +258,7 @@ export const handleApiError = error => {
     return {
       status,
       message,
-      errors: data?.errors || data?.field_errors || {},
+      errors: data?.errors || data || {},
       data: data || null,
     };
   } else if (error.request) {
@@ -349,19 +315,10 @@ export const formatDate = (date, options = {}) => {
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    timeZone: 'Africa/Kampala',
   };
 
   return new Intl.DateTimeFormat('en-UG', { ...defaultOptions, ...options }).format(new Date(date));
-};
-
-// Debug helper for development
-export const logApiCall = (method, url, data = null) => {
-  if (process.env.REACT_APP_DEBUG_MODE === 'true' && process.env.REACT_APP_SHOW_DEVTOOLS === 'true') {
-    console.group(`🌐 API ${method.toUpperCase()}: ${url}`);
-    if (data) console.log('📤 Request Data:', data);
-    console.log('🔗 Full URL:', `${getBaseURL()}${url}`);
-    console.groupEnd();
-  }
 };
 
 // Export configured clients

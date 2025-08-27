@@ -297,7 +297,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
             sort_by = request.query_params.get('sort_by', '-created_at')
             
             if featured is not None:
-                products = products.filter(featured=featured.lower() == 'true')
+                products = products.filter(is_featured=featured.lower() == 'true')
             
             if min_price:
                 products = products.filter(price__gte=min_price)
