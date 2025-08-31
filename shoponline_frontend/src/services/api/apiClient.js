@@ -280,6 +280,38 @@ export const handleApiError = error => {
   }
 };
 
+// API Call Logging function
+export const logApiCall = (method, endpoint, data = null) => {
+  // Only log in development environment
+  if (process.env.NODE_ENV === 'development') {
+    const timestamp = new Date().toISOString();
+    const logData = {
+      timestamp,
+      method: method.toUpperCase(),
+      endpoint,
+      baseURL: getBaseURL(),
+      fullURL: `${getBaseURL()}${endpoint}`,
+    };
+
+    // Add data if provided (but don't log sensitive information)
+    if (data) {
+      // Filter out sensitive fields
+      const sensitiveFields = ['password', 'token', 'refresh', 'access', 'authorization'];
+      const filteredData = { ...data };
+      
+      Object.keys(filteredData).forEach(key => {
+        if (sensitiveFields.some(field => key.toLowerCase().includes(field))) {
+          filteredData[key] = '[REDACTED]';
+        }
+      });
+      
+      logData.data = filteredData;
+    }
+
+    console.log(`🌐 API Call:`, logData);
+  }
+};
+
 // Utility functions
 export const buildQueryString = params => {
   const query = new URLSearchParams();

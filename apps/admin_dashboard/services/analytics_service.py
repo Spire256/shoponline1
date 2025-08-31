@@ -177,10 +177,10 @@ class AnalyticsService:
         ).values(
             'product__id',
             'product__name',
-            'product__price'
+            'product__unit_price'  # Changed from 'product__price' to 'product__unit_price'
         ).annotate(
             total_quantity=Sum('quantity'),
-            total_revenue=Sum('price')
+            total_revenue=Sum('total_price')  # Changed from 'price' to 'total_price'
         ).order_by('-total_quantity')[:10]
 
         # Low stock products
@@ -188,7 +188,7 @@ class AnalyticsService:
             is_active=True,
             stock_quantity__lte=10
         ).values(
-            'id', 'name', 'stock_quantity', 'price'
+            'id', 'name', 'stock_quantity', 'unit_price'  # Changed from 'price' to 'unit_price'
         ).order_by('stock_quantity')[:10]
 
         # Out of stock products
@@ -238,44 +238,62 @@ class AnalyticsService:
         active_sales = FlashSale.objects.filter(
             is_active=True,
             start_time__lte=timezone.now(),
-            end_time__gte=timezone.now()
+            end_time__gte=timezone.now(),
+            is_deleted=False
         ).count()
 
         # Flash sales revenue (last 30 days)
         thirty_days_ago = timezone.now() - timedelta(days=30)
         
+        # Get flash sale products from the last 30 days
         flash_sale_products = FlashSaleProduct.objects.filter(
-            flash_sale__start_time__gte=thirty_days_ago
+            flash_sale__start_time__gte=thirty_days_ago,
+            is_deleted=False
         ).values_list('product_id', flat=True)
 
+        # Calculate revenue from orders containing flash sale products
         flash_sales_revenue = OrderItem.objects.filter(
             product_id__in=flash_sale_products,
             order__created_at__gte=thirty_days_ago,
             order__status='completed'
         ).aggregate(
-            total_revenue=Sum('price'),
+            total_revenue=Sum('total_price'),  # Changed from 'price' to 'total_price'
             total_quantity=Sum('quantity')
         )
 
-        # Top performing flash sales
-        top_flash_sales = FlashSale.objects.filter(
-            start_time__gte=thirty_days_ago
+        # Top performing flash sales - Get the data with proper annotation handling
+        top_flash_sales_query = FlashSale.objects.filter(
+            start_time__gte=thirty_days_ago,
+            is_deleted=False
         ).annotate(
-            products_count=Count('flashsaleproduct'),
-            total_orders=Count('flashsaleproduct__product__orderitem')
-        ).order_by('-total_orders')[:5]
+            products_count=Count('flash_sale_products')
+        ).values(
+            'id', 'name', 'discount_percentage', 'start_time', 
+            'end_time', 'is_active', 'products_count'
+        ).order_by('-products_count')[:5]
 
         top_sales_data = []
-        for sale in top_flash_sales:
+        for sale_data in top_flash_sales_query:
+            # Get the actual FlashSale object to access related products
+            sale = FlashSale.objects.get(id=sale_data['id'])
+            sale_product_ids = sale.flash_sale_products.values_list('product_id', flat=True)
+            
+            # Calculate total orders for this flash sale
+            total_orders = OrderItem.objects.filter(
+                product_id__in=sale_product_ids,
+                order__created_at__gte=sale.start_time,
+                order__status='completed'
+            ).values('order_id').distinct().count()
+            
             top_sales_data.append({
-                'id': sale.id,
-                'name': sale.name,
-                'discount_percentage': float(sale.discount_percentage),
-                'products_count': sale.products_count,
-                'total_orders': sale.total_orders,
-                'start_time': sale.start_time.isoformat(),
-                'end_time': sale.end_time.isoformat(),
-                'is_active': sale.is_active
+                'id': sale_data['id'],
+                'name': sale_data['name'],
+                'discount_percentage': float(sale_data['discount_percentage']),
+                'products_count': sale_data['products_count'],
+                'total_orders': total_orders,
+                'start_time': sale_data['start_time'].isoformat(),
+                'end_time': sale_data['end_time'].isoformat(),
+                'is_active': sale_data['is_active']
             })
 
         return {

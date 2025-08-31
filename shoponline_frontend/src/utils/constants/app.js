@@ -16,6 +16,28 @@ export const APP_INFO = {
 
 // Application Configuration
 export const APP_CONFIG = {
+  // App Identity
+  APP_NAME: 'Shop Online',
+  COUNTRY: 'Uganda',
+
+  // Contact Information
+  CONTACT: {
+    PHONE: '+256700000000',
+    WHATSAPP: '256700000000',
+    WHATSAPP_MESSAGE: 'Hello! I need help with my order.',
+    EMAIL: 'info@shoponline.com',
+    SUPPORT_EMAIL: 'support@shoponline.com',
+  },
+
+  // Delivery Configuration
+  DELIVERY: {
+    FREE_DELIVERY_MESSAGE: 'Free delivery across Kampala for orders above UGX 50,000',
+    MIN_ORDER_FOR_FREE_DELIVERY: 50000,
+    DELIVERY_FEE: 5000,
+    ESTIMATED_DELIVERY_TIME: '2-3 business days',
+    DELIVERY_AREAS: ['Kampala', 'Entebbe', 'Wakiso', 'Mukono'],
+  },
+
   // Pagination
   DEFAULT_PAGE_SIZE: 12,
   MAX_PAGE_SIZE: 100,

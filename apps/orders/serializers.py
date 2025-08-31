@@ -210,22 +210,12 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         
         return value
 
-    @transaction.atomic
-    def create(self, validated_data):
-        """Create order with items"""
-        items_data = validated_data.pop('items')
-        user = self.context['request'].user if self.context['request'].user.is_authenticated else None
-        
-        # Create order
-        order = Order.objects.create(
-            user=user,
-            **validated_data
-        )
-        
-        # Process each item
+    def _calculate_order_totals(self, items_data):
+        """Calculate order totals before creating the order"""
         subtotal = Decimal('0.00')
         flash_sale_savings = Decimal('0.00')
         has_flash_sale_items = False
+        order_items_data = []
         
         for item_data in items_data:
             product = Product.objects.get(id=item_data['product_id'])
@@ -234,7 +224,6 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             # Check for flash sale
             flash_sale_product = None
             try:
-                from django.utils import timezone
                 flash_sale_product = FlashSaleProduct.objects.select_related('flash_sale').get(
                     product=product,
                     flash_sale__is_active=True,
@@ -260,19 +249,70 @@ class OrderCreateSerializer(serializers.ModelSerializer):
                 flash_sale_discount = 0
                 item_savings = Decimal('0.00')
             
+            # Store item data for creation
+            order_items_data.append({
+                'product': product,
+                'quantity': quantity,
+                'unit_price': unit_price,
+                'original_price': original_price,
+                'is_flash_sale_item': is_flash_sale_item,
+                'flash_sale_discount': flash_sale_discount,
+                'item_savings': item_savings
+            })
+            
+            # Add to subtotal
+            subtotal += unit_price * quantity
+        
+        return {
+            'subtotal': subtotal,
+            'flash_sale_savings': flash_sale_savings,
+            'has_flash_sale_items': has_flash_sale_items,
+            'order_items_data': order_items_data
+        }
+
+    @transaction.atomic
+    def create(self, validated_data):
+        """Create order with items"""
+        items_data = validated_data.pop('items')
+        user = self.context['request'].user if self.context['request'].user.is_authenticated else None
+        
+        # Calculate totals first
+        calculations = self._calculate_order_totals(items_data)
+        
+        # Create order with calculated totals
+        order = Order.objects.create(
+            user=user,
+            subtotal=calculations['subtotal'],
+            total_amount=calculations['subtotal'],  # Add delivery fee, tax calculation as needed
+            flash_sale_savings=calculations['flash_sale_savings'],
+            has_flash_sale_items=calculations['has_flash_sale_items'],
+            **validated_data
+        )
+        
+        # Create order items
+        for item_info in calculations['order_items_data']:
+            product = item_info['product']
+            quantity = item_info['quantity']
+            
+            # Get product image URL using the main_image property
+            product_image_url = ''
+            main_image = product.main_image
+            if main_image and main_image.image:
+                product_image_url = main_image.image.url
+            
             # Create order item
             OrderItem.objects.create(
                 order=order,
                 product_id=product.id,
                 product_name=product.name,
                 product_sku=product.sku,
-                product_image=product.featured_image.url if product.featured_image else '',
-                unit_price=unit_price,
+                product_image=product_image_url,
+                unit_price=item_info['unit_price'],
                 quantity=quantity,
-                is_flash_sale_item=is_flash_sale_item,
-                original_price=original_price,
-                flash_sale_discount=flash_sale_discount,
-                flash_sale_savings=item_savings,
+                is_flash_sale_item=item_info['is_flash_sale_item'],
+                original_price=item_info['original_price'],
+                flash_sale_discount=item_info['flash_sale_discount'],
+                flash_sale_savings=item_info['item_savings'],
                 product_category=product.category.name if product.category else '',
                 product_brand=product.brand
             )
@@ -280,16 +320,6 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             # Update product stock
             product.stock_quantity -= quantity
             product.save(update_fields=['stock_quantity'])
-            
-            # Add to subtotal
-            subtotal += unit_price * quantity
-        
-        # Update order totals
-        order.subtotal = subtotal
-        order.total_amount = subtotal  # Add delivery fee, tax calculation as needed
-        order.flash_sale_savings = flash_sale_savings
-        order.has_flash_sale_items = has_flash_sale_items
-        order.save()
         
         # Create COD verification if needed
         if order.is_cash_on_delivery:

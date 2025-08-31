@@ -3,7 +3,7 @@
 import React from 'react';
 import { X } from 'lucide-react';
 import CategoryForm from './CategoryForm';
-import { categoriesAPI } from '../../../services/api/categoriesAPI';
+import categoriesAPI from '../../../services/api/categoriesAPI'; // Changed from named import to default import
 import { useNotifications } from '../../../hooks/useNotifications';
 
 const AddCategory = ({ onClose, onSuccess }) => {

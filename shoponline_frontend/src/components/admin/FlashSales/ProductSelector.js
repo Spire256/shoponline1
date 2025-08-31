@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Search, Package, Plus, Check, AlertCircle, Filter } from 'lucide-react';
-import { productsAPI } from '../../services/api/productsAPI';
-import { flashSalesAPI } from '../../services/api/flashSalesAPI';
+import { productsAPI } from '../../../services/api/productsAPI';
+import { flashSalesAPI } from '../../../services/api/flashSalesAPI';
 import './FlashSaleManagement.css';
 
 const ProductSelector = ({ flashSaleId, existingProducts = [], onProductsAdded, onCancel }) => {

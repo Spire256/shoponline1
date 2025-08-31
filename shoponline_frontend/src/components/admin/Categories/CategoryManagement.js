@@ -5,7 +5,7 @@ import { Plus, Search, Filter, Upload, Download, Trash2, Edit, Eye } from 'lucid
 import CategoryTable from './CategoryTable';
 import AddCategory from './AddCategory';
 import EditCategory from './EditCategory';
-import { categoriesAPI } from '../../../services/api/categoriesAPI';
+import categoriesAPI from '../../../services/api/categoriesAPI'; // Changed from named import to default import
 import { useAuth } from '../../../hooks/useAuth';
 import { useNotifications } from '../../../hooks/useNotifications';
 import './CategoryManagement.css';
@@ -145,10 +145,7 @@ const CategoryManagement = () => {
     }
 
     try {
-      await categoriesAPI.bulkAction({
-        category_ids: selectedCategories,
-        action: action,
-      });
+      await categoriesAPI.bulkAction(action, selectedCategories);
 
       showNotification(
         `Successfully ${action}d ${selectedCategories.length} categories`,

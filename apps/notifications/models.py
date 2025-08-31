@@ -1,7 +1,3 @@
-#from django.db import models
-
-# Create your models here.
-
 # apps/notifications/models.py
 from django.db import models
 from django.contrib.contenttypes.fields import GenericForeignKey
@@ -68,19 +64,17 @@ class Notification(TimestampedModel):
     is_sent = models.BooleanField(default=False)
     sent_at = models.DateTimeField(null=True, blank=True)
     
-    # Related objects
+    # Related objects - FIXED: Changed to CharField to handle UUIDs
     content_type = models.ForeignKey(
         'contenttypes.ContentType', 
         on_delete=models.CASCADE,
         null=True, 
         blank=True
     )
-    object_id = models.PositiveIntegerField(null=True, blank=True)
-    #content_object = models.GenericForeignKey('content_type', 'object_id')
+    # Changed from PositiveIntegerField to CharField to handle both integer IDs and UUIDs
+    object_id = models.CharField(max_length=255, null=True, blank=True)
     content_object = GenericForeignKey('content_type', 'object_id')
 
-
-    
     class Meta:
         ordering = ['-created_at']
         indexes = [
@@ -160,4 +154,3 @@ class NotificationSettings(TimestampedModel):
     
     def __str__(self):
         return f"Notification Settings - {self.user.email}"
-

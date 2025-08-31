@@ -1,4 +1,3 @@
-
 # apps/notifications/tasks.py
 from celery import shared_task
 from django.core.mail import send_mail
@@ -76,16 +75,16 @@ def send_admin_cod_alert(order_id):
             notification = Notification.objects.create(
                 recipient=admin,
                 title=f"New COD Order #{order.order_number}",
-                message=f"Cash on Delivery order for UGX {order.total_amount:,.0f} requires attention. Customer: {order.customer_name}",
+                message=f"Cash on Delivery order for UGX {order.total_amount:,.0f} requires attention. Customer: {order.get_customer_name()}",
                 notification_type='cod_order',
                 priority='high',
                 method='websocket',
                 data={
-                    'order_id': order.id,
+                    'order_id': str(order.id),  # Convert UUID to string
                     'order_number': order.order_number,
                     'total_amount': str(order.total_amount),
-                    'customer_name': order.customer_name,
-                    'customer_phone': order.customer_phone
+                    'customer_name': order.get_customer_name(),
+                    'customer_phone': order.phone
                 }
             )
             

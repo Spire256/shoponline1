@@ -1,6 +1,3 @@
-from django.shortcuts import render
-
-# Create your views here.
 # apps/orders/views.py
 
 from rest_framework import generics, status, permissions
@@ -18,7 +15,8 @@ from .models import Order, OrderItem, OrderStatusHistory, OrderNote, CODVerifica
 from .serializers import (
     OrderSerializer, OrderCreateSerializer, OrderUpdateSerializer,
     OrderListSerializer, OrderNoteSerializer, CODVerificationSerializer,
-    OrderAnalyticsSerializer, CustomerOrderSummarySerializer
+    OrderAnalyticsSerializer, CustomerOrderSummarySerializer,
+    OrderStatusHistorySerializer  # Added this missing import
 )
 from .services.order_service import OrderService
 from .services.notification_service import OrderNotificationService
@@ -396,10 +394,12 @@ def order_analytics(request):
         avg=Avg('total_amount')
     )['avg'] or Decimal('0.00')
     
-    # Orders by day
-    from django.db.models import TruncDate
-    orders_by_day = list(queryset.extra(
-        select={'day': 'date(created_at)'}
+    # Orders by day - Using Django 4.2 compatible approach
+    from django.db.models import DateField
+    from django.db.models.functions import Cast
+    
+    orders_by_day = list(queryset.annotate(
+        day=Cast('created_at', DateField())
     ).values('day').annotate(
         count=Count('id'),
         revenue=Sum('total_amount')

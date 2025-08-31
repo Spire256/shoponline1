@@ -1,6 +1,36 @@
 # apps/notifications/utils.py
+import json
+import uuid
 from django.template import Context, Template
 from .models import NotificationTemplate, Notification
+
+class UUIDEncoder(json.JSONEncoder):
+    """Custom JSON encoder to handle UUID objects"""
+    def default(self, obj):
+        if isinstance(obj, uuid.UUID):
+            return str(obj)
+        return super().default(obj)
+
+def serialize_data(data):
+    """
+    Serialize data to ensure JSON compatibility, especially for UUIDs
+    """
+    if data is None:
+        return {}
+    
+    # Convert UUIDs to strings recursively
+    def convert_uuids(obj):
+        if isinstance(obj, uuid.UUID):
+            return str(obj)
+        elif isinstance(obj, dict):
+            return {key: convert_uuids(value) for key, value in obj.items()}
+        elif isinstance(obj, list):
+            return [convert_uuids(item) for item in obj]
+        elif isinstance(obj, tuple):
+            return tuple(convert_uuids(item) for item in obj)
+        return obj
+    
+    return convert_uuids(data)
 
 def create_notification(
     recipient, 
@@ -15,6 +45,9 @@ def create_notification(
     """
     Helper function to create notifications
     """
+    # Serialize data to ensure JSON compatibility
+    serialized_data = serialize_data(data)
+    
     notification_data = {
         'recipient': recipient,
         'title': title,
@@ -22,13 +55,14 @@ def create_notification(
         'notification_type': notification_type,
         'priority': priority,
         'method': method,
-        'data': data or {}
+        'data': serialized_data
     }
     
     if related_object:
         from django.contrib.contenttypes.models import ContentType
         notification_data['content_type'] = ContentType.objects.get_for_model(related_object)
-        notification_data['object_id'] = related_object.id
+        # Convert object ID to string to handle both integers and UUIDs
+        notification_data['object_id'] = str(related_object.id)
     
     return Notification.objects.create(**notification_data)
 

@@ -1,3 +1,4 @@
+# apps/notifications/signals.py
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.contrib.auth import get_user_model
@@ -41,20 +42,20 @@ def handle_order_created(sender, instance, created, **kwargs):
         )
         
         # If COD order, send urgent alert to admins
-        if instance.payment_method == 'cod':
-            send_admin_cod_alert.delay(instance.id)
+        if instance.payment_method == 'cash_on_delivery':
+            send_admin_cod_alert.delay(str(instance.id))
         
         # Notify admins about new order
         notify_admins(
             title=f'New Order #{instance.order_number}',
             message=f'New order placed. Payment: {instance.get_payment_method_display()}, Amount: UGX {instance.total_amount:,.0f}',
             notification_type='order_created',
-            priority='high' if instance.payment_method == 'cod' else 'medium',
+            priority='high' if instance.payment_method == 'cash_on_delivery' else 'medium',
             data={
                 'order_id': instance.id,
                 'order_number': instance.order_number,
                 'payment_method': instance.payment_method,
                 'total_amount': str(instance.total_amount),
-                'customer_name': instance.customer_name
+                'customer_name': instance.get_customer_name()  # Fixed: use get_customer_name() method
             }
         )

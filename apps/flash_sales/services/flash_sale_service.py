@@ -92,9 +92,9 @@ class FlashSaleService:
         total_revenue = Decimal('0.00')
         total_savings = Decimal('0.00')
         
-        # Calculate order-based metrics
+        # Calculate order-based metrics - FIXED: Changed 'order_items' to 'items'
         flash_sale_orders = Order.objects.filter(
-            order_items__product__in=[p.product for p in products],
+            items__product_id__in=[p.product.id for p in products],
             created_at__gte=flash_sale.start_time,
             created_at__lte=flash_sale.end_time,
             status__in=['confirmed', 'delivered', 'completed']
@@ -105,12 +105,12 @@ class FlashSaleService:
         # Calculate revenue and savings
         for product in products:
             order_items = OrderItem.objects.filter(
-                product=product.product,
+                product_id=product.product.id,
                 order__in=flash_sale_orders
             )
             
             product_revenue = order_items.aggregate(
-                revenue=Sum('price')
+                revenue=Sum('total_price')  # Changed from 'price' to 'total_price' to match OrderItem model
             )['revenue'] or Decimal('0.00')
             
             product_quantity = order_items.aggregate(
@@ -124,22 +124,34 @@ class FlashSaleService:
             product.sold_quantity = product_quantity
             product.save(update_fields=['sold_quantity'])
         
-        # Top performing products
+        # Top performing products - FIXED: Serialize product data properly
         top_products = []
         for product in products:
             product_orders = OrderItem.objects.filter(
-                product=product.product,
+                product_id=product.product.id,
                 order__in=flash_sale_orders
             ).aggregate(
                 quantity=Sum('quantity'),
-                revenue=Sum('price')
+                revenue=Sum('total_price')  # Changed from 'price' to 'total_price'
             )
             
+            # Get product main image URL safely
+            main_image = product.product.images.filter(is_main=True).first()
+            product_image_url = None
+            if main_image and main_image.image:
+                product_image_url = main_image.image.url
+            
+            # Serialize product data instead of including the model instance
             top_products.append({
-                'product': product.product,
+                'product_id': str(product.product.id),
+                'product_name': product.product.name,
+                'product_slug': product.product.slug,
+                'product_image': product_image_url,
+                'original_price': float(product.original_price),
+                'flash_sale_price': float(product.flash_sale_price),
                 'quantity_sold': product_orders['quantity'] or 0,
-                'revenue': product_orders['revenue'] or Decimal('0.00'),
-                'discount_percentage': product.discount_percentage
+                'revenue': float(product_orders['revenue'] or Decimal('0.00')),
+                'discount_percentage': float(product.discount_percentage)
             })
         
         # Sort by quantity sold

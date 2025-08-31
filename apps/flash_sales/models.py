@@ -1,12 +1,9 @@
-#from django.db import models
-
-# Create your models here.
-# apps/flash_sales/models.py
 from django.db import models
 from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator
 from apps.core.models import BaseModel
 from apps.products.models import Product
+from decimal import Decimal, ROUND_HALF_UP
 import uuid
 
 
@@ -200,16 +197,29 @@ class FlashSaleProduct(BaseModel):
         return self.sold_quantity >= self.stock_limit
 
     def calculate_flash_sale_price(self):
-        """Calculate and return the flash sale price"""
+        """Calculate and return the flash sale price with proper decimal precision"""
         discount_percent = self.discount_percentage
-        discount_amount = (self.original_price * discount_percent) / 100
+        
+        # Convert to Decimal for precise calculations
+        original_price = Decimal(str(self.original_price))
+        discount_percent = Decimal(str(discount_percent))
+        
+        # Calculate discount amount
+        discount_amount = (original_price * discount_percent) / Decimal('100')
         
         # Apply max discount limit if set
         if self.flash_sale.max_discount_amount:
-            discount_amount = min(discount_amount, self.flash_sale.max_discount_amount)
+            max_discount = Decimal(str(self.flash_sale.max_discount_amount))
+            discount_amount = min(discount_amount, max_discount)
         
-        flash_price = self.original_price - discount_amount
-        return max(flash_price, 0)  # Ensure price doesn't go negative
+        # Calculate flash sale price
+        flash_price = original_price - discount_amount
+        
+        # Ensure price doesn't go negative and round to 2 decimal places
+        flash_price = max(flash_price, Decimal('0'))
+        flash_price = flash_price.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        
+        return flash_price
 
     def clean(self):
         """Validate flash sale product data"""
@@ -219,7 +229,7 @@ class FlashSaleProduct(BaseModel):
             # Update original price to current product price
             self.original_price = self.product.price
         
-        # Calculate flash sale price
+        # Calculate flash sale price with proper precision
         self.flash_sale_price = self.calculate_flash_sale_price()
         
         if self.stock_limit and self.stock_limit <= 0:
@@ -229,8 +239,7 @@ class FlashSaleProduct(BaseModel):
         if not self.original_price:
             self.original_price = self.product.price
         
+        # Calculate flash sale price with proper decimal precision
         self.flash_sale_price = self.calculate_flash_sale_price()
         self.full_clean()
         super().save(*args, **kwargs)
-
-

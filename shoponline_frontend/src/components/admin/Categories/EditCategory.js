@@ -3,7 +3,7 @@
 import React from 'react';
 import { X } from 'lucide-react';
 import CategoryForm from './CategoryForm';
-import { categoriesAPI } from '../../../services/api/categoriesAPI';
+import categoriesAPI from '../../../services/api/categoriesAPI'; // Changed from named import to default import
 import { useNotifications } from '../../../hooks/useNotifications';
 
 const EditCategory = ({ category, onClose, onSuccess }) => {
@@ -11,7 +11,9 @@ const EditCategory = ({ category, onClose, onSuccess }) => {
 
   const handleSubmit = async formData => {
     try {
-      const updatedCategory = await categoriesAPI.updateCategory(category.slug, formData);
+      // Use category.id if available, otherwise fall back to category.slug
+      const identifier = category.id || category.slug;
+      const updatedCategory = await categoriesAPI.updateCategory(identifier, formData);
       onSuccess(updatedCategory);
     } catch (error) {
       console.error('Error updating category:', error);

@@ -462,8 +462,8 @@ class AuthService {
       validation.score += 1;
     }
 
-    // Special character check
-    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+    // Special character check - Fixed escape characters
+    if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) {
       validation.errors.push('Password must contain at least one special character');
     } else {
       validation.score += 1;

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Upload, X, FolderTree, Star, Eye } from 'lucide-react';
-import { categoriesAPI } from '../../../services/api/categoriesAPI';
+import categoriesAPI from '../../../services/api/categoriesAPI'; // Changed from named import to default import
 import { useNotifications } from '../../../hooks/useNotifications';
 
 const CategoryForm = ({ mode = 'create', initialData = null, onSubmit, onCancel }) => {

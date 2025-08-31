@@ -35,15 +35,14 @@ export const useAuth = () => {
 
   // Enhanced login with proper credentials object handling
   const loginUser = useCallback(
-    async credentials => {
+    async (credentials, password = null) => {
       try {
         // Handle both object and separate parameter formats
         let loginCredentials;
         if (typeof credentials === 'object' && credentials.email && credentials.password) {
           loginCredentials = credentials;
-        } else if (typeof credentials === 'string') {
+        } else if (typeof credentials === 'string' && password) {
           // Handle case where email and password are separate parameters
-          const password = arguments[1];
           loginCredentials = { email: credentials, password };
         } else {
           throw new Error('Invalid credentials format');
