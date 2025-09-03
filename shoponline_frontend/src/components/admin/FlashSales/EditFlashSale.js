@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, Clock, Percent, Image, AlertCircle, Save, Plus } from 'lucide-react';
 import ProductSelector from './ProductSelector';
-import { flashSalesAPI } from '../../services/api/flashSalesAPI';
+//import { flashSalesAPI } from '../../../services/api/flashSalesAPI';
+import flashSalesAPI from '../../../services/api/flashSalesAPI';
 import './FlashSaleManagement.css';
 
 const EditFlashSale = ({ flashSale, onSuccess, onCancel }) => {

@@ -3,7 +3,8 @@ import { Plus, Eye, Edit, Trash2, TrendingUp, Clock, Users, DollarSign } from 'l
 import FlashSaleTable from './FlashSaleTable';
 import CreateFlashSale from './CreateFlashSale';
 import EditFlashSale from './EditFlashSale';
-import { flashSalesAPI } from '../../services/api/flashSalesAPI';
+//import { flashSalesAPI } from '../../../services/api/flashSalesAPI';
+import flashSalesAPI from '../../../services/api/flashSalesAPI';
 import './FlashSaleManagement.css';
 
 const FlashSaleManagement = () => {

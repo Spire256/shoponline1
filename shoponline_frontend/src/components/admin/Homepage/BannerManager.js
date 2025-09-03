@@ -1,7 +1,8 @@
 // src/components/admin/Homepage/BannerManager.js
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../hooks/useAuth';
-import { homepageAPI } from '../../../services/api/homepageAPI';
+//import { homepageAPI } from '../../../services/api/homepageAPI';
+import  homepageAPI  from '../../../services/api/homepageAPI';
 import Button from '../../common/UI/Button/Button';
 import Input from '../../common/UI/Form/Input';
 import Select from '../../common/UI/Form/Select';

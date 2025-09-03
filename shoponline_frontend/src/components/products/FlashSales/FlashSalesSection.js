@@ -24,39 +24,43 @@ const FlashSalesSection = ({
   const [error, setError] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  const {
-    activeSales,
-    isProductInFlashSale,
-    getFlashSalePrice,
-    refreshSales
-  } = useContext(FlashSalesContext) || {};
+  const flashSalesContext = useContext(FlashSalesContext);
 
   useEffect(() => {
     fetchActiveFlashSales();
 
     // Set up auto-refresh every 30 seconds
     const interval = setInterval(() => {
-      if (refreshSales) refreshSales();
+      if (flashSalesContext?.refreshSales) {
+        flashSalesContext.refreshSales();
+      }
       fetchActiveFlashSales();
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [refreshSales]);
+  }, [flashSalesContext]);
 
-  // FIXED: Fetch active flash sales with better error handling
   const fetchActiveFlashSales = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // FIXED: Use the corrected API method with proper error handling
+      // Use the correct backend API endpoint
       const response = await flashSalesAPI.getActiveSales();
 
-      // Handle both direct array response and nested data response
-      const salesData = response?.data || response || [];
+      // Handle response structure from backend
+      let salesData = [];
+      if (response && Array.isArray(response)) {
+        salesData = response;
+      } else if (response && response.data && Array.isArray(response.data)) {
+        salesData = response.data;
+      } else if (response && response.results && Array.isArray(response.results)) {
+        salesData = response.results;
+      }
 
-      if (Array.isArray(salesData) && salesData.length > 0) {
-        const activeSales = salesData;
+      if (salesData.length > 0) {
+        // Filter only running flash sales
+        const activeSales = salesData.filter(sale => sale.is_running && sale.is_active);
         setFlashSales(activeSales);
 
         // Set the current flash sale (first active one)
@@ -68,94 +72,10 @@ const FlashSalesSection = ({
           await fetchFlashSaleProducts(firstSale.id);
         }
       } else {
-        // No active sales found - show mock data for demonstration
+        // No active sales found
         setFlashSales([]);
         setCurrentFlashSale(null);
         setFlashSaleProducts([]);
-        
-        // FIXED: Create better mock data structure
-        const mockFlashSale = {
-          id: 'mock-flash-sale-1',
-          name: 'Weekend Super Sale',
-          description: 'Up to 70% off on selected items',
-          discount_percentage: 50,
-          start_time: new Date().toISOString(),
-          end_time: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(), // 2 hours from now
-          is_active: true,
-          is_running: true,
-          time_remaining: 7200, // 2 hours in seconds
-          banner_image: null,
-          products_count: 4,
-        };
-
-        setFlashSales([mockFlashSale]);
-        setCurrentFlashSale(mockFlashSale);
-
-        // Mock products with proper structure
-        const mockProducts = [
-          {
-            id: 'mock-1',
-            name: 'Samsung Galaxy Smartphone',
-            price: 850000,
-            original_price: 1200000,
-            flash_sale_price: 850000,
-            discount_percentage: 29,
-            image: '/api/placeholder/250/250',
-            images: [{ image: '/api/placeholder/250/250' }],
-            category: { name: 'Electronics' },
-            is_in_stock: true,
-            stock_limit: 20,
-            sold_quantity: 5,
-            is_sold_out: false,
-          },
-          {
-            id: 'mock-2',
-            name: 'Nike Air Max Sneakers',
-            price: 180000,
-            original_price: 250000,
-            flash_sale_price: 180000,
-            discount_percentage: 28,
-            image: '/api/placeholder/250/250',
-            images: [{ image: '/api/placeholder/250/250' }],
-            category: { name: 'Fashion' },
-            is_in_stock: true,
-            stock_limit: 15,
-            sold_quantity: 8,
-            is_sold_out: false,
-          },
-          {
-            id: 'mock-3',
-            name: 'Apple MacBook Air',
-            price: 2800000,
-            original_price: 3500000,
-            flash_sale_price: 2800000,
-            discount_percentage: 20,
-            image: '/api/placeholder/250/250',
-            images: [{ image: '/api/placeholder/250/250' }],
-            category: { name: 'Electronics' },
-            is_in_stock: true,
-            stock_limit: 5,
-            sold_quantity: 2,
-            is_sold_out: false,
-          },
-          {
-            id: 'mock-4',
-            name: 'Sony Headphones',
-            price: 120000,
-            original_price: 180000,
-            flash_sale_price: 120000,
-            discount_percentage: 33,
-            image: '/api/placeholder/250/250',
-            images: [{ image: '/api/placeholder/250/250' }],
-            category: { name: 'Electronics' },
-            is_in_stock: false,
-            stock_limit: 10,
-            sold_quantity: 10,
-            is_sold_out: true,
-          },
-        ];
-
-        setFlashSaleProducts(mockProducts);
       }
     } catch (error) {
       console.error('Error fetching flash sales:', error);
@@ -169,40 +89,43 @@ const FlashSalesSection = ({
     }
   };
 
-  // FIXED: Fetch flash sale products with better error handling
   const fetchFlashSaleProducts = async flashSaleId => {
     try {
-      // FIXED: Use the corrected API method for getting flash sale products
+      // Use the correct backend endpoint: /flash-sales/sales/{id}/with_products/
       const response = await flashSalesAPI.getFlashSaleWithProducts(flashSaleId);
 
-      const responseData = response?.data || response;
-
-      // Handle different response structures
       let products = [];
-      if (responseData && responseData.flash_sale_products) {
-        // Transform the data to include flash sale pricing
-        products = responseData.flash_sale_products.map(item => ({
-          ...(item.product_detail || item.product || {}),
-          id: item.product_detail?.id || item.product?.id || item.id,
+      if (response && response.flash_sale_products) {
+        // Transform the data to match expected structure
+        products = response.flash_sale_products.slice(0, limit).map(item => ({
+          id: item.id,
+          // Product details from nested structure
+          name: item.product_detail?.name || item.product?.name || 'Product',
+          image: item.product_detail?.image || item.product?.image || '/api/placeholder/250/250',
+          images: item.product_detail?.images || item.product?.images || [{ image: '/api/placeholder/250/250' }],
+          category: item.product_detail?.category || item.product?.category || { name: 'Category' },
+          
+          // Flash sale pricing
           flash_sale_price: parseFloat(item.flash_sale_price || 0),
           original_price: parseFloat(item.original_price || 0),
           discount_percentage: parseFloat(item.discount_percentage || 0),
+          savings_amount: parseFloat(item.original_price || 0) - parseFloat(item.flash_sale_price || 0),
+          
+          // Stock information
           stock_limit: item.stock_limit,
           sold_quantity: item.sold_quantity || 0,
           is_sold_out: item.is_sold_out || false,
-          // Ensure image is available
-          image: item.product_detail?.image || item.product?.image || '/api/placeholder/250/250',
-          images: item.product_detail?.images || item.product?.images || [{ image: '/api/placeholder/250/250' }],
+          is_in_stock: !item.is_sold_out && (item.product_detail?.is_in_stock !== false),
+          
+          // Additional properties
+          is_active: item.is_active,
         }));
       }
 
-      setFlashSaleProducts(products.slice(0, limit)); // Apply limit
+      setFlashSaleProducts(products);
     } catch (error) {
       console.error('Error fetching flash sale products:', error);
-      // Keep existing mock data on error or set empty array
-      if (flashSaleProducts.length === 0) {
-        setFlashSaleProducts([]);
-      }
+      setFlashSaleProducts([]);
     }
   };
 
@@ -308,7 +231,9 @@ const FlashSalesSection = ({
             <CountdownTimer
               endTime={currentFlashSale.end_time}
               onExpire={() => {
-                if (refreshSales) refreshSales();
+                if (flashSalesContext?.refreshSales) {
+                  flashSalesContext.refreshSales();
+                }
                 fetchActiveFlashSales();
               }}
             />

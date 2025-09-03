@@ -1,4 +1,4 @@
-// src/services/api/productsAPI.js
+// src/services/api/productsAPI.js - Updated for backend integration
 import apiClient, {
   fileUploadClient,
   handleApiResponse,
@@ -7,7 +7,7 @@ import apiClient, {
 } from './apiClient';
 
 const productsAPI = {
-  // Get all products with filtering and pagination
+  // Get all products with filtering and pagination - ALIGNED WITH BACKEND
   getProducts: async (params = {}) => {
     try {
       const queryString = buildQueryString(params);
@@ -19,18 +19,8 @@ const productsAPI = {
     }
   },
 
-  // Get single product by slug
-  getProduct: async slug => {
-    try {
-      const response = await apiClient.get(`/products/${slug}/`);
-      return handleApiResponse(response);
-    } catch (error) {
-      throw handleApiError(error);
-    }
-  },
-
-  // Get product by ID (admin use)
-  getProductById: async productId => {
+  // Get single product by slug - BACKEND EXPECTS ID NOT SLUG
+  getProduct: async productId => {
     try {
       const response = await apiClient.get(`/products/${productId}/`);
       return handleApiResponse(response);
@@ -39,20 +29,92 @@ const productsAPI = {
     }
   },
 
-  // Create new product (admin only)
+  // Get product by slug (separate endpoint for frontend routing)
+  getProductBySlug: async slug => {
+    try {
+      const response = await apiClient.get(`/products/?slug=${slug}`);
+      const products = handleApiResponse(response);
+      if (products.results && products.results.length > 0) {
+        return products.results[0];
+      }
+      throw new Error('Product not found');
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+
+  // Create new product (admin only) - FIXED FORM DATA STRUCTURE
   createProduct: async productData => {
     try {
-      const response = await fileUploadClient.post('/products/', productData);
+      const formData = new FormData();
+      
+      // Handle basic product data
+      Object.keys(productData).forEach(key => {
+        if (key === 'images_data' || key === 'attributes_data' || key === 'variants_data') {
+          return; // Handle these separately
+        }
+        if (productData[key] !== null && productData[key] !== undefined && productData[key] !== '') {
+          formData.append(key, productData[key]);
+        }
+      });
+
+      // Handle images
+      if (productData.images_data && Array.isArray(productData.images_data)) {
+        productData.images_data.forEach(image => {
+          formData.append('images_data', image);
+        });
+      }
+
+      // Handle attributes as JSON string (backend expects this format)
+      if (productData.attributes_data && Array.isArray(productData.attributes_data)) {
+        formData.append('attributes_data', JSON.stringify(productData.attributes_data));
+      }
+
+      // Handle variants as JSON string
+      if (productData.variants_data && Array.isArray(productData.variants_data)) {
+        formData.append('variants_data', JSON.stringify(productData.variants_data));
+      }
+
+      const response = await fileUploadClient.post('/products/', formData);
       return handleApiResponse(response);
     } catch (error) {
       throw handleApiError(error);
     }
   },
 
-  // Update product (admin only)
+  // Update product (admin only) - FIXED PARTIAL UPDATE
   updateProduct: async (productId, productData) => {
     try {
-      const response = await fileUploadClient.patch(`/products/${productId}/`, productData);
+      const formData = new FormData();
+      
+      // Handle basic product data
+      Object.keys(productData).forEach(key => {
+        if (key === 'images_data' || key === 'attributes_data' || key === 'variants_data') {
+          return;
+        }
+        if (productData[key] !== null && productData[key] !== undefined) {
+          formData.append(key, productData[key]);
+        }
+      });
+
+      // Handle new images if provided
+      if (productData.images_data && Array.isArray(productData.images_data)) {
+        productData.images_data.forEach(image => {
+          formData.append('images_data', image);
+        });
+      }
+
+      // Handle attributes update
+      if (productData.attributes_data) {
+        formData.append('attributes_data', JSON.stringify(productData.attributes_data));
+      }
+
+      // Handle variants update
+      if (productData.variants_data) {
+        formData.append('variants_data', JSON.stringify(productData.variants_data));
+      }
+
+      const response = await fileUploadClient.patch(`/products/${productId}/`, formData);
       return handleApiResponse(response);
     } catch (error) {
       throw handleApiError(error);
@@ -69,29 +131,31 @@ const productsAPI = {
     }
   },
 
-  // Get featured products
-  getFeaturedProducts: async (limit = 8) => {
+  // Get featured products - ALIGNED WITH BACKEND ENDPOINT
+  getFeaturedProducts: async (params = {}) => {
     try {
-      const response = await apiClient.get(`/products/featured/?limit=${limit}`);
+      const queryParams = { is_featured: true, is_active: true, ...params };
+      const queryString = buildQueryString(queryParams);
+      const response = await apiClient.get(`/products/?${queryString}`);
       return handleApiResponse(response);
     } catch (error) {
       throw handleApiError(error);
     }
   },
 
-  // Search products
+  // Search products - FIXED TO MATCH BACKEND SEARCH ENDPOINT
   searchProducts: async (query, filters = {}) => {
     try {
       const params = { search: query, ...filters };
       const queryString = buildQueryString(params);
-      const response = await apiClient.get(`/products/search/?${queryString}`);
+      const response = await apiClient.get(`/products/?${queryString}`);
       return handleApiResponse(response);
     } catch (error) {
       throw handleApiError(error);
     }
   },
 
-  // Get products by category
+  // Get products by category - FIXED CATEGORY FILTERING
   getProductsByCategory: async (categoryId, params = {}) => {
     try {
       const allParams = { category: categoryId, ...params };
@@ -103,41 +167,7 @@ const productsAPI = {
     }
   },
 
-  // Get related products
-  getRelatedProducts: async (productId, limit = 4) => {
-    try {
-      const response = await apiClient.get(`/products/${productId}/related/?limit=${limit}`);
-      return handleApiResponse(response);
-    } catch (error) {
-      throw handleApiError(error);
-    }
-  },
-
-  // Get product recommendations
-  getRecommendedProducts: async (params = {}) => {
-    try {
-      const queryString = buildQueryString(params);
-      const url = queryString
-        ? `/products/recommendations/?${queryString}`
-        : '/products/recommendations/';
-      const response = await apiClient.get(url);
-      return handleApiResponse(response);
-    } catch (error) {
-      throw handleApiError(error);
-    }
-  },
-
-  // Get top products
-  getTopProducts: async (type = 'popular', limit = 10) => {
-    try {
-      const response = await apiClient.get(`/products/top/?type=${type}&limit=${limit}`);
-      return handleApiResponse(response);
-    } catch (error) {
-      throw handleApiError(error);
-    }
-  },
-
-  // Product Images
+  // Product Images - NESTED ROUTER ENDPOINTS
   getProductImages: async productId => {
     try {
       const response = await apiClient.get(`/products/${productId}/images/`);
@@ -151,8 +181,8 @@ const productsAPI = {
     try {
       const formData = new FormData();
       formData.append('image', imageData.image);
-      formData.append('alt_text', imageData.alt_text || '');
-      formData.append('caption', imageData.caption || '');
+      if (imageData.alt_text) formData.append('alt_text', imageData.alt_text);
+      if (imageData.caption) formData.append('caption', imageData.caption);
       formData.append('position', imageData.position || 0);
       formData.append('is_main', imageData.is_main || false);
 
@@ -184,7 +214,29 @@ const productsAPI = {
     }
   },
 
-  // Product Attributes
+  // Reorder product images - CUSTOM ENDPOINT
+  reorderProductImages: async (productId, imageOrders) => {
+    try {
+      const response = await apiClient.post(`/products/${productId}/images/reorder/`, {
+        image_orders: imageOrders
+      });
+      return handleApiResponse(response);
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+
+  // Set main image
+  setMainProductImage: async (productId, imageId) => {
+    try {
+      const response = await apiClient.post(`/products/${productId}/images/${imageId}/set_main/`);
+      return handleApiResponse(response);
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+
+  // Product Attributes - NESTED ENDPOINTS
   getProductAttributes: async productId => {
     try {
       const response = await apiClient.get(`/products/${productId}/attributes/`);
@@ -224,7 +276,7 @@ const productsAPI = {
     }
   },
 
-  // Product Variants
+  // Product Variants - NESTED ENDPOINTS
   getProductVariants: async productId => {
     try {
       const response = await apiClient.get(`/products/${productId}/variants/`);
@@ -264,56 +316,27 @@ const productsAPI = {
     }
   },
 
-  // Inventory Management
-  updateStock: async (productId, stockData) => {
-    try {
-      const response = await apiClient.post(`/products/${productId}/update-stock/`, stockData);
-      return handleApiResponse(response);
-    } catch (error) {
-      throw handleApiError(error);
-    }
-  },
-
-  getInventoryStatus: async productId => {
-    try {
-      const response = await apiClient.get(`/products/${productId}/inventory/`);
-      return handleApiResponse(response);
-    } catch (error) {
-      throw handleApiError(error);
-    }
-  },
-
-  getLowStockProducts: async (threshold = 10) => {
-    try {
-      const response = await apiClient.get(`/products/low-stock/?threshold=${threshold}`);
-      return handleApiResponse(response);
-    } catch (error) {
-      throw handleApiError(error);
-    }
-  },
-
-  // Bulk Operations (admin only)
+  // Bulk Operations (admin only) - BACKEND BULK_UPDATE ACTION
   bulkUpdateProducts: async bulkData => {
     try {
-      const response = await apiClient.post('/products/bulk-update/', bulkData);
+      const response = await apiClient.post('/products/bulk_update/', bulkData);
       return handleApiResponse(response);
     } catch (error) {
       throw handleApiError(error);
     }
   },
 
-  bulkDeleteProducts: async productIds => {
+  // Product Analytics - BACKEND STATS ENDPOINT
+  getProductStats: async () => {
     try {
-      const response = await apiClient.post('/products/bulk-delete/', {
-        product_ids: productIds,
-      });
+      const response = await apiClient.get('/products/stats/');
       return handleApiResponse(response);
     } catch (error) {
       throw handleApiError(error);
     }
   },
 
-  // Product Analytics
+  // Product Analytics with filters
   getProductAnalytics: async (params = {}) => {
     try {
       const queryString = buildQueryString(params);
@@ -325,67 +348,31 @@ const productsAPI = {
     }
   },
 
-  getProductPerformance: async (productId, period = '30d') => {
+  // Top products - BACKEND TOP ENDPOINT
+  getTopProducts: async (criteria = 'views', limit = 10) => {
     try {
-      const response = await apiClient.get(`/products/${productId}/performance/?period=${period}`);
+      const response = await apiClient.get(`/products/top/?criteria=${criteria}&limit=${limit}`);
       return handleApiResponse(response);
     } catch (error) {
       throw handleApiError(error);
     }
   },
 
-  // Product Price History
-  getPriceHistory: async productId => {
+  // Product recommendations - BACKEND RECOMMENDATIONS ENDPOINT
+  getRecommendedProducts: async (params = {}) => {
     try {
-      const response = await apiClient.get(`/products/${productId}/price-history/`);
+      const queryString = buildQueryString(params);
+      const url = queryString
+        ? `/products/recommendations/?${queryString}`
+        : '/products/recommendations/';
+      const response = await apiClient.get(url);
       return handleApiResponse(response);
     } catch (error) {
       throw handleApiError(error);
     }
   },
 
-  updatePrice: async (productId, priceData) => {
-    try {
-      const response = await apiClient.post(`/products/${productId}/update-price/`, priceData);
-      return handleApiResponse(response);
-    } catch (error) {
-      throw handleApiError(error);
-    }
-  },
-
-  // Product Comparison
-  compareProducts: async productIds => {
-    try {
-      const response = await apiClient.post('/products/compare/', {
-        product_ids: productIds,
-      });
-      return handleApiResponse(response);
-    } catch (error) {
-      throw handleApiError(error);
-    }
-  },
-
-  // Product Duplication
-  duplicateProduct: async productId => {
-    try {
-      const response = await apiClient.post(`/products/${productId}/duplicate/`);
-      return handleApiResponse(response);
-    } catch (error) {
-      throw handleApiError(error);
-    }
-  },
-
-  // Product Reviews Summary
-  getReviewsSummary: async productId => {
-    try {
-      const response = await apiClient.get(`/products/${productId}/reviews/summary/`);
-      return handleApiResponse(response);
-    } catch (error) {
-      throw handleApiError(error);
-    }
-  },
-
-  // Product Export/Import (admin only)
+  // Export products - BACKEND EXPORT ENDPOINT
   exportProducts: async (filters = {}) => {
     try {
       const queryString = buildQueryString(filters);
@@ -397,6 +384,7 @@ const productsAPI = {
     }
   },
 
+  // Import products - BACKEND IMPORT ENDPOINT
   importProducts: async (file, options = {}) => {
     try {
       const formData = new FormData();
@@ -405,38 +393,45 @@ const productsAPI = {
         formData.append(key, value);
       });
 
-      const response = await fileUploadClient.post('/products/import/', formData);
+      const response = await fileUploadClient.post('/products/import_products/', formData);
       return handleApiResponse(response);
     } catch (error) {
       throw handleApiError(error);
     }
   },
 
-  // Product Statistics
-  getProductStats: async () => {
-    try {
-      const response = await apiClient.get('/products/stats/');
-      return handleApiResponse(response);
-    } catch (error) {
-      throw handleApiError(error);
-    }
-  },
-
-  // Product View Tracking
+  // Increment view count - SIMPLE POST TO PRODUCT
   incrementViewCount: async productId => {
     try {
-      const response = await apiClient.post(`/products/${productId}/view/`);
+      // Simple approach - increment via retrieve call or custom endpoint
+      const response = await apiClient.post(`/products/${productId}/increment_view/`);
+      return handleApiResponse(response);
+    } catch (error) {
+      // If custom endpoint doesn't exist, just fetch the product (backend handles increment in retrieve)
+      try {
+        await apiClient.get(`/products/${productId}/`);
+        return { success: true };
+      } catch (fallbackError) {
+        throw handleApiError(error);
+      }
+    }
+  },
+
+  // Duplicate product - BACKEND DUPLICATE ACTION
+  duplicateProduct: async productId => {
+    try {
+      const response = await apiClient.post(`/products/${productId}/duplicate/`);
       return handleApiResponse(response);
     } catch (error) {
       throw handleApiError(error);
     }
   },
 
-  // Product Availability Check
-  checkAvailability: async (productId, quantity = 1) => {
+  // Compare products - BACKEND COMPARE ENDPOINT
+  compareProducts: async productIds => {
     try {
-      const response = await apiClient.post(`/products/${productId}/check-availability/`, {
-        quantity,
+      const response = await apiClient.post('/products/compare/', {
+        product_ids: productIds,
       });
       return handleApiResponse(response);
     } catch (error) {
@@ -444,12 +439,34 @@ const productsAPI = {
     }
   },
 
-  // Product Filters and Options
-  getProductFilters: async (categoryId = null) => {
+  // Quick edit product - PATCH REQUEST FOR QUICK UPDATES
+  quickEditProduct: async (productId, quickData) => {
     try {
-      const params = categoryId ? { category: categoryId } : {};
+      const response = await apiClient.patch(`/products/${productId}/`, quickData);
+      return handleApiResponse(response);
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+
+  // Inventory management - BULK INVENTORY UPDATE
+  updateInventory: async inventoryUpdates => {
+    try {
+      const response = await apiClient.post('/products/inventory/', {
+        updates: inventoryUpdates
+      });
+      return handleApiResponse(response);
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+
+  // Get low stock products - BACKEND LOW-STOCK ENDPOINT
+  getLowStockProducts: async (threshold = null) => {
+    try {
+      const params = threshold ? { threshold } : {};
       const queryString = buildQueryString(params);
-      const url = queryString ? `/products/filters/?${queryString}` : '/products/filters/';
+      const url = queryString ? `/products/inventory/?${queryString}` : '/products/inventory/';
       const response = await apiClient.get(url);
       return handleApiResponse(response);
     } catch (error) {
@@ -457,8 +474,10 @@ const productsAPI = {
     }
   },
 
-  // Utility Functions
+  // Utility Functions - FIXED FOR BACKEND DATA FORMAT
   formatProductData: product => {
+    if (!product) return null;
+    
     return {
       id: product.id,
       name: product.name,
@@ -482,9 +501,29 @@ const productsAPI = {
       tags: product.tags ? product.tags.split(',').map(tag => tag.trim()) : [],
       createdAt: new Date(product.created_at),
       updatedAt: new Date(product.updated_at),
+      // Additional fields from backend
+      brand: product.brand,
+      model: product.model,
+      sku: product.sku,
+      condition: product.condition,
+      status: product.status,
+      isActive: product.is_active,
+      isFeatured: product.is_featured,
+      isDigital: product.is_digital,
+      requiresShipping: product.requires_shipping,
+      trackInventory: product.track_inventory,
+      allowBackorders: product.allow_backorders,
+      weight: product.weight,
+      dimensions: product.dimensions,
+      color: product.color,
+      size: product.size,
+      material: product.material,
+      viewCount: product.view_count,
+      orderCount: product.order_count,
     };
   },
 
+  // Format price for Uganda Shillings
   formatPrice: (price, currency = 'UGX') => {
     return new Intl.NumberFormat('en-UG', {
       style: 'currency',
@@ -494,43 +533,15 @@ const productsAPI = {
     }).format(price);
   },
 
-  calculateSavings: (originalPrice, currentPrice) => {
-    if (!originalPrice || originalPrice <= currentPrice) return 0;
-    return originalPrice - currentPrice;
-  },
-
-  calculateDiscountPercentage: (originalPrice, currentPrice) => {
-    if (!originalPrice || originalPrice <= currentPrice) return 0;
-    return Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
-  },
-
+  // Get stock status with backend alignment
   getStockStatus: product => {
     if (!product.track_inventory) return 'available';
     if (product.stock_quantity === 0) return 'out_of_stock';
-    if (product.stock_quantity <= product.low_stock_threshold) return 'low_stock';
+    if (product.stock_quantity <= (product.low_stock_threshold || 10)) return 'low_stock';
     return 'in_stock';
   },
 
-  getStockStatusText: status => {
-    const statusMap = {
-      available: 'Available',
-      in_stock: 'In Stock',
-      low_stock: 'Low Stock',
-      out_of_stock: 'Out of Stock',
-    };
-    return statusMap[status] || 'Unknown';
-  },
-
-  getStockStatusColor: status => {
-    const colorMap = {
-      available: 'green',
-      in_stock: 'green',
-      low_stock: 'orange',
-      out_of_stock: 'red',
-    };
-    return colorMap[status] || 'gray';
-  },
-
+  // Validate product data for backend submission
   validateProductData: productData => {
     const errors = {};
 
@@ -554,38 +565,14 @@ const productsAPI = {
       errors.category = 'Category is required';
     }
 
-    if (productData.track_inventory && productData.stock_quantity < 0) {
-      errors.stock_quantity = 'Stock quantity cannot be negative';
+    if (productData.track_inventory && (!productData.stock_quantity || productData.stock_quantity < 0)) {
+      errors.stock_quantity = 'Stock quantity must be 0 or greater when tracking inventory';
     }
 
     return {
       isValid: Object.keys(errors).length === 0,
       errors,
     };
-  },
-
-  buildProductFormData: (productData, images = []) => {
-    const formData = new FormData();
-
-    // Add basic product data
-    Object.entries(productData).forEach(([key, value]) => {
-      if (value !== null && value !== undefined && value !== '') {
-        if (Array.isArray(value)) {
-          value.forEach(item => formData.append(key, item));
-        } else {
-          formData.append(key, value);
-        }
-      }
-    });
-
-    // Add images
-    images.forEach((image, index) => {
-      if (image instanceof File) {
-        formData.append('images_data', image);
-      }
-    });
-
-    return formData;
   },
 };
 

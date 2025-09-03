@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Calendar, Clock, Percent, Image, AlertCircle, Save } from 'lucide-react';
-import { flashSalesAPI } from '../../../services/api/flashSalesAPI';
+//import { flashSalesAPI } from '../../../services/api/flashSalesAPI';
+import flashSalesAPI from '../../../services/api/flashSalesAPI';
 import './FlashSaleManagement.css';
 
 const CreateFlashSale = ({ onSuccess, onCancel }) => {

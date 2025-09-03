@@ -9,6 +9,23 @@ class MTNService {
   constructor() {
     this.baseURL = '/api/v1/payments';
     this.provider = 'mtn';
+    
+    // MTN Configuration from environment variables
+    this.config = {
+      baseURL: process.env.REACT_APP_MTN_MOMO_BASE_URL || 'https://sandbox.momodeveloper.mtn.com',
+      subscriptionKey: process.env.REACT_APP_MTN_MOMO_SUBSCRIPTION_KEY || '878d5c3421094497b460207379326a53',
+      secondaryKey: process.env.REACT_APP_MTN_MOMO_SECONDARY_KEY || '91735b447b134358828f0b8b1d260c5c',
+      targetEnvironment: process.env.REACT_APP_MTN_MOMO_TARGET_ENVIRONMENT || 'sandbox',
+      enabled: process.env.REACT_APP_MTN_MOMO_ENABLED === 'true'
+    };
+  }
+
+  /**
+   * Check if MTN service is enabled
+   * @returns {boolean} True if MTN service is enabled
+   */
+  isEnabled() {
+    return this.config.enabled && this.config.subscriptionKey;
   }
 
   /**
@@ -18,6 +35,14 @@ class MTNService {
    */
   async processPayment(paymentData) {
     try {
+      if (!this.isEnabled()) {
+        return {
+          success: false,
+          error: 'MTN Mobile Money service is not enabled',
+          message: 'MTN payments are currently unavailable',
+        };
+      }
+
       // Validate MTN payment data
       const validation = this.validateMTNPaymentData(paymentData);
       if (!validation.isValid) {
@@ -76,11 +101,11 @@ class MTNService {
     try {
       const response = await apiClient.post(`${this.baseURL}/check-phone/`, {
         phone_number: phoneNumber,
-        provider: this.provider,
+        payment_method: 'mtn_momo',
       });
 
       return {
-        isValid: response.data.is_valid,
+        isValid: response.data.valid,
         provider: response.data.provider,
         message: response.data.message,
       };
@@ -226,13 +251,13 @@ class MTNService {
   formatPhoneNumber(phoneNumber) {
     let cleaned = phoneNumber.replace(/[\s-]/g, '');
 
-    // Convert to international format without + sign
+    // Convert to international format 
     if (cleaned.startsWith('0')) {
-      cleaned = `256${cleaned.slice(1)}`;
-    } else if (cleaned.startsWith('+256')) {
-      cleaned = cleaned.slice(1);
-    } else if (!cleaned.startsWith('256')) {
-      cleaned = `256${cleaned}`;
+      cleaned = `+256${cleaned.slice(1)}`;
+    } else if (cleaned.startsWith('256')) {
+      cleaned = `+${cleaned}`;
+    } else if (!cleaned.startsWith('+256')) {
+      cleaned = `+256${cleaned}`;
     }
 
     return cleaned;
@@ -668,6 +693,22 @@ class MTNService {
       if (intervalId) {
         clearInterval(intervalId);
       }
+    };
+  }
+
+  /**
+   * Get configuration info
+   * @returns {Object} Current configuration
+   */
+  getConfigInfo() {
+    return {
+      provider: 'MTN Mobile Money',
+      environment: this.config.targetEnvironment,
+      enabled: this.config.enabled,
+      baseURL: this.config.baseURL,
+      hasSubscriptionKey: !!this.config.subscriptionKey,
+      subscriptionKeyPreview: this.config.subscriptionKey ? 
+        `${this.config.subscriptionKey.substring(0, 8)}...` : 'Not configured',
     };
   }
 }

@@ -1,3 +1,5 @@
+// src/pages/CategoryPage/CategoryHeader.js
+
 import React from 'react';
 import { Link } from 'react-router-dom';
 import PropTypes from 'prop-types';
@@ -60,12 +62,21 @@ const CategoryHeader = ({ category, subcategories, productCount, onSubcategoryCl
               <div className="subcategory-card__content">
                 {subcategory.image_url && (
                   <div className="subcategory-card__image">
-                    <img src={subcategory.image_url} alt={subcategory.name} loading="lazy" />
+                    <img 
+                      src={subcategory.image_url} 
+                      alt={subcategory.name} 
+                      loading="lazy"
+                      onError={(e) => {
+                        e.target.src = '/assets/placeholders/category-placeholder.jpg';
+                      }}
+                    />
                   </div>
                 )}
                 <div className="subcategory-card__info">
                   <h4 className="subcategory-card__name">{subcategory.name}</h4>
-                  <p className="subcategory-card__count">{subcategory.product_count} products</p>
+                  <p className="subcategory-card__count">
+                    {subcategory.product_count || 0} products
+                  </p>
                   {subcategory.description && (
                     <p className="subcategory-card__description">
                       {subcategory.description.length > 100
@@ -167,6 +178,9 @@ const CategoryHeader = ({ category, subcategories, productCount, onSubcategoryCl
                     src={getCategoryImageUrl()}
                     alt={category.name}
                     className="category-header__image-element"
+                    onError={(e) => {
+                      e.target.src = '/assets/images/placeholders/category-placeholder.jpg';
+                    }}
                   />
                   <div className="category-header__image-overlay" />
                 </div>

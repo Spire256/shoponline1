@@ -1,4 +1,4 @@
-// src/components/products/ProductCard/ProductCard.js
+// src/components/products/ProductCard/ProductCard.js - Updated for backend integration
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Heart, ShoppingCart, Eye, Star } from 'lucide-react';
@@ -83,23 +83,53 @@ const ProductCard = ({
     );
   };
 
+  // Handle missing or undefined product data
+  if (!product) {
+    return null;
+  }
+
+  // Get the main image URL with proper fallback
+  const getImageUrl = () => {
+    if (imageError) {
+      return '/assets/images/placeholders/product-placeholder.jpg';
+    }
+    
+    // Check for main image first
+    if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+      const mainImage = product.images.find(img => img.is_main) || product.images[0];
+      return mainImage.thumbnail_url || mainImage.image_url;
+    }
+    
+    // Fallback to direct URLs from backend
+    return product.thumbnail_url || product.image_url || '/assets/images/placeholders/product-placeholder.jpg';
+  };
+
+  // Check stock status
+  const isInStock = product.is_in_stock && 
+    (product.track_inventory ? product.stock_quantity > 0 : true);
+
   return (
     <div className={`product-card product-card--${size} ${className}`}>
       <Link to={`/products/${product.slug}`} className="product-card__link">
         {/* Product Badges */}
         <div className="product-card__badges">
           {product.is_on_sale && (
-            <ProductBadge type="sale" text={`${product.discount_percentage}% OFF`} />
+            <ProductBadge type="sale" text={`${product.discount_percentage || 0}% OFF`} />
           )}
           {product.is_featured && !product.is_on_sale && (
             <ProductBadge type="featured" text="Featured" />
           )}
-          {!product.is_in_stock && <ProductBadge type="out-of-stock" text="Out of Stock" />}
+          {!isInStock && <ProductBadge type="out-of-stock" text="Out of Stock" />}
           {product.condition && product.condition !== 'new' && (
             <ProductBadge
               type="condition"
               text={product.condition.charAt(0).toUpperCase() + product.condition.slice(1)}
             />
+          )}
+          {/* Low stock warning */}
+          {isInStock && product.track_inventory && 
+           product.stock_quantity <= (product.low_stock_threshold || 10) && (
+            <ProductBadge type="warning" text="Low Stock" />
           )}
         </div>
 
@@ -112,11 +142,7 @@ const ProductCard = ({
           )}
 
           <img
-            src={
-              imageError
-                ? '/assets/images/placeholders/product-placeholder.jpg'
-                : product.thumbnail_url || product.image_url
-            }
+            src={getImageUrl()}
             alt={product.name}
             className={`product-card__image ${imageLoading ? 'loading' : ''}`}
             onLoad={handleImageLoad}
@@ -142,11 +168,12 @@ const ProductCard = ({
                 <Eye size={18} />
               </button>
 
-              {product.is_in_stock && (
+              {isInStock && (
                 <button
                   className="action-btn add-to-cart-btn"
                   onClick={handleAddToCart}
                   title="Add to Cart"
+                  disabled={!isInStock}
                 >
                   <ShoppingCart size={18} />
                 </button>
@@ -159,7 +186,9 @@ const ProductCard = ({
         <div className="product-card__content">
           {/* Category */}
           {product.category && (
-            <div className="product-card__category">{product.category.name}</div>
+            <div className="product-card__category">
+              {typeof product.category === 'object' ? product.category.name : product.category}
+            </div>
           )}
 
           {/* Product Name */}
@@ -176,6 +205,13 @@ const ProductCard = ({
             </p>
           )}
 
+          {/* Brand */}
+          {size !== 'small' && product.brand && (
+            <div className="product-card__brand">
+              {product.brand}
+            </div>
+          )}
+
           {/* Rating */}
           {size !== 'small' && renderRating()}
 
@@ -185,28 +221,51 @@ const ProductCard = ({
             {product.original_price && product.is_on_sale && (
               <span className="original-price">{formatPrice(product.original_price)}</span>
             )}
+            {/* Show savings amount */}
+            {product.original_price && product.is_on_sale && (
+              <span className="savings">
+                Save {formatPrice(product.original_price - product.price)}
+              </span>
+            )}
           </div>
 
           {/* Stock Status */}
           {size !== 'small' && product.track_inventory && (
             <div className="product-card__stock">
-              {product.is_in_stock ? (
-                <span className="in-stock">In Stock</span>
+              {isInStock ? (
+                <span className="in-stock">
+                  In Stock 
+                  {product.stock_quantity <= (product.low_stock_threshold || 10) && 
+                    ` (${product.stock_quantity} left)`
+                  }
+                </span>
               ) : (
-                <span className="out-of-stock">Out of Stock</span>
+                <span className="out-of-stock">
+                  {product.allow_backorders ? 'Available on Backorder' : 'Out of Stock'}
+                </span>
               )}
+            </div>
+          )}
+
+          {/* SKU for admin view */}
+          {size === 'large' && product.sku && (
+            <div className="product-card__sku">
+              SKU: {product.sku}
             </div>
           )}
 
           {/* Add to Cart Button (for larger cards) */}
           {size === 'large' && (
             <button
-              className={`product-card__cart-btn ${!product.is_in_stock ? 'disabled' : ''}`}
+              className={`product-card__cart-btn ${!isInStock ? 'disabled' : ''}`}
               onClick={handleAddToCart}
-              disabled={!product.is_in_stock}
+              disabled={!isInStock}
             >
               <ShoppingCart size={16} />
-              {product.is_in_stock ? 'Add to Cart' : 'Out of Stock'}
+              {!isInStock ? 
+                (product.allow_backorders ? 'Backorder' : 'Out of Stock') : 
+                'Add to Cart'
+              }
             </button>
           )}
         </div>

@@ -1,6 +1,6 @@
 // src/components/categories/CategoryCard/CategoryCard.js
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ShoppingBag, ArrowRight } from 'lucide-react';
 import './CategoryCard.css';
@@ -12,7 +12,18 @@ const CategoryCard = ({
   showDescription = true,
   onClick,
 }) => {
-  const { id, name, slug, description, image_url, product_count = 0, featured = false } = category;
+  const [imageError, setImageError] = useState(false);
+  
+  // Extract category data with proper backend field mapping
+  const {
+    id,
+    name,
+    slug,
+    description,
+    image_url,
+    product_count = 0,
+    featured = false,
+  } = category || {};
 
   const handleClick = e => {
     if (onClick) {
@@ -21,15 +32,31 @@ const CategoryCard = ({
     }
   };
 
+  const handleImageError = () => {
+    setImageError(true);
+  };
+
+  const getImageUrl = () => {
+    if (imageError || !image_url) {
+      return '/assets/placeholders/category-placeholder.jpg';
+    }
+    return image_url;
+  };
+
+  if (!category) {
+    return null;
+  }
+
   const CardContent = () => (
     <div className={`category-card ${variant} ${featured ? 'featured' : ''}`}>
       {/* Category Image */}
       <div className="category-card__image-container">
         <img
-          src={image_url || '/assets/placeholders/category-placeholder.jpg'}
+          src={getImageUrl()}
           alt={name}
           className="category-card__image"
           loading="lazy"
+          onError={handleImageError}
         />
         {featured && (
           <div className="category-card__featured-badge">

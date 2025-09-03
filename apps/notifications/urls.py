@@ -1,9 +1,8 @@
-# apps/notifications/urls.py
 from django.urls import path
 from .views import (
     NotificationListView, NotificationDetailView, NotificationSettingsView,
     AdminNotificationListView, mark_notifications_as_read, mark_all_as_read,
-    notification_counts
+    notification_counts, websocket_health
 )
 from .views import send_test_notification, broadcast_notification
 
@@ -17,6 +16,9 @@ urlpatterns = [
     path('mark-all-read/', mark_all_as_read, name='mark-all-read'),
     path('counts/', notification_counts, name='notification-counts'),
     path('settings/', NotificationSettingsView.as_view(), name='notification-settings'),
+    
+    # WebSocket health check
+    path('websocket-health/', websocket_health, name='websocket-health'),
     
     # Admin notifications
     path('admin/', AdminNotificationListView.as_view(), name='admin-notifications'),

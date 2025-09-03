@@ -1,9 +1,10 @@
+// src/pages/CategoryPage/CategoryProducts.js
+
 import React from 'react';
 import { Link } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import ProductCard from '../../components/products/ProductCard/ProductCard';
 import LoadingSpinner from '../../components/common/UI/Loading/Spinner';
-import Alert from '../../components/common/UI/Alert/Alert';
 
 const CategoryProducts = ({ products, loading, pagination, onPageChange, categoryName }) => {
   const renderPagination = () => {

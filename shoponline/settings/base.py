@@ -322,12 +322,16 @@ if USE_S3:
     DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
     STATICFILES_STORAGE = 'storages.backends.s3boto3.S3StaticStorage'
 
-# Mobile Money API Configuration
-MTN_MOMO_API_KEY = get_env_variable('MTN_MOMO_API_KEY', '')
-MTN_MOMO_API_SECRET = get_env_variable('MTN_MOMO_API_SECRET', '')
-MTN_MOMO_SUBSCRIPTION_KEY = get_env_variable('MTN_MOMO_SUBSCRIPTION_KEY', '')
+# Mobile Money API Configuration - UPDATED WITH YOUR KEYS
 MTN_MOMO_BASE_URL = get_env_variable('MTN_MOMO_BASE_URL', 'https://sandbox.momodeveloper.mtn.com')
+MTN_MOMO_SUBSCRIPTION_KEY = get_env_variable('MTN_MOMO_SUBSCRIPTION_KEY', '878d5c3421094497b460207379326a53')
+MTN_MOMO_SECONDARY_KEY = get_env_variable('MTN_MOMO_SECONDARY_KEY', '91735b447b134358828f0b8b1d260c5c')
+MTN_MOMO_REFERENCE_ID = get_env_variable('MTN_MOMO_REFERENCE_ID', '')
+MTN_MOMO_API_KEY = get_env_variable('MTN_MOMO_API_KEY', '')
+MTN_MOMO_TARGET_ENVIRONMENT = get_env_variable('MTN_MOMO_TARGET_ENVIRONMENT', 'sandbox')
+MTN_MOMO_CALLBACK_URL = get_env_variable('MTN_MOMO_CALLBACK_URL', 'http://localhost:8000/api/v1/payments/mtn/webhook/')
 
+# Airtel Money API Configuration
 AIRTEL_MONEY_CLIENT_ID = get_env_variable('AIRTEL_MONEY_CLIENT_ID', '')
 AIRTEL_MONEY_CLIENT_SECRET = get_env_variable('AIRTEL_MONEY_CLIENT_SECRET', '')
 AIRTEL_MONEY_BASE_URL = get_env_variable('AIRTEL_MONEY_BASE_URL', 'https://openapi.airtel.africa')
@@ -354,8 +358,6 @@ IMAGEKIT_CACHEFILE_NAMER = 'imagekit.cachefiles.namers.source_group_pk_hash'
 IMAGEKIT_SPEC_CACHEFILE_NAMER = 'imagekit.cachefiles.namers.source_group_pk_hash'
 
 # Logging Configuration
-# Replace the LOGGING configuration in your base.py with this:
-
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -379,7 +381,7 @@ LOGGING = {
             'formatter': 'verbose',
         },
         'console': {
-            'level': 'INFO',  # Changed from DEBUG to INFO
+            'level': 'INFO',  
             'class': 'logging.StreamHandler',
             'formatter': 'simple'
         },
@@ -391,7 +393,7 @@ LOGGING = {
     },
     'root': {
         'handlers': ['console'],
-        'level': 'INFO',  # Added this line
+        'level': 'INFO', 
     },
     'loggers': {
         'django': {
@@ -399,7 +401,7 @@ LOGGING = {
             'level': 'INFO',
             'propagate': False,
         },
-        'django.utils.autoreload': {  # Add this logger to silence file watching
+        'django.utils.autoreload': {  
             'handlers': [],
             'level': 'WARNING',
             'propagate': False,
@@ -421,10 +423,14 @@ LOGGING = {
         },
     },
 }
+
 # Security Settings
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
+
+# Frontend URL Configuration
+FRONTEND_URL = get_env_variable('FRONTEND_URL', 'http://localhost:3000')
 
 # Custom Settings for Platform Features
 PLATFORM_SETTINGS = {

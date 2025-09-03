@@ -2,6 +2,7 @@
 import requests
 import uuid
 import json
+import base64
 from decimal import Decimal
 from django.conf import settings
 from django.utils import timezone
@@ -16,21 +17,90 @@ class MTNMoMoService(BasePaymentService):
     def __init__(self):
         super().__init__()
         self.base_url = getattr(settings, 'MTN_MOMO_BASE_URL', 'https://sandbox.momodeveloper.mtn.com')
+        self.subscription_key = getattr(settings, 'MTN_MOMO_SUBSCRIPTION_KEY', '878d5c3421094497b460207379326a53')
+        self.secondary_key = getattr(settings, 'MTN_MOMO_SECONDARY_KEY', '91735b447b134358828f0b8b1d260c5c')
+        self.reference_id = getattr(settings, 'MTN_MOMO_REFERENCE_ID', '')
         self.api_key = getattr(settings, 'MTN_MOMO_API_KEY', '')
-        self.api_secret = getattr(settings, 'MTN_MOMO_API_SECRET', '')
-        self.subscription_key = getattr(settings, 'MTN_MOMO_SUBSCRIPTION_KEY', '')
-        self.collection_user_id = getattr(settings, 'MTN_MOMO_COLLECTION_USER_ID', '')
-        self.environment = getattr(settings, 'MTN_MOMO_ENVIRONMENT', 'sandbox')
+        self.target_environment = getattr(settings, 'MTN_MOMO_TARGET_ENVIRONMENT', 'sandbox')
         self.callback_url = getattr(settings, 'MTN_MOMO_CALLBACK_URL', '')
         
         # API endpoints
         self.endpoints = {
+            'create_user': '/v1_0/apiuser',
+            'create_api_key': '/v1_0/apiuser/{user_id}/apikey',
             'token': '/collection/token/',
             'request_to_pay': '/collection/v1_0/requesttopay',
             'request_status': '/collection/v1_0/requesttopay/{reference_id}',
             'account_balance': '/collection/v1_0/account/balance',
             'account_status': '/collection/v1_0/accountholder/msisdn/{phone}/active'
         }
+    
+    def _ensure_api_user_setup(self):
+        """
+        Ensure API user and key are set up for sandbox environment
+        Only needed for sandbox - production uses pre-configured credentials
+        """
+        if self.target_environment != 'sandbox':
+            return True
+        
+        # If we already have reference_id and api_key, skip setup
+        if self.reference_id and self.api_key:
+            return True
+        
+        try:
+            # Step 1: Create API User if not exists
+            if not self.reference_id:
+                self.reference_id = self._create_api_user()
+                
+            # Step 2: Create API Key if not exists
+            if not self.api_key:
+                self.api_key = self._create_api_key(self.reference_id)
+            
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error setting up MTN API user: {str(e)}")
+            return False
+    
+    def _create_api_user(self):
+        """Create API user in sandbox"""
+        user_id = str(uuid.uuid4())
+        
+        url = f"{self.base_url}{self.endpoints['create_user']}"
+        headers = {
+            'X-Reference-Id': user_id,
+            'Ocp-Apim-Subscription-Key': self.subscription_key,
+            'Content-Type': 'application/json'
+        }
+        
+        data = {
+            'providerCallbackHost': self.callback_url.split('/')[2] if self.callback_url else 'localhost'
+        }
+        
+        response = requests.post(url, headers=headers, json=data, timeout=30)
+        
+        if response.status_code == 201:
+            self.logger.info(f"Created MTN API user: {user_id}")
+            return user_id
+        else:
+            raise PaymentServiceError(f"Failed to create API user: {response.status_code} - {response.text}")
+    
+    def _create_api_key(self, user_id):
+        """Create API key for user"""
+        url = f"{self.base_url}{self.endpoints['create_api_key'].format(user_id=user_id)}"
+        headers = {
+            'Ocp-Apim-Subscription-Key': self.subscription_key,
+            'Content-Type': 'application/json'
+        }
+        
+        response = requests.post(url, headers=headers, timeout=30)
+        
+        if response.status_code == 201:
+            api_key = response.json().get('apiKey')
+            self.logger.info(f"Created MTN API key for user: {user_id}")
+            return api_key
+        else:
+            raise PaymentServiceError(f"Failed to create API key: {response.status_code} - {response.text}")
     
     def get_access_token(self) -> str:
         """
@@ -40,6 +110,10 @@ class MTNMoMoService(BasePaymentService):
             Access token string
         """
         try:
+            # Ensure API user is set up (for sandbox)
+            if not self._ensure_api_user_setup():
+                raise PaymentServiceError("Failed to set up API user")
+            
             url = f"{self.base_url}{self.endpoints['token']}"
             
             headers = {
@@ -52,17 +126,23 @@ class MTNMoMoService(BasePaymentService):
             response.raise_for_status()
             
             token_data = response.json()
-            return token_data.get('access_token')
+            access_token = token_data.get('access_token')
+            
+            if not access_token:
+                raise PaymentServiceError("No access token received from MTN API")
+            
+            return access_token
             
         except requests.RequestException as e:
             self.logger.error(f"Error getting MTN MoMo access token: {str(e)}")
             raise PaymentServiceError(f"Failed to get access token: {str(e)}")
     
     def _get_basic_auth_token(self) -> str:
-        """Generate basic auth token"""
-        import base64
+        """Generate basic auth token using reference_id and api_key"""
+        if not self.reference_id or not self.api_key:
+            raise PaymentServiceError("Missing reference_id or api_key for MTN authentication")
         
-        credentials = f"{self.collection_user_id}:{self.api_secret}"
+        credentials = f"{self.reference_id}:{self.api_key}"
         return base64.b64encode(credentials.encode()).decode()
     
     def process_payment(self, payment_data: dict) -> dict:
@@ -169,7 +249,7 @@ class MTNMoMoService(BasePaymentService):
             headers = {
                 'Authorization': f'Bearer {access_token}',
                 'X-Reference-Id': reference_id,
-                'X-Target-Environment': self.environment,
+                'X-Target-Environment': self.target_environment,
                 'Ocp-Apim-Subscription-Key': self.subscription_key,
                 'Content-Type': 'application/json'
             }
@@ -250,7 +330,7 @@ class MTNMoMoService(BasePaymentService):
             
             headers = {
                 'Authorization': f'Bearer {access_token}',
-                'X-Target-Environment': self.environment,
+                'X-Target-Environment': self.target_environment,
                 'Ocp-Apim-Subscription-Key': self.subscription_key,
                 'Content-Type': 'application/json'
             }
@@ -435,7 +515,7 @@ class MTNMoMoService(BasePaymentService):
             
             headers = {
                 'Authorization': f'Bearer {access_token}',
-                'X-Target-Environment': self.environment,
+                'X-Target-Environment': self.target_environment,
                 'Ocp-Apim-Subscription-Key': self.subscription_key
             }
             

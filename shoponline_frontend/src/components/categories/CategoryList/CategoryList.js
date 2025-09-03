@@ -22,6 +22,7 @@ const CategoryList = ({
   searchQuery = '',
   title = 'Categories',
   emptyMessage = 'No categories found',
+  pagination = null,
 }) => {
   const [viewMode, setViewMode] = useState(variant);
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
@@ -52,12 +53,16 @@ const CategoryList = ({
   const clearFilters = () => {
     const clearedFilters = {};
     setLocalFilters(clearedFilters);
+    setLocalSearchQuery('');
     if (onFilter) {
       onFilter(clearedFilters);
     }
+    if (onSearch) {
+      onSearch('');
+    }
   };
 
-  // Filter options
+  // Filter options matching your backend CategorySearchSerializer
   const filterOptions = [
     {
       key: 'featured',
@@ -73,6 +78,17 @@ const CategoryList = ({
       options: [
         { value: '', label: 'All Categories' },
         { value: 'root', label: 'Root Categories Only' },
+      ],
+    },
+    {
+      key: 'is_active',
+      label: 'Status',
+      type: 'select',
+      value: localFilters.is_active || '',
+      options: [
+        { value: '', label: 'All Status' },
+        { value: 'true', label: 'Active Only' },
+        { value: 'false', label: 'Inactive Only' },
       ],
     },
     {
@@ -95,6 +111,13 @@ const CategoryList = ({
     value => value !== '' && value !== false && value !== null
   );
 
+  const getDisplayCount = () => {
+    if (pagination && pagination.count !== undefined) {
+      return pagination.count;
+    }
+    return categories.length;
+  };
+
   return (
     <div className="category-list">
       {/* Header */}
@@ -102,7 +125,7 @@ const CategoryList = ({
         <div className="category-list__title-section">
           <h2 className="category-list__title">{title}</h2>
           <p className="category-list__count">
-            {loading ? 'Loading...' : `${categories.length} categories`}
+            {loading ? 'Loading...' : `${getDisplayCount()} categories`}
           </p>
         </div>
 
@@ -260,6 +283,15 @@ const CategoryList = ({
           </div>
         )}
       </div>
+
+      {/* Pagination Info */}
+      {pagination && pagination.count > categories.length && !hasMore && (
+        <div className="category-list__pagination-info">
+          <p>
+            Showing {categories.length} of {pagination.count} categories
+          </p>
+        </div>
+      )}
     </div>
   );
 };

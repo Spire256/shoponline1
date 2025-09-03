@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../hooks/useAuth';
+import adminAPI from '../../../services/api/adminAPI';
 import DashboardStats from './DashboardStats';
 import RecentOrders from './RecentOrders';
 import SalesChart from './SalesChart';
@@ -22,51 +23,31 @@ const AdminDashboard = () => {
       setLoading(true);
       setError(null);
 
-      // Fetch dashboard overview
-      const overviewResponse = await fetch('/api/v1/admin/analytics/overview/', {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!overviewResponse.ok) {
-        throw new Error('Failed to fetch dashboard data');
-      }
-
-      const overviewData = await overviewResponse.json();
+      // Fetch dashboard overview from the correct backend endpoint
+      const overviewData = await adminAPI.analytics.getDashboardOverview();
 
       // Fetch sales chart data
-      const salesResponse = await fetch(
-        `/api/v1/admin/analytics/sales_chart/?period=${timeRange}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      const salesData = await salesResponse.json();
+      const salesData = await adminAPI.analytics.getSalesChart(timeRange);
 
       // Fetch recent orders
-      const ordersResponse = await fetch('/api/v1/admin/analytics/recent_orders/', {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      const ordersData = await adminAPI.analytics.getRecentOrders();
 
-      const ordersData = await ordersResponse.json();
+      // Fetch product performance
+      const productData = await adminAPI.analytics.getProductPerformance();
+
+      // Fetch flash sales performance
+      const flashSalesData = await adminAPI.analytics.getFlashSalesPerformance();
 
       setDashboardData({
         overview: overviewData,
         sales: salesData,
         recentOrders: ordersData.orders || [],
+        productPerformance: productData,
+        flashSalesPerformance: flashSalesData,
       });
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
-      setError(err.message);
+      setError(err.message || 'Failed to load dashboard data');
     } finally {
       setLoading(false);
     }
@@ -284,6 +265,153 @@ const AdminDashboard = () => {
             </div>
           </div>
         </div>
+
+        {/* Flash Sales Performance Card */}
+        {dashboardData?.flashSalesPerformance && (
+          <div className="dashboard-row">
+            <div className="dashboard-col-12">
+              <div className="dashboard-card">
+                <div className="card-header">
+                  <h3>Flash Sales Performance</h3>
+                  <p>Current flash sales activity and revenue</p>
+                </div>
+                <div className="card-body">
+                  <div className="flash-sales-stats">
+                    <div className="flash-stat-item">
+                      <div className="flash-stat-icon">⚡</div>
+                      <div className="flash-stat-content">
+                        <div className="flash-stat-value">
+                          {dashboardData.flashSalesPerformance.active_sales}
+                        </div>
+                        <div className="flash-stat-label">Active Sales</div>
+                      </div>
+                    </div>
+
+                    <div className="flash-stat-item">
+                      <div className="flash-stat-icon">💰</div>
+                      <div className="flash-stat-content">
+                        <div className="flash-stat-value">
+                          {adminAPI.formatCurrency(dashboardData.flashSalesPerformance.revenue?.total_revenue || 0)}
+                        </div>
+                        <div className="flash-stat-label">Flash Sales Revenue</div>
+                      </div>
+                    </div>
+
+                    <div className="flash-stat-item">
+                      <div className="flash-stat-icon">🎯</div>
+                      <div className="flash-stat-content">
+                        <div className="flash-stat-value">
+                          {dashboardData.flashSalesPerformance.revenue?.total_quantity || 0}
+                        </div>
+                        <div className="flash-stat-label">Items Sold</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Top performing flash sales */}
+                  {dashboardData.flashSalesPerformance.top_sales?.length > 0 && (
+                    <div className="top-flash-sales">
+                      <h4>Top Performing Flash Sales</h4>
+                      <div className="flash-sales-list">
+                        {dashboardData.flashSalesPerformance.top_sales.map((sale, index) => (
+                          <div key={sale.id} className="flash-sale-item">
+                            <div className="flash-sale-rank">#{index + 1}</div>
+                            <div className="flash-sale-details">
+                              <h5>{sale.name}</h5>
+                              <p>{sale.discount_percentage}% discount • {sale.products_count} products</p>
+                            </div>
+                            <div className="flash-sale-stats">
+                              <span className="flash-sale-orders">{sale.total_orders} orders</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Product Performance Card */}
+        {dashboardData?.productPerformance && (
+          <div className="dashboard-row">
+            <div className="dashboard-col-6">
+              <div className="dashboard-card">
+                <div className="card-header">
+                  <h3>Top Selling Products</h3>
+                  <p>Best performing products this month</p>
+                </div>
+                <div className="card-body">
+                  {dashboardData.productPerformance.top_selling?.length > 0 ? (
+                    <div className="top-products-list">
+                      {dashboardData.productPerformance.top_selling.map((product, index) => (
+                        <div key={product.product__id} className="top-product-item">
+                          <div className="product-rank">#{index + 1}</div>
+                          <div className="product-details">
+                            <h5>{product.product__name}</h5>
+                            <p>
+                              {product.total_quantity} sold • 
+                              {adminAPI.formatCurrency(product.total_revenue)}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="empty-state">
+                      <p>No sales data available</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="dashboard-col-6">
+              <div className="dashboard-card">
+                <div className="card-header">
+                  <h3>Stock Alerts</h3>
+                  <p>Products requiring attention</p>
+                </div>
+                <div className="card-body">
+                  {dashboardData.productPerformance.low_stock?.length > 0 ? (
+                    <div className="stock-alerts">
+                      {dashboardData.productPerformance.low_stock.map(product => (
+                        <div key={product.id} className="stock-alert-item">
+                          <div className="alert-icon warning">⚠️</div>
+                          <div className="alert-details">
+                            <h5>{product.name}</h5>
+                            <p>Only {product.stock_quantity} left in stock</p>
+                          </div>
+                          <div className="alert-action">
+                            <button className="btn btn-sm btn-outline">Restock</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="empty-state">
+                      <p>All products are well stocked</p>
+                    </div>
+                  )}
+
+                  {dashboardData.productPerformance.out_of_stock_count > 0 && (
+                    <div className="out-of-stock-alert">
+                      <div className="alert-banner danger">
+                        <span>🚨</span>
+                        <p>
+                          {dashboardData.productPerformance.out_of_stock_count} products are 
+                          completely out of stock
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

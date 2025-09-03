@@ -1,16 +1,17 @@
+// src/pages/CategoryPage/CategoryPage.js
+
 import React, { useState, useEffect } from 'react';
-import { useParams, useLocation,useSearchParams, useNavigate } from 'react-router-dom';
-//import { useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import CategoryHeader from './CategoryHeader';
 import CategoryProducts from './CategoryProducts';
-import { categoriesAPI, productsAPI } from '../../services/api';
+import categoriesAPI from '../../services/api/categoriesAPI';
+import { productsAPI } from '../../services/api';
 import LoadingSpinner from '../../components/common/UI/Loading/Spinner';
 import Alert from '../../components/common/UI/Alert/Alert';
 import './CategoryPage.css';
 
 const CategoryPage = () => {
   const { slug } = useParams();
-  const location = useLocation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -29,7 +30,7 @@ const CategoryPage = () => {
     totalPages: 1,
   });
 
-  // Filter states
+  // Filter states matching your backend
   const [filters, setFilters] = useState({
     featured: searchParams.get('featured') || '',
     min_price: searchParams.get('min_price') || '',
@@ -45,7 +46,9 @@ const CategoryPage = () => {
 
   // Load category data
   useEffect(() => {
-    loadCategory();
+    if (slug) {
+      loadCategory();
+    }
   }, [slug]);
 
   // Load products when filters change
@@ -66,7 +69,7 @@ const CategoryPage = () => {
     });
 
     if (params.toString() !== searchParams.toString()) {
-      setSearchParams(params);
+      setSearchParams(params, { replace: true });
     }
   }, [filters, setSearchParams]);
 
@@ -77,10 +80,16 @@ const CategoryPage = () => {
 
       const response = await categoriesAPI.getCategory(slug);
       setCategory(response);
-      setSubcategories(response.subcategories || []);
+      
+      // Set subcategories from the response
+      if (response.subcategories) {
+        setSubcategories(response.subcategories);
+      }
 
-      // Calculate price range from category products
-      await calculatePriceRange(response.id);
+      // Calculate price range from category products if available
+      if (response.id) {
+        await calculatePriceRange(response.id);
+      }
     } catch (err) {
       console.error('Error loading category:', err);
       setError(err.message || 'Failed to load category. Please try again.');
@@ -93,15 +102,15 @@ const CategoryPage = () => {
     try {
       setProductsLoading(true);
 
+      // Use the category products endpoint from your backend
       const params = {
-        category: category.id,
         page: filters.page,
         page_size: 12,
-        ordering: filters.sort_by,
+        sort_by: filters.sort_by,
       };
 
-      // Add optional filters
-      if (filters.featured) {
+      // Add optional filters matching your backend API
+      if (filters.featured && filters.featured !== '') {
         params.featured = filters.featured === 'true';
       }
       if (filters.min_price) {
@@ -111,15 +120,15 @@ const CategoryPage = () => {
         params.max_price = filters.max_price;
       }
 
-      const response = await productsAPI.getProducts(params);
+      const response = await categoriesAPI.getCategoryProducts(category.slug, params);
 
       setProducts(response.results || []);
       setPagination({
-        count: response.count,
+        count: response.count || 0,
         next: response.next,
         previous: response.previous,
         currentPage: filters.page,
-        totalPages: Math.ceil(response.count / 12),
+        totalPages: Math.ceil((response.count || 0) / 12),
       });
     } catch (err) {
       console.error('Error loading category products:', err);
@@ -131,13 +140,16 @@ const CategoryPage = () => {
 
   const calculatePriceRange = async categoryId => {
     try {
-      const response = await productsAPI.getProducts({
-        category: categoryId,
-        page_size: 1000, // Get all products for price calculation
+      // Get price range by fetching a sample of products
+      const response = await categoriesAPI.getCategoryProducts(category.slug, {
+        page_size: 100, // Get a reasonable sample for price calculation
         fields: 'price',
       });
 
-      const prices = response.results.map(p => parseFloat(p.price));
+      const prices = response.results
+        .map(p => parseFloat(p.price))
+        .filter(price => !isNaN(price));
+        
       if (prices.length > 0) {
         setPriceRange({
           min: Math.min(...prices),
@@ -195,7 +207,7 @@ const CategoryPage = () => {
 
   const getActiveFiltersCount = () => {
     let count = 0;
-    if (filters.featured) count++;
+    if (filters.featured && filters.featured !== '') count++;
     if (filters.min_price) count++;
     if (filters.max_price) count++;
     if (filters.sort_by !== '-created_at') count++;

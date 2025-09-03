@@ -12,10 +12,20 @@ const paymentsAPI = {
     }
   },
 
-  // Create new payment
+  // Create new payment - UPDATED to include MTN subscription key in headers if needed
   createPayment: async paymentData => {
     try {
-      const response = await apiClient.post('/payments/create/', paymentData);
+      const headers = {};
+      
+      // Add MTN-specific headers for direct API calls if needed
+      if (paymentData.payment_method === 'mtn_momo') {
+        const mtnSubscriptionKey = process.env.REACT_APP_MTN_MOMO_SUBSCRIPTION_KEY;
+        if (mtnSubscriptionKey) {
+          headers['X-MTN-Subscription-Key'] = mtnSubscriptionKey;
+        }
+      }
+
+      const response = await apiClient.post('/payments/create/', paymentData, { headers });
       return handleApiResponse(response);
     } catch (error) {
       throw handleApiError(error);
@@ -44,10 +54,18 @@ const paymentsAPI = {
     }
   },
 
-  // Verify payment status
+  // Verify payment status - UPDATED with MTN-specific handling
   verifyPayment: async paymentId => {
     try {
-      const response = await apiClient.post(`/payments/${paymentId}/verify/`);
+      const headers = {};
+      
+      // Add MTN subscription key for verification requests
+      const mtnSubscriptionKey = process.env.REACT_APP_MTN_MOMO_SUBSCRIPTION_KEY;
+      if (mtnSubscriptionKey) {
+        headers['X-MTN-Subscription-Key'] = mtnSubscriptionKey;
+      }
+
+      const response = await apiClient.post(`/payments/${paymentId}/verify/`, {}, { headers });
       return handleApiResponse(response);
     } catch (error) {
       throw handleApiError(error);
@@ -86,10 +104,15 @@ const paymentsAPI = {
     }
   },
 
-  // Mobile Money specific methods
+  // Mobile Money specific methods - UPDATED with MTN configuration
   initiateMTNPayment: async paymentData => {
     try {
-      const response = await apiClient.post('/payments/mtn/initiate/', paymentData);
+      const headers = {
+        'X-MTN-Subscription-Key': process.env.REACT_APP_MTN_MOMO_SUBSCRIPTION_KEY || '878d5c3421094497b460207379326a53',
+        'X-Target-Environment': process.env.REACT_APP_MTN_MOMO_TARGET_ENVIRONMENT || 'sandbox',
+      };
+
+      const response = await apiClient.post('/payments/mtn/initiate/', paymentData, { headers });
       return handleApiResponse(response);
     } catch (error) {
       throw handleApiError(error);
@@ -105,13 +128,24 @@ const paymentsAPI = {
     }
   },
 
-  // Check phone number compatibility
+  // Check phone number compatibility - UPDATED with MTN validation
   checkPhoneNumber: async (phoneNumber, provider = 'auto') => {
     try {
+      const headers = {};
+      
+      // Add MTN subscription key for phone validation
+      if (provider === 'mtn' || provider === 'auto') {
+        const mtnSubscriptionKey = process.env.REACT_APP_MTN_MOMO_SUBSCRIPTION_KEY;
+        if (mtnSubscriptionKey) {
+          headers['X-MTN-Subscription-Key'] = mtnSubscriptionKey;
+        }
+      }
+
       const response = await apiClient.post('/payments/check-phone/', {
         phone_number: phoneNumber,
-        provider,
-      });
+        payment_method: provider === 'mtn' ? 'mtn_momo' : provider === 'airtel' ? 'airtel_money' : provider,
+      }, { headers });
+      
       return handleApiResponse(response);
     } catch (error) {
       throw handleApiError(error);
@@ -273,6 +307,35 @@ const paymentsAPI = {
         throw handleApiError(error);
       }
     },
+
+    // MTN-specific admin methods
+    getMTNAccountBalance: async () => {
+      try {
+        const headers = {
+          'X-MTN-Subscription-Key': process.env.REACT_APP_MTN_MOMO_SUBSCRIPTION_KEY || '878d5c3421094497b460207379326a53',
+          'X-Target-Environment': process.env.REACT_APP_MTN_MOMO_TARGET_ENVIRONMENT || 'sandbox',
+        };
+
+        const response = await apiClient.get('/payments/admin/mtn/balance/', { headers });
+        return handleApiResponse(response);
+      } catch (error) {
+        throw handleApiError(error);
+      }
+    },
+
+    // Check MTN service status
+    checkMTNServiceStatus: async () => {
+      try {
+        const headers = {
+          'X-MTN-Subscription-Key': process.env.REACT_APP_MTN_MOMO_SUBSCRIPTION_KEY || '878d5c3421094497b460207379326a53',
+        };
+
+        const response = await apiClient.get('/payments/admin/mtn/status/', { headers });
+        return handleApiResponse(response);
+      } catch (error) {
+        throw handleApiError(error);
+      }
+    },
   },
 
   // Utility Functions
@@ -397,18 +460,25 @@ const paymentsAPI = {
     return cleaned;
   },
 
+  // UPDATED: Enhanced provider detection with MTN subscription key validation
   detectMobileProvider: phoneNumber => {
     const normalizedNumber = paymentsAPI.normalizePhoneNumber(phoneNumber);
 
     // MTN Uganda prefixes
-    const mtnPrefixes = ['77', '78', '76'];
+    const mtnPrefixes = ['77', '78', '76', '39'];
     // Airtel Uganda prefixes
-    const airtelPrefixes = ['70', '75', '74'];
+    const airtelPrefixes = ['70', '75', '74', '20'];
 
     const prefix = normalizedNumber.substring(4, 6);
 
     if (mtnPrefixes.includes(prefix)) {
-      return 'mtn_momo';
+      // Check if MTN is enabled and configured
+      const mtnEnabled = process.env.REACT_APP_MTN_MOMO_ENABLED === 'true';
+      const mtnConfigured = !!process.env.REACT_APP_MTN_MOMO_SUBSCRIPTION_KEY;
+      
+      if (mtnEnabled && mtnConfigured) {
+        return 'mtn_momo';
+      }
     } else if (airtelPrefixes.includes(prefix)) {
       return 'airtel_money';
     }
@@ -485,6 +555,31 @@ const paymentsAPI = {
     };
 
     return instructions[paymentMethod] || 'Please follow the payment instructions provided.';
+  },
+
+  // UPDATED: MTN configuration helper methods
+  getMTNConfig: () => {
+    return {
+      baseURL: process.env.REACT_APP_MTN_MOMO_BASE_URL || 'https://sandbox.momodeveloper.mtn.com',
+      subscriptionKey: process.env.REACT_APP_MTN_MOMO_SUBSCRIPTION_KEY || '878d5c3421094497b460207379326a53',
+      secondaryKey: process.env.REACT_APP_MTN_MOMO_SECONDARY_KEY || '91735b447b134358828f0b8b1d260c5c',
+      targetEnvironment: process.env.REACT_APP_MTN_MOMO_TARGET_ENVIRONMENT || 'sandbox',
+      enabled: process.env.REACT_APP_MTN_MOMO_ENABLED === 'true',
+    };
+  },
+
+  isMTNConfigured: () => {
+    const config = paymentsAPI.getMTNConfig();
+    return config.enabled && config.subscriptionKey && config.baseURL;
+  },
+
+  getMTNHeaders: () => {
+    const config = paymentsAPI.getMTNConfig();
+    return {
+      'X-MTN-Subscription-Key': config.subscriptionKey,
+      'X-Target-Environment': config.targetEnvironment,
+      'Content-Type': 'application/json',
+    };
   },
 };
 

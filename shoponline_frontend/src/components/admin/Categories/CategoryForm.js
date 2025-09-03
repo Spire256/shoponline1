@@ -2,13 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { Upload, X, FolderTree, Star, Eye } from 'lucide-react';
-import categoriesAPI from '../../../services/api/categoriesAPI'; // Changed from named import to default import
+import categoriesAPI from '../../../services/api/categoriesAPI';
 import { useNotifications } from '../../../hooks/useNotifications';
 
 const CategoryForm = ({ mode = 'create', initialData = null, onSubmit, onCancel }) => {
   const { showNotification } = useNotifications();
 
-  // Form state
+  // Form state matching your backend CategoryCreateUpdateSerializer
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -51,16 +51,22 @@ const CategoryForm = ({ mode = 'create', initialData = null, onSubmit, onCancel 
   useEffect(() => {
     const fetchParentCategories = async () => {
       try {
-        const response = await categoriesAPI.getCategories({ parent: 'root' });
+        const response = await categoriesAPI.getRootCategories();
         let categories = response.results || [];
 
         // If editing, exclude the current category and its descendants
         if (mode === 'edit' && initialData) {
-          categories = categories.filter(
-            cat =>
-              cat.id !== initialData.id &&
-              !cat.breadcrumb_trail.some(breadcrumb => breadcrumb.id === initialData.id)
-          );
+          categories = categories.filter(cat => {
+            // Exclude current category
+            if (cat.id === initialData.id) return false;
+            
+            // Exclude if current category is in breadcrumb trail (would create circular reference)
+            if (cat.breadcrumb_trail && Array.isArray(cat.breadcrumb_trail)) {
+              return !cat.breadcrumb_trail.some(breadcrumb => breadcrumb.id === initialData.id);
+            }
+            
+            return true;
+          });
         }
 
         setParentCategories(categories);
@@ -151,8 +157,12 @@ const CategoryForm = ({ mode = 'create', initialData = null, onSubmit, onCancel 
       newErrors.sort_order = 'Sort order cannot be negative';
     }
 
-    if (formData.meta_title && formData.meta_title.length > 200) {
-      newErrors.meta_title = 'Meta title cannot exceed 200 characters';
+    if (formData.meta_title && formData.meta_title.length > 150) {
+      newErrors.meta_title = 'Meta title cannot exceed 150 characters';
+    }
+
+    if (formData.meta_description && formData.meta_description.length > 300) {
+      newErrors.meta_description = 'Meta description cannot exceed 300 characters';
     }
 
     setErrors(newErrors);
@@ -170,24 +180,21 @@ const CategoryForm = ({ mode = 'create', initialData = null, onSubmit, onCancel 
     setLoading(true);
 
     try {
-      // Prepare form data for submission
-      const submitData = new FormData();
-
-      // Add text fields
-      Object.keys(formData).forEach(key => {
-        if (key === 'image') return; // Handle separately
-
-        let value = formData[key];
-        if (typeof value === 'boolean') {
-          value = value.toString();
-        }
-
-        submitData.append(key, value);
-      });
+      // Prepare data for submission matching your backend expectations
+      const submitData = {
+        name: formData.name.trim(),
+        description: formData.description.trim(),
+        parent: formData.parent || null,
+        is_active: formData.is_active,
+        featured: formData.featured,
+        sort_order: parseInt(formData.sort_order) || 0,
+        meta_title: formData.meta_title.trim(),
+        meta_description: formData.meta_description.trim(),
+      };
 
       // Add image if present
       if (formData.image) {
-        submitData.append('image', formData.image);
+        submitData.image = formData.image;
       }
 
       await onSubmit(submitData);
@@ -217,6 +224,7 @@ const CategoryForm = ({ mode = 'create', initialData = null, onSubmit, onCancel 
               onChange={handleInputChange}
               placeholder="Enter category name"
               className={errors.name ? 'error' : ''}
+              maxLength="100"
               required
             />
             {errors.name && <span className="error-message">{errors.name}</span>}
@@ -244,6 +252,7 @@ const CategoryForm = ({ mode = 'create', initialData = null, onSubmit, onCancel 
             onChange={handleInputChange}
             placeholder="Enter category description"
             rows="4"
+            maxLength="500"
           />
         </div>
       </div>
@@ -349,11 +358,11 @@ const CategoryForm = ({ mode = 'create', initialData = null, onSubmit, onCancel 
             value={formData.meta_title}
             onChange={handleInputChange}
             placeholder="SEO meta title (auto-generated from name if empty)"
-            maxLength="200"
+            maxLength="150"
             className={errors.meta_title ? 'error' : ''}
           />
           {errors.meta_title && <span className="error-message">{errors.meta_title}</span>}
-          <span className="field-hint">{formData.meta_title.length}/200 characters</span>
+          <span className="field-hint">{formData.meta_title.length}/150 characters</span>
         </div>
 
         <div className="form-group">

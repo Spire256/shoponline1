@@ -94,7 +94,7 @@ const AdminInvitation = ({ isModal = false, onSuccess }) => {
   };
 
   const handleCancelInvitation = async invitationId => {
-    if (!confirm('Are you sure you want to cancel this invitation?')) {
+    if (!window.confirm('Are you sure you want to cancel this invitation?')) {
       return;
     }
 

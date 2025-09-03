@@ -1,10 +1,10 @@
-// src/components/products/ProductList/ProductList.js
+// src/components/products/ProductList/ProductList.js - Updated for backend integration
 import React, { useState, useEffect, useCallback } from 'react';
 import { Grid, List, Filter, SortAsc } from 'lucide-react';
 import ProductGrid from './ProductGrid';
 import ProductFilters from './ProductFilters';
 import ProductSort from './ProductSort';
-import { useAPI } from '../../../hooks/useAPI';
+import productsAPI from '../../../services/api/productsAPI';
 import { usePagination } from '../../../hooks/usePagination';
 import LoadingSpinner from '../../common/UI/Loading/Spinner';
 import './ProductList.css';
@@ -22,44 +22,96 @@ const ProductList = ({
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
   const [showFiltersPanel, setShowFiltersPanel] = useState(false);
   const [filters, setFilters] = useState(initialFilters);
-  const [sortOption, setSortOption] = useState('created_at_desc');
+  const [sortOption, setSortOption] = useState('-created_at');
+  
+  // Product data state
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [productsData, setProductsData] = useState(null);
 
-  const {
-    data: productsData,
-    loading,
-    error,
-    refetch,
-  } = useAPI('/api/products/products/', {
-    params: {
-      page_size: pageSize,
-      category: categoryId,
-      search: searchQuery,
-      ordering: sortOption,
-      ...filters,
-    },
-  });
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
-  const { currentPage, totalPages, goToPage, nextPage, prevPage, canGoNext, canGoPrev } =
-    usePagination({
-      totalItems: productsData?.count || 0,
-      itemsPerPage: pageSize,
-      onPageChange: page => {
-        refetch({ page });
-      },
-    });
+  // Load products function
+  const loadProducts = useCallback(async (page = 1) => {
+    try {
+      setLoading(true);
+      setError(null);
 
-  const products = productsData?.results || [];
+      const params = {
+        page,
+        page_size: pageSize,
+        ordering: sortOption,
+        ...filters,
+      };
 
-  const handleFilterChange = useCallback(newFilters => {
+      // Add category filter if provided
+      if (categoryId) {
+        params.category = categoryId;
+      }
+
+      // Add search query if provided
+      if (searchQuery) {
+        params.search = searchQuery;
+      }
+
+      let response;
+      if (searchQuery) {
+        // Use search endpoint for search queries
+        response = await productsAPI.searchProducts(searchQuery, params);
+      } else if (categoryId) {
+        // Use category products endpoint
+        response = await productsAPI.getProductsByCategory(categoryId, params);
+      } else {
+        // Use general products endpoint
+        response = await productsAPI.getProducts(params);
+      }
+
+      setProducts(response.results || []);
+      setProductsData(response);
+      setTotalCount(response.count || 0);
+      setTotalPages(Math.ceil((response.count || 0) / pageSize));
+      setCurrentPage(page);
+
+    } catch (err) {
+      console.error('Error loading products:', err);
+      setError(err.message || 'Failed to load products. Please try again.');
+      setProducts([]);
+      setTotalCount(0);
+    } finally {
+      setLoading(false);
+    }
+  }, [categoryId, searchQuery, filters, sortOption, pageSize]);
+
+  // Load products on component mount and when dependencies change
+  useEffect(() => {
+    loadProducts(1);
+  }, [loadProducts]);
+
+  const handleFilterChange = useCallback((newFilters) => {
     setFilters(prev => ({ ...prev, ...newFilters }));
+    setCurrentPage(1); // Reset to first page when filters change
   }, []);
 
-  const handleSortChange = useCallback(newSort => {
+  const handleSortChange = useCallback((newSort) => {
     setSortOption(newSort);
+    setCurrentPage(1); // Reset to first page when sort changes
   }, []);
+
+  const handlePageChange = useCallback((page) => {
+    if (page >= 1 && page <= totalPages && page !== currentPage) {
+      loadProducts(page);
+      // Scroll to top on page change
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [loadProducts, totalPages, currentPage]);
 
   const clearFilters = useCallback(() => {
     setFilters({});
+    setCurrentPage(1);
   }, []);
 
   const toggleFiltersPanel = () => {
@@ -75,23 +127,31 @@ const ProductList = ({
     key => filters[key] !== '' && filters[key] !== null && filters[key] !== undefined
   ).length;
 
+  // Pagination controls
+  const canGoPrev = currentPage > 1;
+  const canGoNext = currentPage < totalPages;
+
+  const goToPage = (page) => {
+    handlePageChange(page);
+  };
+
+  const nextPage = () => {
+    if (canGoNext) {
+      handlePageChange(currentPage + 1);
+    }
+  };
+
+  const prevPage = () => {
+    if (canGoPrev) {
+      handlePageChange(currentPage - 1);
+    }
+  };
+
   if (loading && products.length === 0) {
     return (
       <div className="product-list__loading">
         <LoadingSpinner size="large" />
         <p>Loading products...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="product-list__error">
-        <h3>Error Loading Products</h3>
-        <p>{error.message || 'Something went wrong while loading products.'}</p>
-        <button onClick={() => refetch()} className="retry-btn">
-          Try Again
-        </button>
       </div>
     );
   }
@@ -102,10 +162,10 @@ const ProductList = ({
       <div className="product-list__header">
         <div className="product-list__info">
           <h2 className="products-title">
-            Products
-            {productsData?.count && <span className="products-count">({productsData.count})</span>}
+            {searchQuery ? `Search Results` : categoryId ? 'Products' : 'All Products'}
+            {totalCount > 0 && <span className="products-count">({totalCount})</span>}
           </h2>
-          {searchQuery && <p className="search-info">Search results for "{searchQuery}"</p>}
+          {searchQuery && <p className="search-info">Results for "{searchQuery}"</p>}
         </div>
 
         <div className="product-list__controls">
@@ -165,12 +225,22 @@ const ProductList = ({
 
         {/* Products Grid/List */}
         <div className="products-container">
-          {products.length === 0 ? (
+          {error ? (
+            <div className="products-error">
+              <h3>Error Loading Products</h3>
+              <p>{error}</p>
+              <button onClick={() => loadProducts(currentPage)} className="retry-btn">
+                Try Again
+              </button>
+            </div>
+          ) : products.length === 0 ? (
             <div className="no-products">
               <h3>No Products Found</h3>
               <p>
                 {searchQuery
                   ? `No products match your search for "${searchQuery}"`
+                  : activeFiltersCount > 0
+                  ? 'No products match your current filters'
                   : 'No products available at the moment'}
               </p>
               {activeFiltersCount > 0 && (
@@ -188,7 +258,7 @@ const ProductList = ({
                 <div className="product-list__pagination">
                   <div className="pagination-info">
                     Showing {(currentPage - 1) * pageSize + 1} to{' '}
-                    {Math.min(currentPage * pageSize, productsData.count)} of {productsData.count}{' '}
+                    {Math.min(currentPage * pageSize, totalCount)} of {totalCount}{' '}
                     products
                   </div>
 

@@ -1,4 +1,4 @@
-// src/contexts/FlashSalesContext.js
+// src/contexts/FlashSalesContext.js - FIXED VERSION
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import flashSalesAPI from '../services/api/flashSalesAPI';
 
@@ -164,28 +164,37 @@ export const FlashSalesProvider = ({ children }) => {
     };
   }, [state.activeSales]);
 
-  // FIXED: Load active flash sales using corrected API method
+  // Load active flash sales using correct API method
   const loadActiveSales = async () => {
     dispatch({ type: FLASH_SALES_ACTIONS.SET_LOADING, payload: { type: 'active', loading: true } });
 
     try {
       const response = await flashSalesAPI.getActiveSales();
       
+      // Handle different response formats from backend
+      let salesData = [];
+      if (Array.isArray(response)) {
+        salesData = response;
+      } else if (response.data && Array.isArray(response.data)) {
+        salesData = response.data;
+      } else if (response.results && Array.isArray(response.results)) {
+        salesData = response.results;
+      }
+
       dispatch({
         type: FLASH_SALES_ACTIONS.LOAD_ACTIVE_SALES,
-        payload: response.data || response,
+        payload: salesData,
       });
 
       // Initialize timers
-      const sales = response.data || response;
-      if (Array.isArray(sales)) {
-        sales.forEach(sale => {
+      salesData.forEach(sale => {
+        if (sale.time_remaining) {
           dispatch({
             type: FLASH_SALES_ACTIONS.UPDATE_TIMER,
             payload: { saleId: sale.id, timeRemaining: sale.time_remaining },
           });
-        });
-      }
+        }
+      });
     } catch (error) {
       console.error('Error loading active sales:', error);
       dispatch({
@@ -195,7 +204,7 @@ export const FlashSalesProvider = ({ children }) => {
     }
   };
 
-  // FIXED: Load upcoming flash sales using corrected API method
+  // Load upcoming flash sales using correct API method
   const loadUpcomingSales = async () => {
     dispatch({
       type: FLASH_SALES_ACTIONS.SET_LOADING,
@@ -205,9 +214,19 @@ export const FlashSalesProvider = ({ children }) => {
     try {
       const response = await flashSalesAPI.getUpcomingFlashSales();
       
+      // Handle different response formats
+      let salesData = [];
+      if (Array.isArray(response)) {
+        salesData = response;
+      } else if (response.data && Array.isArray(response.data)) {
+        salesData = response.data;
+      } else if (response.results && Array.isArray(response.results)) {
+        salesData = response.results;
+      }
+
       dispatch({
         type: FLASH_SALES_ACTIONS.LOAD_UPCOMING_SALES,
-        payload: response.data || response,
+        payload: salesData,
       });
     } catch (error) {
       console.error('Error loading upcoming sales:', error);
@@ -225,9 +244,19 @@ export const FlashSalesProvider = ({ children }) => {
     try {
       const response = await flashSalesAPI.getFlashSales();
       
+      // Handle response structure
+      let salesData = [];
+      if (response.results) {
+        salesData = response.results;
+      } else if (response.data) {
+        salesData = response.data;
+      } else if (Array.isArray(response)) {
+        salesData = response;
+      }
+
       dispatch({
         type: FLASH_SALES_ACTIONS.LOAD_ALL_SALES,
-        payload: response.results || response.data || response,
+        payload: salesData,
       });
     } catch (error) {
       console.error('Error loading all sales:', error);
@@ -242,7 +271,7 @@ export const FlashSalesProvider = ({ children }) => {
   const getFlashSaleById = async saleId => {
     try {
       const response = await flashSalesAPI.getFlashSaleWithProducts(saleId);
-      return { success: true, data: response.data || response };
+      return { success: true, data: response };
     } catch (error) {
       console.error('Error getting flash sale:', error);
       return { success: false, error: error.message || 'Flash sale not found' };
@@ -305,11 +334,7 @@ export const FlashSalesProvider = ({ children }) => {
   // Add products to flash sale (admin only)
   const addProductsToSale = async (saleId, products) => {
     try {
-      const response = await flashSalesAPI.bulkAddProductsToFlashSale(
-        saleId,
-        products.map(p => p.product || p.product_id),
-        products[0] // Use first product's discount data as default
-      );
+      const response = await flashSalesAPI.addProductsToFlashSale(saleId, { products });
       
       return { success: true, data: response.data || response };
     } catch (error) {
@@ -361,15 +386,19 @@ export const FlashSalesProvider = ({ children }) => {
   // Get flash sale product pricing
   const getFlashSalePrice = (productId, originalPrice) => {
     for (const sale of state.activeSales) {
-      const product = sale.flash_sale_products?.find(p => p.product.id === productId);
-      if (product) {
-        return {
-          flashSalePrice: product.flash_sale_price,
-          originalPrice: product.original_price,
-          discount: product.discount_percentage,
-          savings: product.savings_amount,
-          isFlashSale: true,
-        };
+      if (sale.flash_sale_products) {
+        const product = sale.flash_sale_products.find(
+          p => p.product?.id === productId || p.product_detail?.id === productId
+        );
+        if (product) {
+          return {
+            flashSalePrice: product.flash_sale_price,
+            originalPrice: product.original_price,
+            discount: product.discount_percentage,
+            savings: product.savings_amount,
+            isFlashSale: true,
+          };
+        }
       }
     }
     return {
@@ -384,7 +413,9 @@ export const FlashSalesProvider = ({ children }) => {
   // Check if product is in any active flash sale
   const isProductInFlashSale = productId => {
     return state.activeSales.some(sale =>
-      sale.flash_sale_products?.some(p => p.product.id === productId)
+      sale.flash_sale_products?.some(
+        p => p.product?.id === productId || p.product_detail?.id === productId
+      )
     );
   };
 
