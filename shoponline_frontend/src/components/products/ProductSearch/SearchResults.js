@@ -1,3 +1,4 @@
+// src/components/products/ProductSearch/SearchResults.js - Updated for backend integration
 import React, { useState, useEffect, useCallback } from 'react';
 import { Search, Filter, Grid, List, SortDesc, X, Loader } from 'lucide-react';
 import ProductCard from '../ProductCard/ProductCard';
@@ -5,7 +6,7 @@ import ProductList from '../ProductList/ProductList';
 import SearchFilters from './SearchFilters';
 import Button from '../../common/UI/Button/Button';
 import Loading from '../../common/UI/Loading/Spinner';
-import { productsAPI } from '../../../services/api/productsAPI';
+import productsAPI from '../../../services/api/productsAPI';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { useLocalStorage } from '../../../hooks/useLocalStorage';
 import './SearchResults.css';
@@ -36,30 +37,46 @@ const SearchResults = ({
     brand: '',
     color: '',
     size: '',
-    in_stock: true,
-    on_sale: false,
-    rating_min: '',
+    is_in_stock: false,
+    is_on_sale: false,
+    is_featured: false,
+    min_rating: '',
     ...initialFilters,
   });
 
   // Debounce search query to avoid too many API calls
   const debouncedQuery = useDebounce(searchQuery, 300);
 
-  // Search and filter parameters
-  const searchParams = {
-    q: debouncedQuery,
-    page: currentPage,
-    page_size: viewMode === 'list' ? 20 : 24,
-    ordering: sortBy,
-    ...Object.fromEntries(
-      Object.entries(filters).filter(
-        ([key, value]) => value !== '' && value !== null && value !== undefined
-      )
-    ),
-  };
+  // Build search parameters
+  const buildSearchParams = useCallback(() => {
+    const params = {
+      page: currentPage,
+      page_size: viewMode === 'list' ? 20 : 24,
+      ordering: sortBy,
+    };
+
+    // Add search query
+    if (debouncedQuery.trim()) {
+      params.search = debouncedQuery.trim();
+    }
+
+    // Add active filters
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== '' && value !== null && value !== undefined) {
+        if (typeof value === 'boolean' && value) {
+          params[key] = 'true';
+        } else if (typeof value !== 'boolean') {
+          params[key] = value;
+        }
+      }
+    });
+
+    return params;
+  }, [debouncedQuery, currentPage, viewMode, sortBy, filters]);
 
   // Fetch search results
   const fetchResults = useCallback(async () => {
+    // Don't search if no query and no initial filters
     if (!debouncedQuery.trim() && Object.keys(initialFilters).length === 0) {
       setResults([]);
       setTotalCount(0);
@@ -70,21 +87,28 @@ const SearchResults = ({
       setLoading(true);
       setError(null);
 
-      const response = await productsAPI.search(searchParams);
+      const params = buildSearchParams();
+      let response;
 
-      if (response.data) {
-        const { results, count, total_pages, pagination } = response.data;
+      if (debouncedQuery.trim()) {
+        // Use search endpoint
+        response = await productsAPI.searchProducts(debouncedQuery.trim(), params);
+      } else {
+        // Use regular products endpoint with filters
+        response = await productsAPI.getProducts(params);
+      }
 
-        setResults(results || []);
-        setTotalCount(count || 0);
-        setTotalPages(total_pages || 1);
-        setHasNextPage(pagination?.has_next || false);
+      if (response) {
+        setResults(response.results || []);
+        setTotalCount(response.count || 0);
+        setTotalPages(Math.ceil((response.count || 0) / params.page_size));
+        setHasNextPage(!!response.next);
 
         // Notify parent component of results change
         if (onResultsChange) {
           onResultsChange({
-            results: results || [],
-            count: count || 0,
+            results: response.results || [],
+            count: response.count || 0,
             query: debouncedQuery,
             filters,
           });
@@ -98,9 +122,9 @@ const SearchResults = ({
     } finally {
       setLoading(false);
     }
-  }, [debouncedQuery, searchParams, onResultsChange]);
+  }, [debouncedQuery, buildSearchParams, initialFilters, onResultsChange]);
 
-  // Effect to fetch results when query or filters change
+  // Effect to fetch results when parameters change
   useEffect(() => {
     fetchResults();
   }, [fetchResults]);
@@ -112,7 +136,7 @@ const SearchResults = ({
     }
   }, [debouncedQuery, filters]);
 
-  const handleFilterChange = newFilters => {
+  const handleFilterChange = (newFilters) => {
     setFilters(prev => ({
       ...prev,
       ...newFilters,
@@ -120,12 +144,12 @@ const SearchResults = ({
     setCurrentPage(1);
   };
 
-  const handleSortChange = newSortBy => {
+  const handleSortChange = (newSortBy) => {
     setSortBy(newSortBy);
     setCurrentPage(1);
   };
 
-  const handleViewModeChange = mode => {
+  const handleViewModeChange = (mode) => {
     setViewMode(mode);
   };
 
@@ -137,14 +161,15 @@ const SearchResults = ({
       brand: '',
       color: '',
       size: '',
-      in_stock: true,
-      on_sale: false,
-      rating_min: '',
+      is_in_stock: false,
+      is_on_sale: false,
+      is_featured: false,
+      min_rating: '',
     });
     setCurrentPage(1);
   };
 
-  const handlePageChange = page => {
+  const handlePageChange = (page) => {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -158,7 +183,7 @@ const SearchResults = ({
   // Get active filter count
   const getActiveFilterCount = () => {
     return Object.entries(filters).filter(([key, value]) => {
-      if (key === 'in_stock' && value === true) return false; // Default filter
+      if (key === 'is_in_stock' && value === false) return false; // Default filter
       return value !== '' && value !== null && value !== undefined && value !== false;
     }).length;
   };
@@ -310,8 +335,8 @@ const SearchResults = ({
               <p className="search-count">
                 {totalCount > 0 ? (
                   <>
-                    Showing {(currentPage - 1) * searchParams.page_size + 1}-
-                    {Math.min(currentPage * searchParams.page_size, totalCount)} of {totalCount}{' '}
+                    Showing {(currentPage - 1) * (viewMode === 'list' ? 20 : 24) + 1}-
+                    {Math.min(currentPage * (viewMode === 'list' ? 20 : 24), totalCount)} of {totalCount}{' '}
                     results
                   </>
                 ) : (
@@ -346,7 +371,7 @@ const SearchResults = ({
         <div className="active-filters">
           <div className="filter-tags">
             {Object.entries(filters).map(([key, value]) => {
-              if (key === 'in_stock' && value === true) return null;
+              if (key === 'is_in_stock' && value === false) return null;
               if (!value || value === '' || value === false) return null;
 
               const filterLabels = {
@@ -356,8 +381,9 @@ const SearchResults = ({
                 brand: 'Brand',
                 color: 'Color',
                 size: 'Size',
-                on_sale: 'On Sale',
-                rating_min: 'Min Rating',
+                is_on_sale: 'On Sale',
+                is_featured: 'Featured',
+                min_rating: 'Min Rating',
               };
 
               return (
@@ -368,7 +394,7 @@ const SearchResults = ({
                   </span>
                   <button
                     className="remove-filter"
-                    onClick={() => handleFilterChange({ [key]: key === 'in_stock' ? true : '' })}
+                    onClick={() => handleFilterChange({ [key]: key === 'is_in_stock' ? false : '' })}
                     aria-label={`Remove ${filterLabels[key] || key} filter`}
                   >
                     <X size={12} />
@@ -408,7 +434,7 @@ const SearchResults = ({
                 brands: [],
                 colors: [],
                 sizes: [],
-                priceRange: { min: 0, max: 1000000 },
+                priceRange: { min: 0, max: 10000000 }, // UGX range
               }}
             />
           </div>
@@ -485,12 +511,15 @@ const SearchResults = ({
                 </div>
               ) : (
                 <div className="products-list">
-                  <ProductList
-                    products={results}
-                    showFilters={false}
-                    showPagination={false}
-                    className="search-results-list"
-                  />
+                  {results.map(product => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      size="large"
+                      showQuickActions={true}
+                      className="search-result-list-item"
+                    />
+                  ))}
                 </div>
               )}
 

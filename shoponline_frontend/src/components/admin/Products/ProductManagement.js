@@ -1,3 +1,4 @@
+// src/components/admin/Products/ProductManagement.js - Updated for backend integration
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Plus,
@@ -13,11 +14,18 @@ import {
   AlertTriangle,
   TrendingUp,
   BarChart3,
+  MoreVertical,
 } from 'lucide-react';
+import productsAPI from '../../../services/api/productsAPI';
+import categoriesAPI from '../../../services/api/categoriesAPI';
+import LoadingSpinner from '../../common/UI/Loading/Spinner';
+import Alert from '../../common/UI/Alert/Alert';
 
 const ProductManagement = () => {
   const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [filters, setFilters] = useState({
@@ -42,73 +50,102 @@ const ProductManagement = () => {
   });
   const [bulkActionModal, setBulkActionModal] = useState(false);
   const [filterPanel, setFilterPanel] = useState(false);
+  const [sortBy, setSortBy] = useState('-created_at');
+  const [error, setError] = useState(null);
+
+  // Load initial data
+  useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  // Fetch products when dependencies change
+  useEffect(() => {
+    fetchProducts();
+  }, [pagination.page, pagination.page_size, searchTerm, filters, sortBy]);
+
+  const loadInitialData = async () => {
+    try {
+      const [statsResponse, categoriesResponse] = await Promise.all([
+        productsAPI.getProductStats(),
+        categoriesAPI.getCategories({ page_size: 100 })
+      ]);
+
+      setStats(statsResponse);
+      setCategories(categoriesResponse.results || []);
+    } catch (error) {
+      console.error('Error loading initial data:', error);
+      setError('Failed to load initial data');
+    }
+  };
 
   // Fetch products from API
   const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
-      const queryParams = new URLSearchParams({
+      setError(null);
+
+      const params = {
         page: pagination.page,
         page_size: pagination.page_size,
-        search: searchTerm,
-        ...filters,
+        ordering: sortBy,
+      };
+
+      // Add search term
+      if (searchTerm.trim()) {
+        params.search = searchTerm.trim();
+      }
+
+      // Add filters
+      Object.keys(filters).forEach(key => {
+        if (filters[key] && filters[key] !== '') {
+          switch (key) {
+            case 'category':
+              params.category = filters[key];
+              break;
+            case 'status':
+              params.status = filters[key];
+              break;
+            case 'stock':
+              if (filters[key] === 'in_stock') {
+                params.is_in_stock = 'true';
+              } else if (filters[key] === 'low_stock') {
+                params.low_stock = 'true';
+              } else if (filters[key] === 'out_of_stock') {
+                params.is_in_stock = 'false';
+              }
+              break;
+            case 'featured':
+              params.is_featured = filters[key];
+              break;
+            case 'active':
+              params.is_active = filters[key];
+              break;
+          }
+        }
       });
 
-      const response = await fetch(`/api/v1/products/products/?${queryParams}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('access_token')}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      const response = await productsAPI.getProducts(params);
 
-      if (response.ok) {
-        const data = await response.json();
-        setProducts(data.results);
+      if (response) {
+        setProducts(response.results || []);
         setPagination(prev => ({
           ...prev,
-          total: data.count,
-          total_pages: data.total_pages,
+          total: response.count || 0,
+          total_pages: Math.ceil((response.count || 0) / prev.page_size),
         }));
       }
     } catch (error) {
       console.error('Error fetching products:', error);
+      setError('Failed to load products. Please try again.');
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.page_size, searchTerm, filters]);
-
-  // Fetch product statistics
-  const fetchStats = useCallback(async () => {
-    try {
-      const response = await fetch('/api/v1/products/products/stats/', {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('access_token')}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data);
-      }
-    } catch (error) {
-      console.error('Error fetching stats:', error);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
-
-  useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
+  }, [pagination.page, pagination.page_size, searchTerm, filters, sortBy]);
 
   // Handle search
-  const handleSearch = e => {
+  const handleSearch = (e) => {
     e.preventDefault();
     setPagination(prev => ({ ...prev, page: 1 }));
-    fetchProducts();
   };
 
   // Handle filter change
@@ -120,13 +157,19 @@ const ProductManagement = () => {
     setPagination(prev => ({ ...prev, page: 1 }));
   };
 
+  // Handle sort change
+  const handleSortChange = (newSort) => {
+    setSortBy(newSort);
+    setPagination(prev => ({ ...prev, page: 1 }));
+  };
+
   // Handle pagination
-  const handlePageChange = newPage => {
+  const handlePageChange = (newPage) => {
     setPagination(prev => ({ ...prev, page: newPage }));
   };
 
   // Handle product selection
-  const handleProductSelect = productId => {
+  const handleProductSelect = (productId) => {
     setSelectedProducts(prev => {
       if (prev.includes(productId)) {
         return prev.filter(id => id !== productId);
@@ -146,57 +189,143 @@ const ProductManagement = () => {
   };
 
   // Handle bulk actions
-  const handleBulkAction = async action => {
+  const handleBulkAction = async (action) => {
     if (selectedProducts.length === 0) return;
 
+    setActionLoading(true);
     try {
-      const response = await fetch('/api/v1/products/products/bulk_update/', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('access_token')}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          product_ids: selectedProducts,
-          action: action,
-        }),
-      });
+      const bulkData = {
+        product_ids: selectedProducts,
+        action: action,
+      };
 
-      if (response.ok) {
-        await fetchProducts();
-        await fetchStats();
-        setSelectedProducts([]);
-        setBulkActionModal(false);
+      // Add specific data for certain actions
+      switch (action) {
+        case 'update_category':
+          // This would need a category selection modal
+          break;
+        case 'update_price':
+          // This would need price adjustment inputs
+          break;
+        case 'update_stock':
+          // This would need stock adjustment inputs
+          break;
       }
+
+      await productsAPI.bulkUpdateProducts(bulkData);
+      
+      await Promise.all([
+        fetchProducts(),
+        loadInitialData()
+      ]);
+      
+      setSelectedProducts([]);
+      setBulkActionModal(false);
     } catch (error) {
       console.error('Error performing bulk action:', error);
+      setError(`Failed to perform bulk action: ${error.message}`);
+    } finally {
+      setActionLoading(false);
     }
   };
 
   // Export products
   const handleExport = async () => {
     try {
-      const response = await fetch('/api/v1/products/products/export/', {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('access_token')}`,
-        },
-      });
-
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = 'products.csv';
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-      }
+      setActionLoading(true);
+      const blob = await productsAPI.exportProducts(filters);
+      
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = `products_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error exporting products:', error);
+      setError('Failed to export products');
+    } finally {
+      setActionLoading(false);
     }
   };
+
+  // Handle individual product actions
+  const handleProductAction = async (action, productId) => {
+    try {
+      setActionLoading(true);
+      
+      switch (action) {
+        case 'duplicate':
+          await productsAPI.duplicateProduct(productId);
+          await fetchProducts();
+          break;
+        case 'delete':
+          if (window.confirm('Are you sure you want to delete this product?')) {
+            await productsAPI.deleteProduct(productId);
+            await Promise.all([fetchProducts(), loadInitialData()]);
+          }
+          break;
+        case 'toggle_active':
+          const product = products.find(p => p.id === productId);
+          if (product) {
+            await productsAPI.quickEditProduct(productId, {
+              is_active: !product.is_active
+            });
+            await fetchProducts();
+          }
+          break;
+        case 'toggle_featured':
+          const prod = products.find(p => p.id === productId);
+          if (prod) {
+            await productsAPI.quickEditProduct(productId, {
+              is_featured: !prod.is_featured
+            });
+            await fetchProducts();
+          }
+          break;
+      }
+    } catch (error) {
+      console.error(`Error performing ${action}:`, error);
+      setError(`Failed to ${action} product`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-UG', {
+      style: 'currency',
+      currency: 'UGX',
+      minimumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const getStockStatusColor = (product) => {
+    if (!product.track_inventory) return 'text-blue-600 bg-blue-50';
+    if (product.stock_quantity === 0) return 'text-red-600 bg-red-50';
+    if (product.stock_quantity <= (product.low_stock_threshold || 10)) return 'text-yellow-600 bg-yellow-50';
+    return 'text-green-600 bg-green-50';
+  };
+
+  const getStatusColor = (product) => {
+    if (!product.is_active) return 'text-gray-600 bg-gray-50';
+    if (product.status === 'published') return 'text-green-600 bg-green-50';
+    if (product.status === 'draft') return 'text-yellow-600 bg-yellow-50';
+    return 'text-gray-600 bg-gray-50';
+  };
+
+  if (loading && products.length === 0) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <LoadingSpinner size="large" />
+          <p className="mt-4 text-gray-600">Loading products...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 p-6">
@@ -210,14 +339,15 @@ const ProductManagement = () => {
           <div className="flex gap-3">
             <button
               onClick={handleExport}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
+              disabled={actionLoading}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors disabled:opacity-50"
             >
               <Download className="w-4 h-4" />
-              Export
+              {actionLoading ? 'Exporting...' : 'Export'}
             </button>
             <button className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors">
               <Upload className="w-4 h-4" />
-              Import
+              Import Products
             </button>
             <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
               <Plus className="w-4 h-4" />
@@ -225,6 +355,15 @@ const ProductManagement = () => {
             </button>
           </div>
         </div>
+
+        {/* Error Alert */}
+        {error && (
+          <div className="mb-6">
+            <Alert type="error" title="Error" onClose={() => setError(null)}>
+              {error}
+            </Alert>
+          </div>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
@@ -280,17 +419,18 @@ const ProductManagement = () => {
       <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex-1 max-w-md">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Search products..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                onKeyPress={e => e.key === 'Enter' && handleSearch(e)}
-                className="pl-10 pr-4 py-2 w-full border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
+            <form onSubmit={handleSearch}>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder="Search products..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  className="pl-10 pr-4 py-2 w-full border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            </form>
           </div>
           <div className="flex gap-3">
             <button
@@ -303,9 +443,10 @@ const ProductManagement = () => {
             {selectedProducts.length > 0 && (
               <button
                 onClick={() => setBulkActionModal(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                disabled={actionLoading}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
               >
-                Bulk Actions ({selectedProducts.length})
+                {actionLoading ? 'Processing...' : `Bulk Actions (${selectedProducts.length})`}
               </button>
             )}
           </div>
@@ -320,7 +461,11 @@ const ProductManagement = () => {
               className="px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="">All Categories</option>
-              {/* Categories would be loaded from API */}
+              {categories.map(category => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
             </select>
             <select
               value={filters.status}
@@ -352,13 +497,18 @@ const ProductManagement = () => {
               <option value="false">Not Featured</option>
             </select>
             <select
-              value={filters.active}
-              onChange={e => handleFilterChange('active', e.target.value)}
+              value={sortBy}
+              onChange={e => handleSortChange(e.target.value)}
               className="px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              <option value="">All Products</option>
-              <option value="true">Active Only</option>
-              <option value="false">Inactive Only</option>
+              <option value="-created_at">Newest First</option>
+              <option value="created_at">Oldest First</option>
+              <option value="name">Name A-Z</option>
+              <option value="-name">Name Z-A</option>
+              <option value="price">Price Low-High</option>
+              <option value="-price">Price High-Low</option>
+              <option value="-view_count">Most Viewed</option>
+              <option value="-order_count">Best Selling</option>
             </select>
           </div>
         )}
@@ -403,7 +553,7 @@ const ProductManagement = () => {
                 <tr>
                   <td colSpan="7" className="px-6 py-12 text-center">
                     <div className="flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+                      <LoadingSpinner />
                       <span className="ml-3 text-slate-600">Loading products...</span>
                     </div>
                   </td>
@@ -428,74 +578,98 @@ const ProductManagement = () => {
                     <td className="px-6 py-4">
                       <div className="flex items-center">
                         <img
-                          src={product.image_url || '/api/placeholder/60/60'}
+                          src={product.image_url || product.thumbnail_url || '/api/placeholder/60/60'}
                           alt={product.name}
                           className="w-12 h-12 rounded-lg object-cover mr-4"
                         />
                         <div>
-                          <div className="font-medium text-slate-900">{product.name}</div>
-                          <div className="text-sm text-slate-500">SKU: {product.sku || 'N/A'}</div>
-                          {product.is_featured && (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 mt-1">
-                              Featured
-                            </span>
-                          )}
+                          <div className="flex items-center">
+                            <p className="font-medium text-slate-900">{product.name}</p>
+                            {product.is_featured && (
+                              <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                Featured
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-slate-500">SKU: {product.sku || 'N/A'}</p>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-900">
-                      {product.category?.name || 'N/A'}
+                      {typeof product.category === 'object' ? product.category.name : product.category}
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-sm font-medium text-slate-900">
-                        UGX {product.price?.toLocaleString()}
+                      <div className="text-sm">
+                        <p className="font-medium text-slate-900">{formatCurrency(product.price)}</p>
+                        {product.original_price && product.original_price > product.price && (
+                          <p className="text-xs text-slate-500 line-through">
+                            {formatCurrency(product.original_price)}
+                          </p>
+                        )}
                       </div>
-                      {product.original_price && product.original_price > product.price && (
-                        <div className="text-sm text-slate-500 line-through">
-                          UGX {product.original_price.toLocaleString()}
-                        </div>
-                      )}
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-sm text-slate-900">
-                        {product.track_inventory ? product.stock_quantity : '∞'}
-                      </div>
-                      {product.is_low_stock && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                          Low Stock
-                        </span>
-                      )}
-                      {!product.is_in_stock && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                          Out of Stock
-                        </span>
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStockStatusColor(
+                          product
+                        )}`}
+                      >
+                        {!product.track_inventory
+                          ? 'Not Tracked'
+                          : product.stock_quantity === 0
+                          ? 'Out of Stock'
+                          : product.stock_quantity <= (product.low_stock_threshold || 10)
+                          ? 'Low Stock'
+                          : 'In Stock'}
+                      </span>
+                      {product.track_inventory && (
+                        <p className="text-xs text-slate-500 mt-1">{product.stock_quantity} units</p>
                       )}
                     </td>
                     <td className="px-6 py-4">
                       <span
-                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          product.is_active
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
+                          product
+                        )}`}
                       >
-                        {product.is_active ? 'Active' : 'Inactive'}
+                        {!product.is_active
+                          ? 'Inactive'
+                          : product.status === 'published' 
+                          ? 'Published' 
+                          : product.status === 'draft'
+                          ? 'Draft'
+                          : 'Archived'}
                       </span>
-                      <div className="text-xs text-slate-500 mt-1 capitalize">{product.status}</div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <button className="p-2 text-slate-400 hover:text-blue-600 transition-colors">
-                          <Eye className="w-4 h-4" />
+                      <div className="flex items-center space-x-2">
+                        <button className="text-blue-600 hover:text-blue-700 p-1" title="View">
+                          <Eye className="h-4 w-4" />
                         </button>
-                        <button className="p-2 text-slate-400 hover:text-blue-600 transition-colors">
-                          <Edit className="w-4 h-4" />
+                        <button className="text-green-600 hover:text-green-700 p-1" title="Edit">
+                          <Edit className="h-4 w-4" />
                         </button>
-                        <button className="p-2 text-slate-400 hover:text-blue-600 transition-colors">
-                          <Copy className="w-4 h-4" />
+                        <button 
+                          onClick={() => handleProductAction('duplicate', product.id)}
+                          className="text-gray-600 hover:text-gray-700 p-1" 
+                          title="Duplicate"
+                          disabled={actionLoading}
+                        >
+                          <Copy className="h-4 w-4" />
                         </button>
-                        <button className="p-2 text-slate-400 hover:text-red-600 transition-colors">
-                          <Trash2 className="w-4 h-4" />
+                        <div className="relative">
+                          <button className="text-slate-600 hover:text-slate-700 p-1" title="More actions">
+                            <MoreVertical className="h-4 w-4" />
+                          </button>
+                          {/* Dropdown menu would go here */}
+                        </div>
+                        <button 
+                          onClick={() => handleProductAction('delete', product.id)}
+                          className="text-red-600 hover:text-red-700 p-1" 
+                          title="Delete"
+                          disabled={actionLoading}
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
                     </td>
@@ -563,31 +737,36 @@ const ProductManagement = () => {
             <div className="space-y-2">
               <button
                 onClick={() => handleBulkAction('activate')}
-                className="w-full text-left px-4 py-2 hover:bg-slate-50 rounded-lg"
+                disabled={actionLoading}
+                className="w-full text-left px-4 py-2 hover:bg-slate-50 rounded-lg disabled:opacity-50"
               >
                 Activate Products
               </button>
               <button
                 onClick={() => handleBulkAction('deactivate')}
-                className="w-full text-left px-4 py-2 hover:bg-slate-50 rounded-lg"
+                disabled={actionLoading}
+                className="w-full text-left px-4 py-2 hover:bg-slate-50 rounded-lg disabled:opacity-50"
               >
                 Deactivate Products
               </button>
               <button
                 onClick={() => handleBulkAction('feature')}
-                className="w-full text-left px-4 py-2 hover:bg-slate-50 rounded-lg"
+                disabled={actionLoading}
+                className="w-full text-left px-4 py-2 hover:bg-slate-50 rounded-lg disabled:opacity-50"
               >
                 Mark as Featured
               </button>
               <button
                 onClick={() => handleBulkAction('unfeature')}
-                className="w-full text-left px-4 py-2 hover:bg-slate-50 rounded-lg"
+                disabled={actionLoading}
+                className="w-full text-left px-4 py-2 hover:bg-slate-50 rounded-lg disabled:opacity-50"
               >
                 Remove from Featured
               </button>
               <button
                 onClick={() => handleBulkAction('delete')}
-                className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 rounded-lg"
+                disabled={actionLoading}
+                className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 rounded-lg disabled:opacity-50"
               >
                 Delete Products
               </button>
@@ -595,7 +774,8 @@ const ProductManagement = () => {
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setBulkActionModal(false)}
-                className="flex-1 px-4 py-2 text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50"
+                disabled={actionLoading}
+                className="flex-1 px-4 py-2 text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50"
               >
                 Cancel
               </button>

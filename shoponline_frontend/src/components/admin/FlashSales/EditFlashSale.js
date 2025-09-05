@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock, Percent, Image, AlertCircle, Save, Plus } from 'lucide-react';
-import ProductSelector from './ProductSelector';
-//import { flashSalesAPI } from '../../../services/api/flashSalesAPI';
+import { X, Calendar, Clock, Percent, Image, AlertCircle, Save } from 'lucide-react';
 import flashSalesAPI from '../../../services/api/flashSalesAPI';
 import './FlashSaleManagement.css';
 
@@ -21,51 +19,38 @@ const EditFlashSale = ({ flashSale, onSuccess, onCancel }) => {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
-  const [showProductSelector, setShowProductSelector] = useState(false);
-  const [flashSaleProducts, setFlashSaleProducts] = useState([]);
-  const [loadingProducts, setLoadingProducts] = useState(false);
 
+  // Initialize form with flash sale data
   useEffect(() => {
     if (flashSale) {
-      // Format datetime for input fields
-      const formatDateTime = dateString => {
-        if (!dateString) return '';
-        const date = new Date(dateString);
-        return date.toISOString().slice(0, 16);
-      };
-
       setFormData({
         name: flashSale.name || '',
         description: flashSale.description || '',
         discount_percentage: flashSale.discount_percentage || '',
-        start_time: formatDateTime(flashSale.start_time),
-        end_time: formatDateTime(flashSale.end_time),
+        start_time: flashSale.start_time ? formatDateTimeLocal(flashSale.start_time) : '',
+        end_time: flashSale.end_time ? formatDateTimeLocal(flashSale.end_time) : '',
         max_discount_amount: flashSale.max_discount_amount || '',
         priority: flashSale.priority || 0,
-        banner_image: null, // New image upload
-        is_active: flashSale.is_active,
+        banner_image: null, // File input starts empty
+        is_active: flashSale.is_active !== undefined ? flashSale.is_active : true,
       });
 
-      // Set preview image if exists
+      // Set preview image if banner exists
       if (flashSale.banner_image) {
         setPreviewImage(flashSale.banner_image);
       }
-
-      // Load flash sale products
-      loadFlashSaleProducts();
     }
   }, [flashSale]);
 
-  const loadFlashSaleProducts = async () => {
-    try {
-      setLoadingProducts(true);
-      const response = await flashSalesAPI.getFlashSaleWithProducts(flashSale.id);
-      setFlashSaleProducts(response.flash_sale_products || []);
-    } catch (err) {
-      console.error('Error loading flash sale products:', err);
-    } finally {
-      setLoadingProducts(false);
-    }
+  const formatDateTimeLocal = (dateString) => {
+    const date = new Date(dateString);
+    // Format for datetime-local input
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
   };
 
   const handleInputChange = e => {
@@ -99,13 +84,15 @@ const EditFlashSale = ({ flashSale, onSuccess, onCancel }) => {
     // Required fields validation
     if (!formData.name.trim()) {
       newErrors.name = 'Flash sale name is required';
+    } else if (formData.name.length > 200) {
+      newErrors.name = 'Name must be less than 200 characters';
     }
 
     if (!formData.discount_percentage) {
       newErrors.discount_percentage = 'Discount percentage is required';
     } else {
       const discount = parseFloat(formData.discount_percentage);
-      if (discount <= 0 || discount > 100) {
+      if (isNaN(discount) || discount <= 0 || discount > 100) {
         newErrors.discount_percentage = 'Discount must be between 0 and 100';
       }
     }
@@ -126,11 +113,30 @@ const EditFlashSale = ({ flashSale, onSuccess, onCancel }) => {
       if (startDate >= endDate) {
         newErrors.end_time = 'End time must be after start time';
       }
+
+      // Check minimum duration (1 hour)
+      const durationHours = (endDate - startDate) / (1000 * 60 * 60);
+      if (durationHours < 1) {
+        newErrors.end_time = 'Flash sale must run for at least 1 hour';
+      }
+
+      // Check maximum duration (30 days)
+      if (durationHours > 30 * 24) {
+        newErrors.end_time = 'Flash sale cannot run for more than 30 days';
+      }
     }
 
     // Max discount validation
-    if (formData.max_discount_amount && parseFloat(formData.max_discount_amount) <= 0) {
-      newErrors.max_discount_amount = 'Maximum discount amount must be positive';
+    if (formData.max_discount_amount) {
+      const maxDiscount = parseFloat(formData.max_discount_amount);
+      if (isNaN(maxDiscount) || maxDiscount <= 0) {
+        newErrors.max_discount_amount = 'Maximum discount amount must be positive';
+      }
+    }
+
+    // Priority validation
+    if (formData.priority < 0 || formData.priority > 999) {
+      newErrors.priority = 'Priority must be between 0 and 999';
     }
 
     setErrors(newErrors);
@@ -151,11 +157,11 @@ const EditFlashSale = ({ flashSale, onSuccess, onCancel }) => {
       const submitData = new FormData();
 
       Object.keys(formData).forEach(key => {
-        if (formData[key] !== null && formData[key] !== '') {
+        if (formData[key] !== null && formData[key] !== undefined && formData[key] !== '') {
           if (key === 'banner_image' && formData[key] instanceof File) {
             submitData.append(key, formData[key]);
           } else if (key !== 'banner_image') {
-            submitData.append(key, formData[key]);
+            submitData.append(key, formData[key].toString());
           }
         }
       });
@@ -174,43 +180,27 @@ const EditFlashSale = ({ flashSale, onSuccess, onCancel }) => {
     }
   };
 
-  const handleRemoveProduct = async productId => {
-    if (window.confirm('Remove this product from flash sale?')) {
-      try {
-        await flashSalesAPI.removeProductFromFlashSale(productId);
-        loadFlashSaleProducts();
-      } catch (err) {
-        console.error('Error removing product:', err);
-      }
+  // Calculate duration for display
+  const calculateDuration = () => {
+    if (formData.start_time && formData.end_time) {
+      const start = new Date(formData.start_time);
+      const end = new Date(formData.end_time);
+      const hours = Math.ceil((end - start) / (1000 * 60 * 60));
+      return hours;
     }
-  };
-
-  const handleProductsAdded = () => {
-    setShowProductSelector(false);
-    loadFlashSaleProducts();
-  };
-
-  const formatCurrency = amount => {
-    return new Intl.NumberFormat('en-UG', {
-      style: 'currency',
-      currency: 'UGX',
-    }).format(amount);
-  };
-
-  const getMinDateTime = () => {
-    const now = new Date();
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    return now.toISOString().slice(0, 16);
+    return 0;
   };
 
   const canEditTiming = () => {
-    // Allow editing if flash sale hasn't started yet
-    return new Date(flashSale.start_time) > new Date();
+    // Allow editing if flash sale hasn't started yet or is not running
+    const now = new Date();
+    const startTime = new Date(flashSale.start_time);
+    return startTime > now;
   };
 
   return (
     <div className="modal-overlay">
-      <div className="modal-content flash-sale-modal large">
+      <div className="modal-content flash-sale-modal">
         <div className="modal-header">
           <h2>Edit Flash Sale</h2>
           <button className="modal-close" onClick={onCancel}>
@@ -234,7 +224,9 @@ const EditFlashSale = ({ flashSale, onSuccess, onCancel }) => {
                     name="name"
                     value={formData.name}
                     onChange={handleInputChange}
+                    placeholder="e.g., Summer Electronics Sale"
                     className={errors.name ? 'error' : ''}
+                    maxLength={200}
                   />
                   {errors.name && (
                     <div className="error-message">
@@ -242,6 +234,7 @@ const EditFlashSale = ({ flashSale, onSuccess, onCancel }) => {
                       {errors.name}
                     </div>
                   )}
+                  <div className="character-count">{formData.name.length}/200</div>
                 </div>
 
                 <div className="form-group">
@@ -252,7 +245,10 @@ const EditFlashSale = ({ flashSale, onSuccess, onCancel }) => {
                     value={formData.description}
                     onChange={handleInputChange}
                     rows={3}
+                    placeholder="Brief description of the flash sale..."
+                    maxLength={1000}
                   />
+                  <div className="character-count">{formData.description.length}/1000</div>
                 </div>
 
                 <div className="form-group">
@@ -264,7 +260,17 @@ const EditFlashSale = ({ flashSale, onSuccess, onCancel }) => {
                     value={formData.priority}
                     onChange={handleInputChange}
                     min="0"
+                    max="999"
+                    placeholder="0"
+                    className={errors.priority ? 'error' : ''}
                   />
+                  {errors.priority && (
+                    <div className="error-message">
+                      <AlertCircle size={16} />
+                      {errors.priority}
+                    </div>
+                  )}
+                  <small>Higher numbers appear first (0-999)</small>
                 </div>
 
                 <div className="form-group">
@@ -275,7 +281,8 @@ const EditFlashSale = ({ flashSale, onSuccess, onCancel }) => {
                       checked={formData.is_active}
                       onChange={handleInputChange}
                     />
-                    Active
+                    <span className="checkmark" />
+                    Active Flash Sale
                   </label>
                 </div>
               </div>
@@ -297,9 +304,10 @@ const EditFlashSale = ({ flashSale, onSuccess, onCancel }) => {
                         name="discount_percentage"
                         value={formData.discount_percentage}
                         onChange={handleInputChange}
-                        min="0"
+                        min="0.01"
                         max="100"
                         step="0.01"
+                        placeholder="25.00"
                         className={errors.discount_percentage ? 'error' : ''}
                       />
                       <span className="input-suffix">%</span>
@@ -323,6 +331,8 @@ const EditFlashSale = ({ flashSale, onSuccess, onCancel }) => {
                         value={formData.max_discount_amount}
                         onChange={handleInputChange}
                         min="0"
+                        step="1000"
+                        placeholder="100000"
                         className={errors.max_discount_amount ? 'error' : ''}
                       />
                     </div>
@@ -332,6 +342,7 @@ const EditFlashSale = ({ flashSale, onSuccess, onCancel }) => {
                         {errors.max_discount_amount}
                       </div>
                     )}
+                    <small>Optional: Maximum discount amount per product</small>
                   </div>
                 </div>
               </div>
@@ -349,7 +360,7 @@ const EditFlashSale = ({ flashSale, onSuccess, onCancel }) => {
                 {!canEditTiming() && (
                   <div className="info-alert">
                     <AlertCircle size={16} />
-                    <span>Timing cannot be changed for active or past flash sales</span>
+                    <span>Timing cannot be changed for active flash sales</span>
                   </div>
                 )}
 
@@ -361,7 +372,6 @@ const EditFlashSale = ({ flashSale, onSuccess, onCancel }) => {
                     name="start_time"
                     value={formData.start_time}
                     onChange={handleInputChange}
-                    min={canEditTiming() ? getMinDateTime() : undefined}
                     disabled={!canEditTiming()}
                     className={errors.start_time ? 'error' : ''}
                   />
@@ -381,7 +391,7 @@ const EditFlashSale = ({ flashSale, onSuccess, onCancel }) => {
                     name="end_time"
                     value={formData.end_time}
                     onChange={handleInputChange}
-                    min={formData.start_time || getMinDateTime()}
+                    min={formData.start_time}
                     disabled={!canEditTiming()}
                     className={errors.end_time ? 'error' : ''}
                   />
@@ -392,6 +402,13 @@ const EditFlashSale = ({ flashSale, onSuccess, onCancel }) => {
                     </div>
                   )}
                 </div>
+
+                {/* Duration Display */}
+                {formData.start_time && formData.end_time && (
+                  <div className="duration-display">
+                    <small>Duration: {calculateDuration()} hours</small>
+                  </div>
+                )}
               </div>
 
               {/* Banner Image */}
@@ -402,6 +419,7 @@ const EditFlashSale = ({ flashSale, onSuccess, onCancel }) => {
                 </h3>
 
                 <div className="form-group">
+                  <label htmlFor="banner_image">Upload New Banner</label>
                   <div className="file-upload-area">
                     <input
                       type="file"
@@ -417,7 +435,7 @@ const EditFlashSale = ({ flashSale, onSuccess, onCancel }) => {
                         <button
                           type="button"
                           onClick={() => {
-                            setPreviewImage(null);
+                            setPreviewImage(flashSale.banner_image || null);
                             setFormData(prev => ({ ...prev, banner_image: null }));
                           }}
                           className="remove-image"
@@ -429,79 +447,14 @@ const EditFlashSale = ({ flashSale, onSuccess, onCancel }) => {
                       <div className="upload-placeholder">
                         <Image size={48} />
                         <p>Click to upload new banner image</p>
+                        <small>Recommended: 1200x400px, JPG/PNG</small>
                       </div>
                     )}
                   </div>
+                  <small>Leave empty to keep current banner</small>
                 </div>
               </div>
             </div>
-          </div>
-
-          {/* Products Section */}
-          <div className="form-section products-section">
-            <div className="section-header">
-              <h3>Flash Sale Products ({flashSaleProducts.length})</h3>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setShowProductSelector(true)}
-              >
-                <Plus size={16} />
-                Add Products
-              </button>
-            </div>
-
-            {loadingProducts ? (
-              <div className="loading-container">
-                <div className="loading-spinner" />
-                <p>Loading products...</p>
-              </div>
-            ) : flashSaleProducts.length > 0 ? (
-              <div className="products-grid">
-                {flashSaleProducts.map(item => (
-                  <div key={item.id} className="product-card">
-                    <div className="product-image">
-                      <img
-                        src={item.product_detail?.images?.[0] || '/placeholder-product.jpg'}
-                        alt={item.product_detail?.name}
-                      />
-                    </div>
-                    <div className="product-info">
-                      <h4>{item.product_detail?.name}</h4>
-                      <div className="price-info">
-                        <span className="original-price">
-                          {formatCurrency(item.original_price)}
-                        </span>
-                        <span className="flash-price">{formatCurrency(item.flash_sale_price)}</span>
-                        <span className="discount-badge">-{item.discount_percentage}%</span>
-                      </div>
-                      <div className="product-stats">
-                        <span>Sold: {item.sold_quantity}</span>
-                        {item.stock_limit && <span>Limit: {item.stock_limit}</span>}
-                      </div>
-                    </div>
-                    <button
-                      className="remove-product-btn"
-                      onClick={() => handleRemoveProduct(item.id)}
-                      title="Remove from flash sale"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="empty-products">
-                <p>No products added to this flash sale yet.</p>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={() => setShowProductSelector(true)}
-                >
-                  Add First Product
-                </button>
-              </div>
-            )}
           </div>
 
           {/* General Error */}
@@ -518,7 +471,7 @@ const EditFlashSale = ({ flashSale, onSuccess, onCancel }) => {
               Cancel
             </button>
             <button
-              type="button"
+              type="submit"
               className="btn btn-primary"
               disabled={loading}
               onClick={handleSubmit}
@@ -537,16 +490,6 @@ const EditFlashSale = ({ flashSale, onSuccess, onCancel }) => {
             </button>
           </div>
         </div>
-
-        {/* Product Selector Modal */}
-        {showProductSelector && (
-          <ProductSelector
-            flashSaleId={flashSale.id}
-            existingProducts={flashSaleProducts}
-            onProductsAdded={handleProductsAdded}
-            onCancel={() => setShowProductSelector(false)}
-          />
-        )}
       </div>
     </div>
   );

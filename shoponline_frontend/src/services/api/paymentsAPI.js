@@ -108,7 +108,7 @@ const paymentsAPI = {
   initiateMTNPayment: async paymentData => {
     try {
       const headers = {
-        'X-MTN-Subscription-Key': process.env.REACT_APP_MTN_MOMO_SUBSCRIPTION_KEY || '878d5c3421094497b460207379326a53',
+        'X-MTN-Subscription-Key': process.env.REACT_APP_MTN_MOMO_SUBSCRIPTION_KEY || '464d259493434c8991d7dc06c1d7a533',
         'X-Target-Environment': process.env.REACT_APP_MTN_MOMO_TARGET_ENVIRONMENT || 'sandbox',
       };
 
@@ -312,7 +312,7 @@ const paymentsAPI = {
     getMTNAccountBalance: async () => {
       try {
         const headers = {
-          'X-MTN-Subscription-Key': process.env.REACT_APP_MTN_MOMO_SUBSCRIPTION_KEY || '878d5c3421094497b460207379326a53',
+          'X-MTN-Subscription-Key': process.env.REACT_APP_MTN_MOMO_SUBSCRIPTION_KEY || '464d259493434c8991d7dc06c1d7a533',
           'X-Target-Environment': process.env.REACT_APP_MTN_MOMO_TARGET_ENVIRONMENT || 'sandbox',
         };
 
@@ -327,7 +327,7 @@ const paymentsAPI = {
     checkMTNServiceStatus: async () => {
       try {
         const headers = {
-          'X-MTN-Subscription-Key': process.env.REACT_APP_MTN_MOMO_SUBSCRIPTION_KEY || '878d5c3421094497b460207379326a53',
+          'X-MTN-Subscription-Key': process.env.REACT_APP_MTN_MOMO_SUBSCRIPTION_KEY || '464d259493434c8991d7dc06c1d7a533',
         };
 
         const response = await apiClient.get('/payments/admin/mtn/status/', { headers });
@@ -561,7 +561,7 @@ const paymentsAPI = {
   getMTNConfig: () => {
     return {
       baseURL: process.env.REACT_APP_MTN_MOMO_BASE_URL || 'https://sandbox.momodeveloper.mtn.com',
-      subscriptionKey: process.env.REACT_APP_MTN_MOMO_SUBSCRIPTION_KEY || '878d5c3421094497b460207379326a53',
+      subscriptionKey: process.env.REACT_APP_MTN_MOMO_SUBSCRIPTION_KEY || '464d259493434c8991d7dc06c1d7a533',
       secondaryKey: process.env.REACT_APP_MTN_MOMO_SECONDARY_KEY || '91735b447b134358828f0b8b1d260c5c',
       targetEnvironment: process.env.REACT_APP_MTN_MOMO_TARGET_ENVIRONMENT || 'sandbox',
       enabled: process.env.REACT_APP_MTN_MOMO_ENABLED === 'true',

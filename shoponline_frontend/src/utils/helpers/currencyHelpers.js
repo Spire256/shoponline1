@@ -61,7 +61,7 @@ export const formatUGX = (amount, options = {}) => {
     return usePrefix ? `${symbol}${spacing}${formatted}` : `${formatted}${spacing}${symbol}`;
   } catch (error) {
     console.error('Error formatting UGX:', error);
-    return showSymbol ? 'UGX 0' : '0';
+    return 'UGX 0'; // Fixed: Always return with symbol on error for consistency
   }
 };
 

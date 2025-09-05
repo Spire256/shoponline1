@@ -125,32 +125,34 @@ class PaymentSerializer(serializers.ModelSerializer):
         amount = data.get('amount')
         order = data.get('order')
         
-        if order and amount != order.total_amount:
+        if order and amount and amount != order.total_amount:
             raise serializers.ValidationError(
                 f"Payment amount ({amount}) must match order total ({order.total_amount})"
             )
         
         # Check if payment method is active
-        try:
-            config = PaymentMethodConfig.objects.get(payment_method=payment_method)
-            if not config.is_active:
-                raise serializers.ValidationError(
-                    f"{config.display_name} is currently not available"
-                )
+        if payment_method:
+            try:
+                config = PaymentMethodConfig.objects.get(payment_method=payment_method)
+                if not config.is_active:
+                    raise serializers.ValidationError(
+                        f"{config.display_name} is currently not available"
+                    )
+                
+                # Check amount limits if amount is provided
+                if amount:
+                    if amount < config.min_amount:
+                        raise serializers.ValidationError(
+                            f"Minimum amount for {config.display_name} is UGX {config.min_amount}"
+                        )
+                    
+                    if amount > config.max_amount:
+                        raise serializers.ValidationError(
+                            f"Maximum amount for {config.display_name} is UGX {config.max_amount}"
+                        )
             
-            # Check amount limits
-            if amount < config.min_amount:
-                raise serializers.ValidationError(
-                    f"Minimum amount for {config.display_name} is UGX {config.min_amount}"
-                )
-            
-            if amount > config.max_amount:
-                raise serializers.ValidationError(
-                    f"Maximum amount for {config.display_name} is UGX {config.max_amount}"
-                )
-        
-        except PaymentMethodConfig.DoesNotExist:
-            raise serializers.ValidationError(f"Payment method {payment_method} is not configured")
+            except PaymentMethodConfig.DoesNotExist:
+                raise serializers.ValidationError(f"Payment method {payment_method} is not configured")
         
         return data
 
@@ -182,6 +184,29 @@ class PaymentCreateSerializer(serializers.Serializer):
         # Check if order already has a successful payment
         if order.payments.filter(status=PaymentStatus.COMPLETED).exists():
             raise serializers.ValidationError("Order has already been paid")
+        
+        # Validate amount constraints based on payment method configuration
+        try:
+            config = PaymentMethodConfig.objects.get(payment_method=payment_method)
+            if not config.is_active:
+                raise serializers.ValidationError(
+                    f"{config.display_name} is currently not available"
+                )
+            
+            # Check amount limits against order total
+            order_amount = order.total_amount
+            if order_amount < config.min_amount:
+                raise serializers.ValidationError(
+                    f"Order amount (UGX {order_amount}) is below minimum for {config.display_name} (UGX {config.min_amount})"
+                )
+            
+            if order_amount > config.max_amount:
+                raise serializers.ValidationError(
+                    f"Order amount (UGX {order_amount}) exceeds maximum for {config.display_name} (UGX {config.max_amount})"
+                )
+        
+        except PaymentMethodConfig.DoesNotExist:
+            raise serializers.ValidationError(f"Payment method {payment_method} is not configured")
         
         # Method-specific validation
         if payment_method in [PaymentMethod.MTN_MOMO, PaymentMethod.AIRTEL_MONEY]:

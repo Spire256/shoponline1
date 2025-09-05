@@ -38,7 +38,12 @@
   --radius-full: 9999px;
   --transition-fast: 150ms ease-in-out;
   --transition-normal: 300ms ease-in-out;
-  --header-height: 140px; /* Increased to account for both blue banner and white header bar */
+  /* Updated header height calculation - notification bar (40px) + main header (80px) */
+  --header-notification-height: 40px;
+  --header-main-height: 80px;
+  --header-total-height: calc(var(--header-notification-height) + var(--header-main-height));
+  /* Legacy variable for backward compatibility */
+  --header-height: var(--header-total-height);
 }
 
 /* Layout Structure */
@@ -50,26 +55,31 @@
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
-/* Header should have higher z-index than sidebar */
+/* Header should have higher z-index than sidebar and be fixed */
 .header {
-  position: relative;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 200; /* Higher than sidebar */
-  height: var(--header-height);
+  width: 100%;
 }
 
 .layout-body {
   display: flex;
   flex: 1;
   position: relative;
-  min-height: calc(100vh - var(--header-height) - 60px); /* Account for header and footer */
+  min-height: calc(100vh - var(--header-total-height) - 60px); /* Account for header and footer */
+  margin-top: var(--header-total-height); /* Add top margin to account for fixed header */
+  padding-top: 0; /* Remove any extra padding */
 }
 
-/* Sidebar positioning - now starts below header */
+/* Sidebar positioning - now starts below the complete header (notification + main header) */
 .sidebar {
   position: fixed;
-  top: var(--header-height); /* Start below header */
+  top: var(--header-total-height); /* Start below complete header */
   left: 0;
-  height: calc(100vh - var(--header-height)); /* Full height minus header */
+  height: calc(100vh - var(--header-total-height)); /* Full height minus complete header */
   z-index: 90; /* Lower z-index to stay below header */
   background-color: var(--white);
   border-right: 1px solid var(--gray-200);
@@ -94,7 +104,7 @@
 .mobile-menu-button {
   display: none;
   position: fixed;
-  top: 1rem;
+  top: calc(var(--header-total-height) + 1rem); /* Position below complete header */
   left: 1rem;
   z-index: 1001;
   width: 44px;
@@ -128,7 +138,7 @@
 .sidebar-overlay {
   display: none;
   position: fixed;
-  top: 0;
+  top: var(--header-total-height); /* Start below complete header */
   left: 0;
   right: 0;
   bottom: 0;
@@ -147,6 +157,7 @@
   min-height: 80px;
   background: var(--gradient-primary);
   color: var(--white);
+  flex-shrink: 0;
 }
 
 .sidebar-title {
@@ -530,6 +541,7 @@
   border-top: 1px solid var(--gray-200);
   padding: 1rem;
   background: var(--gray-50);
+  flex-shrink: 0;
 }
 
 .quick-contact {
@@ -604,9 +616,11 @@
   flex: 1;
   background-color: var(--white);
   transition: margin-left var(--transition-normal);
-  min-height: 100%;
+  min-height: calc(100vh - var(--header-total-height));
   display: flex;
   flex-direction: column;
+  /* Ensure main content starts at the right position */
+  position: relative;
 }
 
 /* Sidebar positioning adjustments for main content */
@@ -629,6 +643,8 @@
   max-width: 1200px;
   margin: 0 auto;
   width: 100%;
+  /* Ensure content doesn't overlap with header */
+  position: relative;
 }
 
 /* Override Tailwind container for better spacing */
@@ -643,10 +659,27 @@
   background: var(--white);
   border-bottom: 1px solid var(--gray-200);
   padding: 1rem;
+  /* Ensure breadcrumbs respect the header height */
+  margin-top: 0;
+}
+
+/* Navigation bar adjustments if it exists */
+.navigation {
+  position: relative;
+  top: 0;
+  z-index: 40;
+  background: var(--gray-50);
+  border-bottom: 1px solid var(--gray-200);
 }
 
 /* Responsive adjustments */
 @media (max-width: 1024px) {
+  :root {
+    --header-notification-height: 36px;
+    --header-main-height: 76px;
+    --header-total-height: calc(var(--header-notification-height) + var(--header-main-height));
+  }
+  
   .main-content.with-sidebar.sidebar-expanded {
     margin-left: 15rem; /* 240px for tablets */
   }
@@ -654,27 +687,49 @@
   .sidebar.expanded {
     width: 15rem; /* 240px for tablets */
   }
+  
+  .sidebar {
+    top: var(--header-total-height);
+    height: calc(100vh - var(--header-total-height));
+  }
+  
+  .layout-body {
+    margin-top: var(--header-total-height);
+  }
+  
+  .mobile-menu-button {
+    top: calc(var(--header-total-height) + 1rem);
+  }
 }
 
 @media (max-width: 768px) {
+  :root {
+    --header-notification-height: 32px;
+    --header-main-height: 72px;
+    --header-total-height: calc(var(--header-notification-height) + var(--header-main-height));
+  }
+  
   .layout-body {
     flex-direction: row; /* Keep horizontal layout */
     position: relative;
+    margin-top: var(--header-total-height);
   }
 
   .mobile-menu-button {
     display: flex;
+    top: calc(var(--header-total-height) + 1rem);
   }
 
   .sidebar-overlay {
     display: block;
+    top: var(--header-total-height);
   }
 
   .sidebar {
     position: fixed;
-    top: var(--header-height); /* Ensure it starts below header on mobile too */
+    top: var(--header-total-height); /* Ensure it starts below complete header on mobile too */
     left: 0;
-    height: calc(100vh - var(--header-height)); /* Full height minus header */
+    height: calc(100vh - var(--header-total-height)); /* Full height minus complete header */
     z-index: 1100;
     transform: translateX(-100%);
     transition: transform var(--transition-normal);
@@ -708,7 +763,7 @@
   .layout-body::before {
     content: '';
     position: fixed;
-    top: var(--header-height);
+    top: var(--header-total-height);
     left: 0;
     right: 0;
     bottom: 0;
@@ -741,6 +796,12 @@
 }
 
 @media (max-width: 480px) {
+  :root {
+    --header-notification-height: 30px;
+    --header-main-height: 68px;
+    --header-total-height: calc(var(--header-notification-height) + var(--header-main-height));
+  }
+  
   .content-container {
     padding: 0.75rem;
   }
@@ -753,6 +814,19 @@
     width: 100vw;
     max-width: none;
   }
+  
+  .layout-body {
+    margin-top: var(--header-total-height);
+  }
+  
+  .sidebar {
+    top: var(--header-total-height);
+    height: calc(100vh - var(--header-total-height));
+  }
+  
+  .mobile-menu-button {
+    top: calc(var(--header-total-height) + 1rem);
+  }
 }
 
 /* HomePage specific adjustments */
@@ -760,6 +834,8 @@
   background-color: var(--gray-50);
   margin: 0;
   width: 100%;
+  /* Ensure homepage content doesn't overlap with header */
+  min-height: calc(100vh - var(--header-total-height));
 }
 
 .homepage .container {
@@ -769,7 +845,9 @@
 
 /* Hero section adjustments for layout */
 .hero-section {
-  margin: -2rem -1rem 0 -1rem; /* Extend to edges */
+  margin: 0 -1rem 2rem -1rem; /* Remove negative top margin that was causing overlap */
+  /* Add padding top to account for any navigation if present */
+  padding-top: 0;
 }
 
 .hero-section .container {
@@ -824,6 +902,7 @@
 @media print {
   .layout-body {
     display: block;
+    margin-top: 0;
   }
   
   .main-content {
@@ -832,6 +911,10 @@
   
   .sidebar {
     display: none;
+  }
+  
+  .header {
+    position: relative;
   }
 }
 
@@ -900,4 +983,20 @@
 .contact-btn:focus-visible {
   outline: 2px solid var(--primary-blue);
   outline-offset: 2px;
+}
+
+/* Utility class to ensure content starts below header */
+.below-header {
+  margin-top: var(--header-total-height);
+}
+
+/* Sticky positioning adjustments */
+.sticky-below-header {
+  position: sticky;
+  top: var(--header-total-height);
+}
+
+/* Ensure any floating elements respect the header */
+.floating-element {
+  top: calc(var(--header-total-height) + 1rem);
 }

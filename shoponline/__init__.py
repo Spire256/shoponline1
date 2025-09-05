@@ -1,4 +1,4 @@
-# shoponline_project/__init__.py
+# shoponline/__init__.py
 """
 Ugandan E-commerce Platform - Django Project Initialization
 """

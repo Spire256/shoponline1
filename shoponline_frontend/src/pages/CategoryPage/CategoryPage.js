@@ -4,8 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import CategoryHeader from './CategoryHeader';
 import CategoryProducts from './CategoryProducts';
-import categoriesAPI from '../../services/api/categoriesAPI';
-import { productsAPI } from '../../services/api';
+import productsAPI from '../../services/api/productsAPI';
 import LoadingSpinner from '../../components/common/UI/Loading/Spinner';
 import Alert from '../../components/common/UI/Alert/Alert';
 import './CategoryPage.css';
@@ -30,12 +29,17 @@ const CategoryPage = () => {
     totalPages: 1,
   });
 
-  // Filter states matching your backend
+  // Filter states matching backend API
   const [filters, setFilters] = useState({
-    featured: searchParams.get('featured') || '',
-    min_price: searchParams.get('min_price') || '',
-    max_price: searchParams.get('max_price') || '',
-    sort_by: searchParams.get('sort_by') || '-created_at',
+    is_featured: searchParams.get('featured') || '',
+    price_min: searchParams.get('min_price') || '',
+    price_max: searchParams.get('max_price') || '',
+    brand: searchParams.get('brand') || '',
+    color: searchParams.get('color') || '',
+    size: searchParams.get('size') || '',
+    in_stock: searchParams.get('in_stock') || '',
+    on_sale: searchParams.get('on_sale') || '',
+    ordering: searchParams.get('ordering') || '-created_at',
     page: parseInt(searchParams.get('page')) || 1,
   });
 
@@ -64,31 +68,42 @@ const CategoryPage = () => {
 
     Object.keys(filters).forEach(key => {
       if (filters[key] && filters[key] !== '') {
-        params.set(key, filters[key]);
+        params.set(key === 'is_featured' ? 'featured' : key === 'price_min' ? 'min_price' : key === 'price_max' ? 'max_price' : key, filters[key]);
       }
     });
 
     if (params.toString() !== searchParams.toString()) {
       setSearchParams(params, { replace: true });
     }
-  }, [filters, setSearchParams]);
+  }, [filters, setSearchParams, searchParams]);
 
   const loadCategory = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const response = await categoriesAPI.getCategory(slug);
-      setCategory(response);
+      // Use products API to get category info by filtering products
+      const response = await productsAPI.getProductsByCategory(slug, {
+        page: 1,
+        page_size: 1,
+      });
       
-      // Set subcategories from the response
-      if (response.subcategories) {
-        setSubcategories(response.subcategories);
-      }
+      // Mock category data since we don't have a direct category endpoint
+      const mockCategory = {
+        id: slug,
+        name: slug.charAt(0).toUpperCase() + slug.slice(1).replace('-', ' '),
+        slug: slug,
+        description: `Explore our ${slug.replace('-', ' ')} collection`,
+        image_url: '/assets/images/placeholders/category-placeholder.jpg',
+        is_active: true,
+        product_count: response.count || 0,
+      };
 
-      // Calculate price range from category products if available
-      if (response.id) {
-        await calculatePriceRange(response.id);
+      setCategory(mockCategory);
+      
+      // Calculate price range from products
+      if (response.results && response.results.length > 0) {
+        await calculatePriceRange();
       }
     } catch (err) {
       console.error('Error loading category:', err);
@@ -102,25 +117,41 @@ const CategoryPage = () => {
     try {
       setProductsLoading(true);
 
-      // Use the category products endpoint from your backend
+      // Build parameters matching the backend API
       const params = {
         page: filters.page,
         page_size: 12,
-        sort_by: filters.sort_by,
+        ordering: filters.ordering,
+        category: category.slug,
       };
 
-      // Add optional filters matching your backend API
-      if (filters.featured && filters.featured !== '') {
-        params.featured = filters.featured === 'true';
+      // Add optional filters matching backend API field names
+      if (filters.is_featured && filters.is_featured !== '') {
+        params.is_featured = filters.is_featured === 'true';
       }
-      if (filters.min_price) {
-        params.min_price = filters.min_price;
+      if (filters.price_min) {
+        params.price_min = filters.price_min;
       }
-      if (filters.max_price) {
-        params.max_price = filters.max_price;
+      if (filters.price_max) {
+        params.price_max = filters.price_max;
+      }
+      if (filters.brand) {
+        params.brand = filters.brand;
+      }
+      if (filters.color) {
+        params.color = filters.color;
+      }
+      if (filters.size) {
+        params.size = filters.size;
+      }
+      if (filters.in_stock && filters.in_stock !== '') {
+        params.in_stock = filters.in_stock === 'true';
+      }
+      if (filters.on_sale && filters.on_sale !== '') {
+        params.on_sale = filters.on_sale === 'true';
       }
 
-      const response = await categoriesAPI.getCategoryProducts(category.slug, params);
+      const response = await productsAPI.getProducts(params);
 
       setProducts(response.results || []);
       setPagination({
@@ -138,12 +169,12 @@ const CategoryPage = () => {
     }
   };
 
-  const calculatePriceRange = async categoryId => {
+  const calculatePriceRange = async () => {
     try {
-      // Get price range by fetching a sample of products
-      const response = await categoriesAPI.getCategoryProducts(category.slug, {
-        page_size: 100, // Get a reasonable sample for price calculation
-        fields: 'price',
+      // Get a larger sample to calculate price range
+      const response = await productsAPI.getProducts({
+        category: category.slug,
+        page_size: 100,
       });
 
       const prices = response.results
@@ -169,10 +200,10 @@ const CategoryPage = () => {
     }));
   };
 
-  const handleSortChange = sortBy => {
+  const handleSortChange = ordering => {
     setFilters(prevFilters => ({
       ...prevFilters,
-      sort_by: sortBy,
+      ordering,
       page: 1,
     }));
   };
@@ -196,10 +227,15 @@ const CategoryPage = () => {
 
   const resetFilters = () => {
     const resetFilters = {
-      featured: '',
-      min_price: '',
-      max_price: '',
-      sort_by: '-created_at',
+      is_featured: '',
+      price_min: '',
+      price_max: '',
+      brand: '',
+      color: '',
+      size: '',
+      in_stock: '',
+      on_sale: '',
+      ordering: '-created_at',
       page: 1,
     };
     setFilters(resetFilters);
@@ -207,10 +243,15 @@ const CategoryPage = () => {
 
   const getActiveFiltersCount = () => {
     let count = 0;
-    if (filters.featured && filters.featured !== '') count++;
-    if (filters.min_price) count++;
-    if (filters.max_price) count++;
-    if (filters.sort_by !== '-created_at') count++;
+    if (filters.is_featured && filters.is_featured !== '') count++;
+    if (filters.price_min) count++;
+    if (filters.price_max) count++;
+    if (filters.brand) count++;
+    if (filters.color) count++;
+    if (filters.size) count++;
+    if (filters.in_stock && filters.in_stock !== '') count++;
+    if (filters.on_sale && filters.on_sale !== '') count++;
+    if (filters.ordering !== '-created_at') count++;
     return count;
   };
 
@@ -284,8 +325,8 @@ const CategoryPage = () => {
                 <div className="category-filter">
                   <label className="category-filter__label">Product Type</label>
                   <select
-                    value={filters.featured}
-                    onChange={e => handleFilterChange({ featured: e.target.value })}
+                    value={filters.is_featured}
+                    onChange={e => handleFilterChange({ is_featured: e.target.value })}
                     className="category-filter__select"
                   >
                     <option value="">All Products</option>
@@ -294,15 +335,79 @@ const CategoryPage = () => {
                   </select>
                 </div>
 
-                {/* Price Range */}
+                {/* Stock Filter */}
                 <div className="category-filter">
+                  <label className="category-filter__label">Availability</label>
+                  <select
+                    value={filters.in_stock}
+                    onChange={e => handleFilterChange({ in_stock: e.target.value })}
+                    className="category-filter__select"
+                  >
+                    <option value="">All Products</option>
+                    <option value="true">In Stock Only</option>
+                    <option value="false">Out of Stock</option>
+                  </select>
+                </div>
+
+                {/* Sale Filter */}
+                <div className="category-filter">
+                  <label className="category-filter__label">Sale Status</label>
+                  <select
+                    value={filters.on_sale}
+                    onChange={e => handleFilterChange({ on_sale: e.target.value })}
+                    className="category-filter__select"
+                  >
+                    <option value="">All Products</option>
+                    <option value="true">On Sale</option>
+                    <option value="false">Regular Price</option>
+                  </select>
+                </div>
+
+                {/* Brand Filter */}
+                <div className="category-filter">
+                  <label className="category-filter__label">Brand</label>
+                  <input
+                    type="text"
+                    placeholder="Enter brand name"
+                    value={filters.brand}
+                    onChange={e => handleFilterChange({ brand: e.target.value })}
+                    className="category-filter__input"
+                  />
+                </div>
+
+                {/* Color Filter */}
+                <div className="category-filter">
+                  <label className="category-filter__label">Color</label>
+                  <input
+                    type="text"
+                    placeholder="Enter color"
+                    value={filters.color}
+                    onChange={e => handleFilterChange({ color: e.target.value })}
+                    className="category-filter__input"
+                  />
+                </div>
+
+                {/* Size Filter */}
+                <div className="category-filter">
+                  <label className="category-filter__label">Size</label>
+                  <input
+                    type="text"
+                    placeholder="Enter size"
+                    value={filters.size}
+                    onChange={e => handleFilterChange({ size: e.target.value })}
+                    className="category-filter__input"
+                  />
+                </div>
+
+                {/* Price Range */}
+                <div className="category-filter category-filter--price">
                   <label className="category-filter__label">Price Range (UGX)</label>
                   <div className="category-filter__price-range">
                     <input
                       type="number"
                       placeholder="Min Price"
-                      value={filters.min_price}
-                      onChange={e => handleFilterChange({ min_price: e.target.value })}
+                      value={filters.price_min}
+                      onChange={e => handleFilterChange({ price_min: e.target.value })}
                       className="category-filter__input"
                       min="0"
                     />
@@ -310,8 +415,8 @@ const CategoryPage = () => {
                     <input
                       type="number"
                       placeholder="Max Price"
-                      value={filters.max_price}
-                      onChange={e => handleFilterChange({ max_price: e.target.value })}
+                      value={filters.price_max}
+                      onChange={e => handleFilterChange({ price_max: e.target.value })}
                       className="category-filter__input"
                       min="0"
                     />
@@ -326,7 +431,7 @@ const CategoryPage = () => {
                 <div className="category-filter">
                   <label className="category-filter__label">Sort By</label>
                   <select
-                    value={filters.sort_by}
+                    value={filters.ordering}
                     onChange={e => handleSortChange(e.target.value)}
                     className="category-filter__select"
                   >
@@ -338,6 +443,7 @@ const CategoryPage = () => {
                     <option value="-price">Price: High to Low</option>
                     <option value="-rating_average">Highest Rated</option>
                     <option value="-view_count">Most Popular</option>
+                    <option value="-order_count">Best Selling</option>
                   </select>
                 </div>
               </div>
@@ -350,6 +456,8 @@ const CategoryPage = () => {
             pagination={pagination}
             onPageChange={handlePageChange}
             categoryName={category.name}
+            filters={filters}
+            onFilterChange={handleFilterChange}
           />
         </div>
       </div>

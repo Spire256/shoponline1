@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useCart } from '../../hooks/useCart';
+import { useCart } from '../../contexts/CartContext'; // Updated import path
 import { useAuth } from '../../hooks/useAuth';
 import CartItems from './CartItems';
 import CartTotals from './CartTotals';
@@ -8,16 +8,21 @@ import './CartPage.css';
 const CartPage = () => {
   const { user } = useAuth();
   const {
-    cartItems,
-    cartTotal,
-    cartSubtotal,
+    items: cartItems, // Map items to cartItems
+    totalItems: itemCount,
+    subtotal: cartSubtotal,
     totalSavings,
-    itemCount,
+    isLoading,
+    error,
     clearCart,
-    isLoading
+    getCartSummary
   } = useCart();
 
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Calculate cart total from summary
+  const cartSummary = getCartSummary();
+  const cartTotal = cartSummary.total;
 
   useEffect(() => {
     // Track cart page view
@@ -34,7 +39,7 @@ const CartPage = () => {
   };
 
   const handleCheckout = () => {
-    if (cartItems.length === 0) {
+    if (!cartItems || cartItems.length === 0) {
       return;
     }
 
@@ -44,11 +49,11 @@ const CartPage = () => {
         currency: 'UGX',
         value: cartTotal,
         items: cartItems.map(item => ({
-          item_id: item.product_id,
-          item_name: item.product_name,
-          category: item.product_category,
+          item_id: item.product.id,
+          item_name: item.product.name,
+          category: item.product.category,
           quantity: item.quantity,
-          price: item.unit_price,
+          price: item.price,
         })),
       });
     }
@@ -76,6 +81,26 @@ const CartPage = () => {
     );
   }
 
+  // Handle error state
+  if (error) {
+    return (
+      <div className="cart-page">
+        <div className="container">
+          <div className="cart-error">
+            <h2>Cart Error</h2>
+            <p>{error}</p>
+            <button onClick={() => window.location.reload()} className="retry-btn">
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Ensure cartItems is an array
+  const safeCartItems = cartItems || [];
+
   return (
     <div className="cart-page">
       <div className="container">
@@ -97,7 +122,7 @@ const CartPage = () => {
               {itemCount > 0 && <span className="cart-item-count">({itemCount} items)</span>}
             </h1>
 
-            {cartItems.length > 0 && (
+            {safeCartItems.length > 0 && (
               <button
                 onClick={handleClearCart}
                 className="clear-cart-btn"
@@ -108,7 +133,7 @@ const CartPage = () => {
           </div>
         </div>
 
-        {cartItems.length === 0 ? (
+        {safeCartItems.length === 0 ? (
           <div className="empty-cart">
             <div className="empty-cart-icon">
               <svg viewBox="0 0 24 24" fill="currentColor">
@@ -196,7 +221,7 @@ const CartPage = () => {
         )}
 
         {/* Flash sales notification */}
-        {cartItems.some(item => item.is_flash_sale_item) && (
+        {safeCartItems.some(item => item.isFlashSaleItem) && (
           <div className="flash-sale-notice">
             <div className="flash-sale-icon">⚡</div>
             <div className="flash-sale-text">

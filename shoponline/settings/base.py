@@ -286,6 +286,18 @@ CACHES = {
     }
 }
 
+# Django Channels Configuration (CRITICAL FOR WEBSOCKETS)
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [get_env_variable('REDIS_URL', 'redis://localhost:6379/3')],
+            "capacity": 1500,
+            "expiry": 10,
+        },
+    },
+}
+
 # Celery Configuration
 CELERY_BROKER_URL = get_env_variable('CELERY_BROKER_URL', 'redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = get_env_variable('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
@@ -324,7 +336,7 @@ if USE_S3:
 
 # Mobile Money API Configuration - UPDATED WITH YOUR KEYS
 MTN_MOMO_BASE_URL = get_env_variable('MTN_MOMO_BASE_URL', 'https://sandbox.momodeveloper.mtn.com')
-MTN_MOMO_SUBSCRIPTION_KEY = get_env_variable('MTN_MOMO_SUBSCRIPTION_KEY', '878d5c3421094497b460207379326a53')
+MTN_MOMO_SUBSCRIPTION_KEY = get_env_variable('MTN_MOMO_SUBSCRIPTION_KEY', '464d259493434c8991d7dc06c1d7a533')
 MTN_MOMO_SECONDARY_KEY = get_env_variable('MTN_MOMO_SECONDARY_KEY', '91735b447b134358828f0b8b1d260c5c')
 MTN_MOMO_REFERENCE_ID = get_env_variable('MTN_MOMO_REFERENCE_ID', '')
 MTN_MOMO_API_KEY = get_env_variable('MTN_MOMO_API_KEY', '')

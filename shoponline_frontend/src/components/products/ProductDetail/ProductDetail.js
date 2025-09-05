@@ -1,4 +1,4 @@
-// src/components/products/ProductDetail/ProductDetail.js
+// src/components/products/ProductDetail/ProductDetail.js - Updated for backend integration
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
@@ -13,13 +13,14 @@ import {
   Shield,
   RotateCcw,
   Check,
+  AlertCircle,
 } from 'lucide-react';
 import ProductImages from './ProductImages';
 import ProductInfo from './ProductInfo';
 import ProductActions from './ProductActions';
 import ProductReviews from './ProductReviews';
 import RelatedProducts from './RelatedProducts';
-import { useAPI } from '../../../hooks/useAPI';
+import productsAPI from '../../../services/api/productsAPI';
 import { useCart } from '../../../hooks/useCart';
 import { useAuth } from '../../../hooks/useAuth';
 import LoadingSpinner from '../../common/UI/Loading/Spinner';
@@ -30,37 +31,76 @@ const ProductDetail = ({ productSlug, onBack }) => {
   const navigate = useNavigate();
   const currentSlug = productSlug || slug;
 
+  const [product, setProduct] = useState(null);
+  const [relatedProducts, setRelatedProducts] = useState([]);
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [activeTab, setActiveTab] = useState('description');
+  
+  // Loading and error states
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
   const { user } = useAuth();
   const { addToCart, loading: cartLoading } = useCart();
 
-  // Fetch product data
-  const {
-    data: product,
-    loading,
-    error,
-    refetch,
-  } = useAPI(`/api/products/products/${currentSlug}/`, {
-    enabled: Boolean(currentSlug),
-  });
-
+  // Load product data
   useEffect(() => {
-    if (product) {
+    if (currentSlug) {
+      loadProduct();
+    }
+  }, [currentSlug]);
+
+  const loadProduct = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Get product by slug
+      const productData = await productsAPI.getProductBySlug(currentSlug);
+      setProduct(productData);
+
       // Set default variant if available
-      if (product.variants && product.variants.length > 0) {
-        setSelectedVariant(product.variants[0]);
+      if (productData.variants && productData.variants.length > 0) {
+        setSelectedVariant(productData.variants[0]);
+      }
+
+      // Load related products
+      if (productData.category) {
+        const categoryId = typeof productData.category === 'object' 
+          ? productData.category.id 
+          : productData.category;
+        
+        try {
+          const relatedResponse = await productsAPI.getProductsByCategory(categoryId, {
+            page_size: 4,
+            exclude: productData.id
+          });
+          setRelatedProducts(relatedResponse.results || []);
+        } catch (relatedError) {
+          console.error('Error loading related products:', relatedError);
+          // Don't fail the whole component if related products fail
+        }
       }
 
       // Increment view count
-      // This could be done via API call
-      console.log('Incrementing view count for product:', product.id);
+      try {
+        await productsAPI.incrementViewCount(productData.id);
+      } catch (viewError) {
+        console.error('Error incrementing view count:', viewError);
+        // Don't fail if view count increment fails
+      }
+
+    } catch (err) {
+      console.error('Error loading product:', err);
+      setError(err.message || 'Failed to load product details.');
+    } finally {
+      setLoading(false);
     }
-  }, [product]);
+  };
 
   const handleBack = () => {
     if (onBack) {
@@ -71,26 +111,31 @@ const ProductDetail = ({ productSlug, onBack }) => {
   };
 
   const handleQuantityChange = newQuantity => {
-    const maxQuantity = selectedVariant?.stock_quantity || product?.stock_quantity || 0;
-    const validQuantity = Math.max(1, Math.min(newQuantity, maxQuantity));
+    const maxQuantity = getCurrentStock();
+    const validQuantity = Math.max(1, Math.min(newQuantity, maxQuantity || 999));
     setQuantity(validQuantity);
   };
 
   const handleAddToCart = async () => {
-    if (!product.is_in_stock) return;
+    if (!isProductAvailable()) return;
 
-    const cartItem = {
-      product: product,
-      variant: selectedVariant,
-      quantity: quantity,
-    };
-
+    setActionLoading(true);
     try {
+      const cartItem = {
+        product: product,
+        variant: selectedVariant,
+        quantity: quantity,
+      };
+
       await addToCart(cartItem);
-      // Show success notification
+      
+      // Show success notification (you can implement a toast notification here)
+      console.log('Product added to cart successfully');
     } catch (error) {
       console.error('Failed to add to cart:', error);
-      // Show error notification
+      setError('Failed to add product to cart. Please try again.');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -100,12 +145,16 @@ const ProductDetail = ({ productSlug, onBack }) => {
       return;
     }
 
+    setActionLoading(true);
     try {
       setIsWishlisted(!isWishlisted);
-      // API call to toggle wishlist
+      // TODO: Implement wishlist API call
+      console.log('Wishlist toggled:', !isWishlisted);
     } catch (error) {
       console.error('Failed to toggle wishlist:', error);
       setIsWishlisted(!isWishlisted); // Revert on error
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -121,6 +170,7 @@ const ProductDetail = ({ productSlug, onBack }) => {
         // Fallback to copying URL to clipboard
         await navigator.clipboard.writeText(window.location.href);
         // Show success notification
+        console.log('URL copied to clipboard');
       }
     } catch (error) {
       console.error('Failed to share:', error);
@@ -140,7 +190,35 @@ const ProductDetail = ({ productSlug, onBack }) => {
   };
 
   const getCurrentStock = () => {
-    return selectedVariant?.stock_quantity || product?.stock_quantity || 0;
+    if (!product?.track_inventory) return null;
+    return selectedVariant?.stock_quantity ?? product?.stock_quantity ?? 0;
+  };
+
+  const isProductAvailable = () => {
+    if (!product?.is_active) return false;
+    if (!product?.track_inventory) return true;
+    const stock = getCurrentStock();
+    return stock > 0 || product?.allow_backorders;
+  };
+
+  const getStockMessage = () => {
+    if (!product?.track_inventory) {
+      return { message: 'Available', type: 'success' };
+    }
+
+    const stock = getCurrentStock();
+    if (stock === 0) {
+      if (product?.allow_backorders) {
+        return { message: 'Available on Backorder', type: 'warning' };
+      }
+      return { message: 'Out of Stock', type: 'error' };
+    }
+
+    if (stock <= (product?.low_stock_threshold || 10)) {
+      return { message: `Low Stock (${stock} available)`, type: 'warning' };
+    }
+
+    return { message: `In Stock (${stock} available)`, type: 'success' };
   };
 
   const renderBreadcrumbs = () => (
@@ -154,7 +232,9 @@ const ProductDetail = ({ productSlug, onBack }) => {
         <span>/</span>
         {product.category && (
           <>
-            <span>{product.category.name}</span>
+            <span>
+              {typeof product.category === 'object' ? product.category.name : product.category}
+            </span>
             <span>/</span>
           </>
         )}
@@ -189,77 +269,91 @@ const ProductDetail = ({ productSlug, onBack }) => {
     </div>
   );
 
-  const renderTabs = () => (
-    <div className="product-tabs">
-      <div className="tab-headers">
-        {[
-          { key: 'description', label: 'Description' },
-          { key: 'specifications', label: 'Specifications' },
-          { key: 'reviews', label: `Reviews (${product.review_count})` },
-        ].map(tab => (
-          <button
-            key={tab.key}
-            className={`tab-header ${activeTab === tab.key ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab.key)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+  const renderTabs = () => {
+    const tabs = [
+      { key: 'description', label: 'Description' },
+      { key: 'specifications', label: 'Specifications' },
+    ];
 
-      <div className="tab-content">
-        {activeTab === 'description' && (
-          <div className="tab-pane">
-            <div className="product-description">{product.description}</div>
+    // Only show reviews tab if product has reviews
+    if (product.review_count > 0) {
+      tabs.push({ key: 'reviews', label: `Reviews (${product.review_count})` });
+    }
 
-            {product.attributes && product.attributes.length > 0 && (
-              <div className="product-attributes">
-                <h4>Key Features</h4>
-                <ul>
-                  {product.attributes.map(attr => (
-                    <li key={attr.id}>
-                      <strong>{attr.name}:</strong> {attr.value}
-                    </li>
-                  ))}
-                </ul>
+    return (
+      <div className="product-tabs">
+        <div className="tab-headers">
+          {tabs.map(tab => (
+            <button
+              key={tab.key}
+              className={`tab-header ${activeTab === tab.key ? 'active' : ''}`}
+              onClick={() => setActiveTab(tab.key)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="tab-content">
+          {activeTab === 'description' && (
+            <div className="tab-pane">
+              <div className="product-description">
+                {product.description ? (
+                  <div dangerouslySetInnerHTML={{ __html: product.description }} />
+                ) : (
+                  <p>No detailed description available.</p>
+                )}
               </div>
-            )}
-          </div>
-        )}
 
-        {activeTab === 'specifications' && (
-          <div className="tab-pane">
-            <div className="specifications-grid">
-              {[
-                { label: 'Brand', value: product.brand },
-                { label: 'Model', value: product.model },
-                { label: 'Condition', value: product.condition },
-                { label: 'Weight', value: product.weight ? `${product.weight} kg` : null },
-                { label: 'Dimensions', value: product.dimensions },
-                { label: 'Color', value: product.color },
-                { label: 'Size', value: product.size },
-                { label: 'Material', value: product.material },
-                { label: 'SKU', value: product.sku },
-              ]
-                .filter(spec => spec.value)
-                .map(spec => (
-                  <div key={spec.label} className="spec-item">
-                    <span className="spec-label">{spec.label}:</span>
-                    <span className="spec-value">{spec.value}</span>
-                  </div>
-                ))}
+              {product.attributes && product.attributes.length > 0 && (
+                <div className="product-attributes">
+                  <h4>Key Features</h4>
+                  <ul>
+                    {product.attributes.map(attr => (
+                      <li key={attr.id}>
+                        <strong>{attr.name}:</strong> {attr.value}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          )}
 
-        {activeTab === 'reviews' && (
-          <div className="tab-pane">
-            <ProductReviews productId={product.id} />
-          </div>
-        )}
+          {activeTab === 'specifications' && (
+            <div className="tab-pane">
+              <div className="specifications-grid">
+                {[
+                  { label: 'Brand', value: product.brand },
+                  { label: 'Model', value: product.model },
+                  { label: 'Condition', value: product.condition },
+                  { label: 'Weight', value: product.weight ? `${product.weight} kg` : null },
+                  { label: 'Dimensions', value: product.dimensions },
+                  { label: 'Color', value: product.color },
+                  { label: 'Size', value: product.size },
+                  { label: 'Material', value: product.material },
+                  { label: 'SKU', value: product.sku },
+                ]
+                  .filter(spec => spec.value)
+                  .map(spec => (
+                    <div key={spec.label} className="spec-item">
+                      <span className="spec-label">{spec.label}:</span>
+                      <span className="spec-value">{spec.value}</span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'reviews' && (
+            <div className="tab-pane">
+              <ProductReviews productId={product.id} />
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   if (loading) {
     return (
@@ -283,6 +377,9 @@ const ProductDetail = ({ productSlug, onBack }) => {
     );
   }
 
+  const stockInfo = getStockMessage();
+  const isAvailable = isProductAvailable();
+
   return (
     <div className="product-detail">
       {renderBreadcrumbs()}
@@ -303,7 +400,7 @@ const ProductDetail = ({ productSlug, onBack }) => {
           <div className="product-header">
             <div className="product-badges">
               {product.is_on_sale && (
-                <span className="badge badge--sale">{product.discount_percentage}% OFF</span>
+                <span className="badge badge--sale">{product.discount_percentage || 0}% OFF</span>
               )}
               {product.is_featured && <span className="badge badge--featured">Featured</span>}
               {product.condition !== 'new' && (
@@ -337,12 +434,26 @@ const ProductDetail = ({ productSlug, onBack }) => {
               </div>
             )}
 
-            {/* Category */}
-            {product.category && (
-              <div className="product-category">
-                Category: <span>{product.category.name}</span>
-              </div>
-            )}
+            {/* Category and Brand */}
+            <div className="product-meta">
+              {product.category && (
+                <div className="product-category">
+                  Category: <span>
+                    {typeof product.category === 'object' ? product.category.name : product.category}
+                  </span>
+                </div>
+              )}
+              {product.brand && (
+                <div className="product-brand">
+                  Brand: <span>{product.brand}</span>
+                </div>
+              )}
+              {product.sku && (
+                <div className="product-sku">
+                  SKU: <span>{product.sku}</span>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Price */}
@@ -363,17 +474,22 @@ const ProductDetail = ({ productSlug, onBack }) => {
           {/* Variants */}
           {product.variants && product.variants.length > 0 && (
             <div className="product-variants">
-              <h4>Variants:</h4>
+              <h4>Options:</h4>
               <div className="variant-options">
                 {product.variants.map(variant => (
                   <button
                     key={variant.id}
                     className={`variant-option ${
                       selectedVariant?.id === variant.id ? 'active' : ''
-                    }`}
+                    } ${!variant.is_active || (variant.stock_quantity === 0 && !product.allow_backorders) ? 'disabled' : ''}`}
                     onClick={() => setSelectedVariant(variant)}
+                    disabled={!variant.is_active || (variant.stock_quantity === 0 && !product.allow_backorders)}
                   >
-                    {variant.name} - {formatPrice(variant.price)}
+                    <div className="variant-name">{variant.name}</div>
+                    <div className="variant-price">{formatPrice(variant.price)}</div>
+                    {variant.stock_quantity === 0 && !product.allow_backorders && (
+                      <div className="variant-unavailable">Unavailable</div>
+                    )}
                   </button>
                 ))}
               </div>
@@ -382,18 +498,16 @@ const ProductDetail = ({ productSlug, onBack }) => {
 
           {/* Stock Status */}
           <div className="stock-status">
-            {product.is_in_stock ? (
-              <div className="in-stock">
-                <Check size={16} />
-                <span>In Stock ({getCurrentStock()} available)</span>
-              </div>
-            ) : (
-              <div className="out-of-stock">Out of Stock</div>
-            )}
+            <div className={`stock-message stock-message--${stockInfo.type}`}>
+              {stockInfo.type === 'success' && <Check size={16} />}
+              {stockInfo.type === 'warning' && <AlertCircle size={16} />}
+              {stockInfo.type === 'error' && <AlertCircle size={16} />}
+              <span>{stockInfo.message}</span>
+            </div>
           </div>
 
           {/* Quantity & Actions */}
-          {product.is_in_stock && (
+          {isAvailable && (
             <div className="product-actions">
               <div className="quantity-selector">
                 <label>Quantity:</label>
@@ -409,7 +523,7 @@ const ProductDetail = ({ productSlug, onBack }) => {
                   <button
                     className="qty-btn"
                     onClick={() => handleQuantityChange(quantity + 1)}
-                    disabled={quantity >= getCurrentStock()}
+                    disabled={getCurrentStock() && quantity >= getCurrentStock()}
                   >
                     <Plus size={16} />
                   </button>
@@ -420,15 +534,16 @@ const ProductDetail = ({ productSlug, onBack }) => {
                 <button
                   className="add-to-cart-btn"
                   onClick={handleAddToCart}
-                  disabled={cartLoading || !product.is_in_stock}
+                  disabled={cartLoading || actionLoading || !isAvailable}
                 >
                   <ShoppingCart size={20} />
-                  {cartLoading ? 'Adding...' : 'Add to Cart'}
+                  {cartLoading || actionLoading ? 'Adding...' : 'Add to Cart'}
                 </button>
 
                 <button
                   className={`wishlist-btn ${isWishlisted ? 'active' : ''}`}
                   onClick={handleToggleWishlist}
+                  disabled={actionLoading}
                 >
                   <Heart size={20} fill={isWishlisted ? 'currentColor' : 'none'} />
                 </button>
@@ -449,9 +564,16 @@ const ProductDetail = ({ productSlug, onBack }) => {
       <div className="product-detail__tabs">{renderTabs()}</div>
 
       {/* Related Products */}
-      <div className="product-detail__related">
-        <RelatedProducts productId={product.id} categoryId={product.category?.id} />
-      </div>
+      {relatedProducts.length > 0 && (
+        <div className="product-detail__related">
+          <RelatedProducts 
+            products={relatedProducts} 
+            categoryName={
+              typeof product.category === 'object' ? product.category.name : product.category
+            }
+          />
+        </div>
+      )}
     </div>
   );
 };

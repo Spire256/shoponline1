@@ -3,7 +3,6 @@ import { Plus, Eye, Edit, Trash2, TrendingUp, Clock, Users, DollarSign } from 'l
 import FlashSaleTable from './FlashSaleTable';
 import CreateFlashSale from './CreateFlashSale';
 import EditFlashSale from './EditFlashSale';
-//import { flashSalesAPI } from '../../../services/api/flashSalesAPI';
 import flashSalesAPI from '../../../services/api/flashSalesAPI';
 import './FlashSaleManagement.css';
 
@@ -36,12 +35,28 @@ const FlashSaleManagement = () => {
       const params = {
         page: currentPage,
         search: searchTerm,
-        status: statusFilter !== 'all' ? statusFilter : undefined,
+        ...(statusFilter !== 'all' && { status: statusFilter }),
       };
 
       const response = await flashSalesAPI.getFlashSales(params);
-      setFlashSales(response.results || response);
-      setTotalPages(Math.ceil((response.count || response.length) / 10));
+      
+      // Handle different response structures from backend
+      let salesData = [];
+      let totalCount = 0;
+      
+      if (response.results) {
+        salesData = response.results;
+        totalCount = response.count;
+      } else if (Array.isArray(response)) {
+        salesData = response;
+        totalCount = response.length;
+      } else {
+        salesData = response.data || [];
+        totalCount = response.count || salesData.length;
+      }
+      
+      setFlashSales(salesData);
+      setTotalPages(Math.ceil(totalCount / 20)); // Backend pagination size
     } catch (err) {
       setError('Failed to fetch flash sales');
       console.error('Flash sales fetch error:', err);
@@ -52,11 +67,21 @@ const FlashSaleManagement = () => {
 
   const fetchStats = async () => {
     try {
-      const allSales = await flashSalesAPI.getFlashSales();
+      // Get all flash sales for statistics
+      const response = await flashSalesAPI.getFlashSales();
       const now = new Date();
 
+      let allSales = [];
+      if (response.results) {
+        allSales = response.results;
+      } else if (Array.isArray(response)) {
+        allSales = response;
+      } else {
+        allSales = response.data || [];
+      }
+
       const statsData = {
-        total: allSales.length || allSales.count || 0,
+        total: allSales.length,
         active: 0,
         upcoming: 0,
         expired: 0,
@@ -100,6 +125,7 @@ const FlashSaleManagement = () => {
         fetchStats();
       } catch (err) {
         setError('Failed to delete flash sale');
+        console.error('Delete flash sale error:', err);
       }
     }
   };
@@ -115,6 +141,7 @@ const FlashSaleManagement = () => {
       fetchStats();
     } catch (err) {
       setError('Failed to update flash sale status');
+      console.error('Toggle status error:', err);
     }
   };
 
@@ -132,14 +159,56 @@ const FlashSaleManagement = () => {
   };
 
   const getStatusBadge = sale => {
-    if (sale.is_running) {
+    const now = new Date();
+    const startTime = new Date(sale.start_time);
+    const endTime = new Date(sale.end_time);
+
+    if (!sale.is_active) {
+      return <span className="status-badge status-inactive">Inactive</span>;
+    } else if (startTime <= now && endTime > now) {
       return <span className="status-badge status-active">Active</span>;
-    } else if (sale.is_upcoming) {
+    } else if (startTime > now) {
       return <span className="status-badge status-upcoming">Upcoming</span>;
-    } else if (sale.is_expired) {
+    } else if (endTime <= now) {
       return <span className="status-badge status-expired">Expired</span>;
     } else {
       return <span className="status-badge status-inactive">Inactive</span>;
+    }
+  };
+
+  // Format time remaining for display
+  const formatTimeRemaining = sale => {
+    const now = new Date();
+    const endTime = new Date(sale.end_time);
+    const startTime = new Date(sale.start_time);
+    
+    let targetTime;
+    let prefix = '';
+    
+    if (startTime > now) {
+      targetTime = startTime;
+      prefix = 'Starts in: ';
+    } else {
+      targetTime = endTime;
+      prefix = 'Ends in: ';
+    }
+    
+    const timeRemaining = Math.max(0, Math.floor((targetTime - now) / 1000));
+    
+    if (timeRemaining <= 0) {
+      return endTime <= now ? 'Expired' : 'Active';
+    }
+
+    const days = Math.floor(timeRemaining / (24 * 3600));
+    const hours = Math.floor((timeRemaining % (24 * 3600)) / 3600);
+    const minutes = Math.floor((timeRemaining % 3600) / 60);
+
+    if (days > 0) {
+      return `${prefix}${days}d ${hours}h`;
+    } else if (hours > 0) {
+      return `${prefix}${hours}h ${minutes}m`;
+    } else {
+      return `${prefix}${minutes}m`;
     }
   };
 
@@ -234,6 +303,7 @@ const FlashSaleManagement = () => {
             <option value="active">Active</option>
             <option value="upcoming">Upcoming</option>
             <option value="expired">Expired</option>
+            <option value="inactive">Inactive</option>
           </select>
         </div>
       </div>
@@ -246,13 +316,18 @@ const FlashSaleManagement = () => {
           onDelete={handleDeleteFlashSale}
           onToggleStatus={handleToggleStatus}
           getStatusBadge={getStatusBadge}
+          formatTimeRemaining={formatTimeRemaining}
           loading={loading}
         />
 
         {/* Pagination */}
         {totalPages > 1 && (
           <div className="pagination">
-            <button disabled={currentPage === 1} onClick={() => setCurrentPage(currentPage - 1)}>
+            <button 
+              disabled={currentPage === 1} 
+              onClick={() => setCurrentPage(currentPage - 1)}
+              className="pagination-btn"
+            >
               Previous
             </button>
 
@@ -263,6 +338,7 @@ const FlashSaleManagement = () => {
             <button
               disabled={currentPage === totalPages}
               onClick={() => setCurrentPage(currentPage + 1)}
+              className="pagination-btn"
             >
               Next
             </button>

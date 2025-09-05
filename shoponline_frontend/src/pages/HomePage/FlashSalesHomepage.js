@@ -1,19 +1,40 @@
-// src/pages/HomePage/FlashSalesHomepage.js
-import React, { useState, useEffect, useCallback } from 'react';
+// src/pages/HomePage/FlashSalesHomepage.js - FIXED VERSION
+import React, { useState, useEffect, useCallback, useContext } from 'react';
+import { ChevronRight, Clock, Zap, Eye, ShoppingCart, Heart } from 'lucide-react';
+import { FlashSalesContext } from '../../contexts/FlashSalesContext';
+import { CartContext } from '../../contexts/CartContext';
+import { AuthContext } from '../../contexts/AuthContext';
+import Button from '../../components/common/UI/Button/Button';
+import CountdownTimer from '../../components/products/FlashSales/CountdownTimer';
 import './HomePage.css';
 
-const FlashSalesHomepage = ({ flashSales = [], onViewAll, onProductClick }) => {
+const FlashSalesHomepage = ({ 
+  onViewAll, 
+  onProductClick,
+  className = '',
+  maxProducts = 4 
+}) => {
   const [timeRemaining, setTimeRemaining] = useState({});
   const [currentSaleIndex, setCurrentSaleIndex] = useState(0);
 
+  const flashSalesContext = useContext(FlashSalesContext);
+  const { addToCart } = useContext(CartContext) || {};
+  const { isAuthenticated } = useContext(AuthContext) || {};
+
+  // Use context data or fallback to empty arrays
+  const activeSales = flashSalesContext?.activeSales || [];
+  const loading = flashSalesContext?.isLoading?.active || false;
+  const error = flashSalesContext?.error;
+
   // Format price in UGX
   const formatPrice = price => {
+    const numPrice = parseFloat(price) || 0;
     return new Intl.NumberFormat('en-UG', {
       style: 'currency',
       currency: 'UGX',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
-    }).format(price);
+    }).format(numPrice);
   };
 
   // Calculate time remaining for each flash sale
@@ -21,13 +42,15 @@ const FlashSalesHomepage = ({ flashSales = [], onViewAll, onProductClick }) => {
     const now = Date.now();
     const newTimeRemaining = {};
 
-    flashSales.forEach(sale => {
-      const timeLeft = sale.time_remaining * 1000; // Convert to milliseconds
+    activeSales.forEach(sale => {
+      const endTime = new Date(sale.end_time).getTime();
+      const timeLeft = Math.max(0, Math.floor((endTime - now) / 1000));
+      
       if (timeLeft > 0) {
         const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+        const hours = Math.floor((timeLeft % (24 * 3600)) / 3600);
+        const minutes = Math.floor((timeLeft % 3600) / 60);
+        const seconds = Math.floor(timeLeft % 60);
 
         newTimeRemaining[sale.id] = {
           days,
@@ -48,28 +71,62 @@ const FlashSalesHomepage = ({ flashSales = [], onViewAll, onProductClick }) => {
     });
 
     setTimeRemaining(newTimeRemaining);
-  }, [flashSales]);
+  }, [activeSales]);
 
   // Update countdown every second
   useEffect(() => {
+    if (activeSales.length === 0) return;
+
     calculateTimeRemaining();
     const interval = setInterval(calculateTimeRemaining, 1000);
     return () => clearInterval(interval);
-  }, [calculateTimeRemaining]);
+  }, [calculateTimeRemaining, activeSales]);
 
   // Auto-rotate flash sales if multiple
   useEffect(() => {
-    if (flashSales.length <= 1) return;
+    if (activeSales.length <= 1) return;
 
     const interval = setInterval(() => {
-      setCurrentSaleIndex(prev => (prev + 1) % flashSales.length);
+      setCurrentSaleIndex(prev => (prev + 1) % activeSales.length);
     }, 8000);
 
     return () => clearInterval(interval);
-  }, [flashSales.length]);
+  }, [activeSales.length]);
 
   const handleProductClick = product => {
-    onProductClick?.(product);
+    if (onProductClick) {
+      onProductClick(product);
+    } else {
+      // Default navigation to product page
+      window.location.href = `/products/${product.slug || product.id}`;
+    }
+  };
+
+  const handleAddToCart = async (product, flashSaleProduct) => {
+    if (!addToCart) {
+      console.warn('AddToCart function not available');
+      return;
+    }
+
+    if (!product.is_in_stock || flashSaleProduct.is_sold_out) {
+      console.warn('Product is out of stock');
+      return;
+    }
+
+    try {
+      const cartItem = {
+        productId: product.id,
+        variantId: null,
+        quantity: 1,
+        price: flashSaleProduct.flash_sale_price,
+        originalPrice: flashSaleProduct.original_price,
+        isFlashSale: true,
+      };
+
+      await addToCart(cartItem);
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+    }
   };
 
   const renderCountdownTimer = saleId => {
@@ -105,12 +162,18 @@ const FlashSalesHomepage = ({ flashSales = [], onViewAll, onProductClick }) => {
   };
 
   const renderFlashSaleProducts = sale => {
-    const products = sale.flash_sale_products?.slice(0, 4) || [];
+    if (!sale.flash_sale_products || sale.flash_sale_products.length === 0) {
+      return null;
+    }
+
+    const products = sale.flash_sale_products.slice(0, maxProducts);
 
     return products.map(flashProduct => {
       const product = flashProduct.product_detail || flashProduct.product;
+      if (!product) return null;
+
       const discountPercentage = Math.round(
-        flashProduct.discount_percentage || sale.discount_percentage
+        flashProduct.discount_percentage || sale.discount_percentage || 0
       );
 
       return (
@@ -121,11 +184,11 @@ const FlashSalesHomepage = ({ flashSales = [], onViewAll, onProductClick }) => {
         >
           <div className="product-image-container">
             <img
-              src={product.image_url || product.thumbnail_url || '/images/placeholder-product.jpg'}
+              src={product.image || product.image_url || product.thumbnail_url || '/api/placeholder/250/250'}
               alt={product.name}
               loading="lazy"
               onError={e => {
-                e.target.src = '/images/placeholder-product.jpg';
+                e.target.src = '/api/placeholder/250/250';
               }}
             />
 
@@ -138,6 +201,45 @@ const FlashSalesHomepage = ({ flashSales = [], onViewAll, onProductClick }) => {
                 <span>Sold Out</span>
               </div>
             )}
+
+            <div className="product-actions">
+              <button
+                className="action-btn view-btn"
+                onClick={e => {
+                  e.stopPropagation();
+                  handleProductClick(product);
+                }}
+                title="View Product"
+              >
+                <Eye size={16} />
+              </button>
+
+              {!flashProduct.is_sold_out && product.is_in_stock !== false && (
+                <button
+                  className="action-btn cart-btn"
+                  onClick={e => {
+                    e.stopPropagation();
+                    handleAddToCart(product, flashProduct);
+                  }}
+                  title="Add to Cart"
+                >
+                  <ShoppingCart size={16} />
+                </button>
+              )}
+
+              {isAuthenticated && (
+                <button
+                  className="action-btn wishlist-btn"
+                  onClick={e => {
+                    e.stopPropagation();
+                    // Handle wishlist toggle
+                  }}
+                  title="Add to Wishlist"
+                >
+                  <Heart size={16} />
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="product-info">
@@ -152,7 +254,7 @@ const FlashSalesHomepage = ({ flashSales = [], onViewAll, onProductClick }) => {
 
             <div className="savings-info">
               <span className="savings-amount">
-                Save {formatPrice(flashProduct.savings_amount)}
+                Save {formatPrice(flashProduct.original_price - flashProduct.flash_sale_price)}
               </span>
             </div>
 
@@ -168,37 +270,79 @@ const FlashSalesHomepage = ({ flashSales = [], onViewAll, onProductClick }) => {
                     style={{
                       width: `${(flashProduct.sold_quantity / flashProduct.stock_limit) * 100}%`,
                     }}
-                   />
+                  />
                 </div>
               </div>
             )}
           </div>
         </div>
       );
-    });
+    }).filter(Boolean);
   };
 
-  if (!flashSales || flashSales.length === 0) {
+  // Loading state
+  if (loading) {
+    return (
+      <section className={`flash-sales-homepage loading ${className}`}>
+        <div className="container">
+          <div className="flash-sales-header">
+            <div className="header-content">
+              <div className="header-badge">
+                <Zap />
+                <span>Flash Sale</span>
+              </div>
+              <h2 className="section-title">Loading Flash Sales...</h2>
+            </div>
+          </div>
+          <div className="loading-content">
+            <div className="loading-spinner" />
+            <p>Loading amazing deals...</p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <section className={`flash-sales-homepage error ${className}`}>
+        <div className="container">
+          <div className="flash-sales-header">
+            <div className="header-content">
+              <div className="header-badge">
+                <Zap />
+                <span>Flash Sale</span>
+              </div>
+              <h2 className="section-title">Flash Sales Unavailable</h2>
+              <p className="section-subtitle">Please try again later</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // No active sales
+  if (!activeSales || activeSales.length === 0) {
     return null;
   }
 
-  const activeFlashSales = flashSales.filter(sale => sale.is_running && !sale.is_expired);
+  const currentSale = activeSales[currentSaleIndex] || activeSales[0];
+  const saleProducts = renderFlashSaleProducts(currentSale);
 
-  if (activeFlashSales.length === 0) {
+  // Don't render if no products
+  if (!saleProducts || saleProducts.length === 0) {
     return null;
   }
-
-  const currentSale = activeFlashSales[currentSaleIndex] || activeFlashSales[0];
 
   return (
-    <section className="flash-sales-homepage">
+    <section className={`flash-sales-homepage ${className}`}>
       <div className="container">
         <div className="flash-sales-header">
           <div className="header-content">
             <div className="header-badge">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-              </svg>
+              <Zap />
               <span>Flash Sale</span>
             </div>
 
@@ -220,15 +364,16 @@ const FlashSalesHomepage = ({ flashSales = [], onViewAll, onProductClick }) => {
               {renderCountdownTimer(currentSale.id)}
             </div>
 
-            <button
-              className="view-all-btn flash"
-              onClick={onViewAll}
-            >
-              View All Flash Sales
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path d="m9 18 6-6-6-6" />
-              </svg>
-            </button>
+            {onViewAll && (
+              <Button
+                variant="outline"
+                onClick={onViewAll}
+                className="view-all-btn flash"
+              >
+                View All Flash Sales
+                <ChevronRight size={16} />
+              </Button>
+            )}
           </div>
         </div>
 
@@ -251,26 +396,29 @@ const FlashSalesHomepage = ({ flashSales = [], onViewAll, onProductClick }) => {
 
         {/* Flash Sale Products */}
         <div className="flash-products-section">
-          <div className="flash-products-grid">{renderFlashSaleProducts(currentSale)}</div>
+          <div className="flash-products-grid">{saleProducts}</div>
 
-          {currentSale.flash_sale_products?.length > 4 && (
+          {currentSale.flash_sale_products?.length > maxProducts && (
             <div className="more-products-info">
-              <p>+{currentSale.flash_sale_products.length - 4} more products in this flash sale</p>
-              <button
-                className="view-sale-btn"
-                onClick={onViewAll}
-              >
-                View Complete Sale
-              </button>
+              <p>+{currentSale.flash_sale_products.length - maxProducts} more products in this flash sale</p>
+              {onViewAll && (
+                <Button
+                  variant="link"
+                  onClick={onViewAll}
+                  className="view-sale-btn"
+                >
+                  View Complete Sale
+                </Button>
+              )}
             </div>
           )}
         </div>
 
         {/* Flash Sale Navigation */}
-        {activeFlashSales.length > 1 && (
+        {activeSales.length > 1 && (
           <div className="flash-sales-nav">
             <div className="nav-indicators">
-              {activeFlashSales.map((_, index) => (
+              {activeSales.map((_, index) => (
                 <button
                   key={index}
                   className={`nav-dot ${index === currentSaleIndex ? 'active' : ''}`}
@@ -287,10 +435,7 @@ const FlashSalesHomepage = ({ flashSales = [], onViewAll, onProductClick }) => {
           <div className="features-grid">
             <div className="feature-item">
               <div className="feature-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <circle cx="12" cy="12" r="10" />
-                  <polyline points="12,6 12,12 16,14" />
-                </svg>
+                <Clock />
               </div>
               <div className="feature-text">
                 <h4>Limited Time</h4>
@@ -300,9 +445,7 @@ const FlashSalesHomepage = ({ flashSales = [], onViewAll, onProductClick }) => {
 
             <div className="feature-item">
               <div className="feature-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                </svg>
+                <Zap />
               </div>
               <div className="feature-text">
                 <h4>Best Prices</h4>
@@ -312,10 +455,7 @@ const FlashSalesHomepage = ({ flashSales = [], onViewAll, onProductClick }) => {
 
             <div className="feature-item">
               <div className="feature-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path d="M9 12l2 2 4-4" />
-                  <circle cx="12" cy="12" r="10" />
-                </svg>
+                <Eye />
               </div>
               <div className="feature-text">
                 <h4>Quality Assured</h4>
@@ -327,12 +467,16 @@ const FlashSalesHomepage = ({ flashSales = [], onViewAll, onProductClick }) => {
 
         {/* Mobile CTA */}
         <div className="mobile-flash-cta">
-          <button
-            className="cta-button primary large"
-            onClick={onViewAll}
-          >
-            Shop Flash Sales Now
-          </button>
+          {onViewAll && (
+            <Button
+              variant="primary"
+              size="large"
+              onClick={onViewAll}
+              className="cta-button"
+            >
+              Shop Flash Sales Now
+            </Button>
+          )}
         </div>
       </div>
     </section>

@@ -44,7 +44,8 @@
 .header {
   background: var(--white);
   box-shadow: var(--shadow-md);
-  position: sticky;
+  /*position: sticky;*/
+  position: fixed;
   top: 0;
   z-index: 1000;
   transition: all var(--transition-normal);

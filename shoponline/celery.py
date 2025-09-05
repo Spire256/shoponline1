@@ -10,20 +10,21 @@ This module sets up Celery for handling background tasks such as:
 - Order processing
 - Database backups
 - System maintenance tasks
+- WebSocket notifications and real-time updates
 """
 
 import os
 from celery import Celery
 from django.conf import settings
 
-# Set the default Django settings module for the 'celery' program
+# Set the default Django settings module for the 'celery' program.
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'shoponline.settings.development')
 
 # Create Celery application
 app = Celery('shoponline')
 
 # Using a string here means the worker doesn't have to serialize
-# the configuration object to child processes
+# the configuration object to child processes.
 app.config_from_object('django.conf:settings', namespace='CELERY')
 
 # Comprehensive Celery Configuration
@@ -45,6 +46,7 @@ app.conf.update(
         'apps.flash_sales.tasks.expire_flash_sales': {'queue': 'flash_sales'},
         'apps.flash_sales.tasks.check_expired_flash_sales': {'queue': 'flash_sales'},
         'apps.flash_sales.tasks.expire_flash_sale': {'queue': 'flash_sales'},
+        'apps.flash_sales.tasks.cleanup_expired_flash_sales': {'queue': 'flash_sales'},
         'apps.flash_sales.tasks.*': {'queue': 'flash_sales'},
         
         # Order processing tasks
@@ -60,11 +62,13 @@ app.conf.update(
         'apps.payments.tasks.check_pending_payments': {'queue': 'payments'},
         'apps.payments.tasks.*': {'queue': 'payments'},
         
-        # Notification tasks
+        # Notification tasks (including WebSocket notifications)
         'apps.notifications.tasks.send_notification': {'queue': 'notifications'},
         'apps.notifications.tasks.send_pending_notifications': {'queue': 'notifications'},
         'apps.notifications.tasks.send_email_notification': {'queue': 'notifications'},
         'apps.notifications.tasks.send_sms_notification': {'queue': 'notifications'},
+        'apps.notifications.tasks.cleanup_expired_notifications': {'queue': 'notifications'},
+        'apps.notifications.tasks.send_websocket_notification': {'queue': 'notifications'},
         'apps.notifications.tasks.*': {'queue': 'notifications'},
         
         # Account management tasks
@@ -120,188 +124,184 @@ app.conf.update(
     # Monitoring
     worker_send_task_events=True,
     task_send_sent_event=True,
-    
-    # Comprehensive beat schedule for periodic tasks
-    beat_schedule={
-        # Flash sales - expire every minute for real-time updates
-        'expire-flash-sales': {
-            'task': 'apps.flash_sales.tasks.expire_flash_sales',
-            'schedule': 60.0,  # Every minute
-            'options': {'queue': 'flash_sales'}
-        },
-        
-        # Flash sales - check expired every 5 minutes (backup check)
-        'check-expired-flash-sales': {
-            'task': 'apps.flash_sales.tasks.check_expired_flash_sales',
-            'schedule': 300.0,  # Every 5 minutes
-            'options': {'queue': 'flash_sales'}
-        },
-        
-        # Order processing - process pending orders every 5 minutes
-        'process-pending-orders': {
-            'task': 'apps.orders.tasks.process_pending_orders',
-            'schedule': 300.0,  # Every 5 minutes
-            'options': {'queue': 'orders'}
-        },
-        
-        # Order processing - abandoned cart reminders every 6 hours
-        'abandoned-cart-reminders': {
-            'task': 'apps.orders.tasks.send_abandoned_cart_reminders',
-            'schedule': 21600.0,  # Every 6 hours
-            'options': {'queue': 'orders'}
-        },
-        
-        # Payment processing - check payment status every 2 minutes
-        'check-payment-status': {
-            'task': 'apps.payments.tasks.check_pending_payments',
-            'schedule': 120.0,  # Every 2 minutes
-            'options': {'queue': 'payments'}
-        },
-        
-        # Notifications - send pending notifications every 30 seconds
-        'send-pending-notifications': {
-            'task': 'apps.notifications.tasks.send_pending_notifications',
-            'schedule': 30.0,  # Every 30 seconds
-            'options': {'queue': 'notifications'}
-        },
-        
-        # Account management - clean up expired tokens daily
-        'cleanup-expired-tokens': {
-            'task': 'apps.accounts.tasks.cleanup_expired_tokens',
-            'schedule': 86400.0,  # Daily
-            'options': {'queue': 'cleanup'}
-        },
-        
-        # Account management - clean up expired invitations every hour
-        'cleanup-expired-invitations': {
-            'task': 'apps.accounts.tasks.cleanup_expired_invitations',
-            'schedule': 3600.0,  # Every hour
-            'options': {'queue': 'cleanup'}
-        },
-        
-        # Reports - daily sales report at 8 AM Uganda time
-        'daily-sales-report': {
-            'task': 'apps.admin_dashboard.tasks.generate_daily_sales_report',
-            'schedule': 'crontab(hour=8, minute=0)',
-            'options': {'queue': 'reports'}
-        },
-        
-        # Reports - weekly analytics report every Monday at 9 AM
-        'weekly-analytics-report': {
-            'task': 'apps.admin_dashboard.tasks.generate_weekly_analytics_report',
-            'schedule': 'crontab(hour=9, minute=0, day_of_week=1)',
-            'options': {'queue': 'reports'}
-        },
-        
-        # Product management - update popularity scores daily at midnight
-        'update-product-popularity': {
-            'task': 'apps.products.tasks.update_product_popularity',
-            'schedule': 'crontab(hour=0, minute=0)',
-            'options': {'queue': 'products'}
-        },
-        
-        # System maintenance - clean old log files weekly
-        'cleanup-old-logs': {
-            'task': 'apps.core.tasks.cleanup_old_logs',
-            'schedule': 604800.0,  # Weekly
-            'options': {'queue': 'cleanup'}
-        },
-        
-        # System maintenance - backup database daily at 2 AM
-        'backup-database': {
-            'task': 'apps.core.tasks.backup_database',
-            'schedule': 'crontab(hour=2, minute=0)',
-            'options': {'queue': 'backup'}
-        },
-    },
-    
-    # Comprehensive task annotations for specific configurations
-    task_annotations={
-        # Global defaults
-        '*': {
-            'rate_limit': '100/m',
-            'time_limit': 900,
-            'soft_time_limit': 600,
-        },
-        
-        # Payment processing tasks (high priority, strict limits)
-        'apps.payments.tasks.process_mtn_payment': {
-            'rate_limit': '10/m',
-            'priority': 9,
-            'time_limit': 300,
-            'max_retries': 3,
-            'default_retry_delay': 60,
-        },
-        'apps.payments.tasks.process_airtel_payment': {
-            'rate_limit': '10/m',
-            'priority': 9,
-            'time_limit': 300,
-            'max_retries': 3,
-            'default_retry_delay': 60,
-        },
-        'apps.payments.tasks.process_payment': {
-            'rate_limit': '20/m',
-            'priority': 9,
-            'max_retries': 3,
-            'default_retry_delay': 60,
-        },
-        
-        # Notification tasks
-        'apps.notifications.tasks.send_email': {
-            'rate_limit': '50/m',
-            'priority': 7,
-            'max_retries': 5,
-            'default_retry_delay': 30,
-            'time_limit': 60,
-        },
-        'apps.notifications.tasks.send_email_notification': {
-            'rate_limit': '50/m',
-            'priority': 7,
-            'time_limit': 60,
-        },
-        'apps.notifications.tasks.send_sms_notification': {
-            'rate_limit': '20/m',
-            'priority': 8,
-            'time_limit': 30,
-        },
-        
-        # Flash sales tasks
-        'apps.flash_sales.tasks.expire_flash_sale': {
-            'priority': 6,
-            'time_limit': 120,
-        },
-        
-        # Order processing tasks
-        'apps.orders.tasks.process_order': {
-            'priority': 8,
-            'time_limit': 180,
-        },
-        
-        # Report generation tasks (lower priority, longer time limits)
-        'apps.admin_dashboard.tasks.generate_sales_report': {
-            'priority': 3,
-            'time_limit': 600,
-        },
-        'apps.admin_dashboard.tasks.generate_daily_sales_report': {
-            'priority': 3,
-            'time_limit': 600,
-        },
-        'apps.admin_dashboard.tasks.generate_weekly_analytics_report': {
-            'priority': 2,
-            'time_limit': 1200,  # 20 minutes for complex analytics
-        },
-    },
 )
 
-# Load task modules from all registered Django app configs
+# Load task modules from all registered Django apps.
 app.autodiscover_tasks()
 
-# Debug task for testing Celery configuration
+# Celery beat schedule for periodic tasks
+app.conf.beat_schedule = {
+    # WebSocket and notification cleanup - aligned with minimal version
+    'cleanup-expired-notifications': {
+        'task': 'apps.notifications.tasks.cleanup_expired_notifications',
+        'schedule': 3600.0,  # Run every hour
+    },
+    'cleanup-expired-flash-sales': {
+        'task': 'apps.flash_sales.tasks.cleanup_expired_flash_sales',
+        'schedule': 300.0,  # Run every 5 minutes
+    },
+    
+    # Additional comprehensive periodic tasks
+    'expire-flash-sales': {
+        'task': 'apps.flash_sales.tasks.expire_flash_sales',
+        'schedule': 60.0,  # Every minute
+        'options': {'queue': 'flash_sales'}
+    },
+    'process-pending-orders': {
+        'task': 'apps.orders.tasks.process_pending_orders',
+        'schedule': 300.0,  # Every 5 minutes
+        'options': {'queue': 'orders'}
+    },
+    'abandoned-cart-reminders': {
+        'task': 'apps.orders.tasks.send_abandoned_cart_reminders',
+        'schedule': 21600.0,  # Every 6 hours
+        'options': {'queue': 'orders'}
+    },
+    'check-payment-status': {
+        'task': 'apps.payments.tasks.check_pending_payments',
+        'schedule': 120.0,  # Every 2 minutes
+        'options': {'queue': 'payments'}
+    },
+    'send-pending-notifications': {
+        'task': 'apps.notifications.tasks.send_pending_notifications',
+        'schedule': 30.0,  # Every 30 seconds
+        'options': {'queue': 'notifications'}
+    },
+    'cleanup-expired-tokens': {
+        'task': 'apps.accounts.tasks.cleanup_expired_tokens',
+        'schedule': 86400.0,  # Daily
+        'options': {'queue': 'cleanup'}
+    },
+    'cleanup-expired-invitations': {
+        'task': 'apps.accounts.tasks.cleanup_expired_invitations',
+        'schedule': 3600.0,  # Every hour
+        'options': {'queue': 'cleanup'}
+    },
+    'daily-sales-report': {
+        'task': 'apps.admin_dashboard.tasks.generate_daily_sales_report',
+        'schedule': 'crontab(hour=8, minute=0)',
+        'options': {'queue': 'reports'}
+    },
+    'weekly-analytics-report': {
+        'task': 'apps.admin_dashboard.tasks.generate_weekly_analytics_report',
+        'schedule': 'crontab(hour=9, minute=0, day_of_week=1)',
+        'options': {'queue': 'reports'}
+    },
+    'update-product-popularity': {
+        'task': 'apps.products.tasks.update_product_popularity',
+        'schedule': 'crontab(hour=0, minute=0)',
+        'options': {'queue': 'products'}
+    },
+    'cleanup-old-logs': {
+        'task': 'apps.core.tasks.cleanup_old_logs',
+        'schedule': 604800.0,  # Weekly
+        'options': {'queue': 'cleanup'}
+    },
+    'backup-database': {
+        'task': 'apps.core.tasks.backup_database',
+        'schedule': 'crontab(hour=2, minute=0)',
+        'options': {'queue': 'backup'}
+    },
+}
+
+app.conf.timezone = 'Africa/Kampala'
+
+# Task annotations for specific configurations
+app.conf.task_annotations = {
+    # Global defaults
+    '*': {
+        'rate_limit': '100/m',
+        'time_limit': 900,
+        'soft_time_limit': 600,
+    },
+    
+    # Payment processing tasks (high priority, strict limits)
+    'apps.payments.tasks.process_mtn_payment': {
+        'rate_limit': '10/m',
+        'priority': 9,
+        'time_limit': 300,
+        'max_retries': 3,
+        'default_retry_delay': 60,
+    },
+    'apps.payments.tasks.process_airtel_payment': {
+        'rate_limit': '10/m',
+        'priority': 9,
+        'time_limit': 300,
+        'max_retries': 3,
+        'default_retry_delay': 60,
+    },
+    'apps.payments.tasks.process_payment': {
+        'rate_limit': '20/m',
+        'priority': 9,
+        'max_retries': 3,
+        'default_retry_delay': 60,
+    },
+    
+    # Notification tasks (including WebSocket)
+    'apps.notifications.tasks.send_email_notification': {
+        'rate_limit': '50/m',
+        'priority': 7,
+        'time_limit': 60,
+    },
+    'apps.notifications.tasks.send_sms_notification': {
+        'rate_limit': '20/m',
+        'priority': 8,
+        'time_limit': 30,
+    },
+    'apps.notifications.tasks.send_websocket_notification': {
+        'rate_limit': '200/m',
+        'priority': 8,
+        'time_limit': 15,
+    },
+    
+    # Flash sales tasks
+    'apps.flash_sales.tasks.expire_flash_sale': {
+        'priority': 6,
+        'time_limit': 120,
+    },
+    
+    # Order processing tasks
+    'apps.orders.tasks.process_order': {
+        'priority': 8,
+        'time_limit': 180,
+    },
+    
+    # Report generation tasks (lower priority, longer time limits)
+    'apps.admin_dashboard.tasks.generate_sales_report': {
+        'priority': 3,
+        'time_limit': 600,
+    },
+    'apps.admin_dashboard.tasks.generate_daily_sales_report': {
+        'priority': 3,
+        'time_limit': 600,
+    },
+    'apps.admin_dashboard.tasks.generate_weekly_analytics_report': {
+        'priority': 2,
+        'time_limit': 1200,  # 20 minutes for complex analytics
+    },
+}
+
 @app.task(bind=True)
 def debug_task(self):
     """Debug task for testing Celery configuration"""
     print(f'Request: {self.request!r}')
     return 'Celery is working! Debug task completed successfully'
+
+# WebSocket notification helper task
+@app.task(bind=True)
+def send_websocket_update(self, channel_group, message_type, data):
+    """Send real-time updates via WebSocket"""
+    from channels.layers import get_channel_layer
+    from asgiref.sync import async_to_sync
+    
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        channel_group,
+        {
+            'type': message_type,
+            'data': data
+        }
+    )
 
 # Custom task failure handler
 @app.task(bind=True)
@@ -315,45 +315,6 @@ def task_failure_handler(self, task_id, error, traceback):
         message=f'Task {task_id} failed with error: {error}\n\nTraceback:\n{traceback}',
         notification_type='task_failure'
     )
-
-# Base task configurations with automatic retry
-@app.task(bind=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3, 'countdown': 60})
-def reliable_task(self):
-    """Base task with automatic retry configuration"""
-    pass
-
-# Priority task for urgent operations
-@app.task(bind=True, priority=9)
-def urgent_task(self):
-    """High priority task for urgent operations"""
-    pass
-
-# Long-running task configuration
-@app.task(bind=True, soft_time_limit=1800, time_limit=3600)  # 30 min soft, 1 hour hard
-def long_running_task(self):
-    """Configuration for long-running tasks"""
-    pass
-
-# Custom task decorators for different app modules
-def flash_sale_task(**options):
-    """Custom decorator for flash sale related tasks"""
-    options.setdefault('queue', 'flash_sales')
-    options.setdefault('priority', 8)
-    return app.task(**options)
-
-def payment_task(**options):
-    """Custom decorator for payment related tasks"""
-    options.setdefault('queue', 'payments')
-    options.setdefault('priority', 9)
-    options.setdefault('max_retries', 5)
-    return app.task(**options)
-
-def notification_task(**options):
-    """Custom decorator for notification related tasks"""
-    options.setdefault('queue', 'notifications')
-    options.setdefault('priority', 7)
-    options.setdefault('rate_limit', '100/m')
-    return app.task(**options)
 
 # Health check task for system monitoring
 @app.task
@@ -384,28 +345,26 @@ def health_check():
         'timestamp': app.now().isoformat()
     }
 
-# Queue management utilities
-def get_queue_info():
-    """Get information about all queues"""
-    inspect = app.control.inspect()
-    return {
-        'active_queues': inspect.active_queues(),
-        'registered_tasks': inspect.registered(),
-        'stats': inspect.stats(),
-    }
+# Custom task decorators for different app modules
+def flash_sale_task(**options):
+    """Custom decorator for flash sale related tasks"""
+    options.setdefault('queue', 'flash_sales')
+    options.setdefault('priority', 8)
+    return app.task(**options)
 
-def purge_queue(queue_name):
-    """Purge all tasks from a specific queue"""
-    return app.control.purge()
+def payment_task(**options):
+    """Custom decorator for payment related tasks"""
+    options.setdefault('queue', 'payments')
+    options.setdefault('priority', 9)
+    options.setdefault('max_retries', 5)
+    return app.task(**options)
 
-# Task monitoring utilities
-def get_task_info(task_id):
-    """Get information about a specific task"""
-    return app.AsyncResult(task_id)
-
-def cancel_task(task_id):
-    """Cancel a specific task"""
-    app.control.revoke(task_id, terminate=True)
+def notification_task(**options):
+    """Custom decorator for notification related tasks (including WebSocket)"""
+    options.setdefault('queue', 'notifications')
+    options.setdefault('priority', 7)
+    options.setdefault('rate_limit', '100/m')
+    return app.task(**options)
 
 # Celery signals for comprehensive logging and monitoring
 from celery.signals import (
@@ -439,6 +398,3 @@ def worker_ready_handler(sender=None, **kwargs):
 def worker_shutdown_handler(sender=None, **kwargs):
     """Log when worker is shutting down"""
     print(f'Worker {sender} is shutting down')
-
-# Register the failure handler globally
-app.conf.task_failure_handler = task_failure_handler
