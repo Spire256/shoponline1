@@ -672,6 +672,52 @@
   border-bottom: 1px solid var(--gray-200);
 }
 
+/* FOOTER POSITIONING - KEY FIX */
+/* Footer should align with the main content area, not span full width */
+.footer {
+  background-color: var(--primary-blue-dark);
+  color: var(--white);
+  transition: margin-left var(--transition-normal);
+  margin-top: auto; /* Push footer to bottom */
+}
+
+/* Footer positioning adjustments to match main content */
+.layout:has(.main-content.with-sidebar.sidebar-expanded) .footer {
+  margin-left: 17rem; /* Match expanded sidebar width */
+}
+
+.layout:has(.main-content.with-sidebar.sidebar-collapsed) .footer {
+  margin-left: 4.5rem; /* Match collapsed sidebar width */
+}
+
+.layout:has(.main-content.without-sidebar) .footer {
+  margin-left: 0; /* No sidebar, full width */
+}
+
+/* Fallback for browsers that don't support :has() selector */
+@supports not selector(:has(*)) {
+  /* JavaScript will need to add classes to handle footer positioning */
+  .footer.with-sidebar-expanded {
+    margin-left: 17rem;
+  }
+  
+  .footer.with-sidebar-collapsed {
+    margin-left: 4.5rem;
+  }
+  
+  .footer.without-sidebar {
+    margin-left: 0;
+  }
+}
+
+/* Footer content should have appropriate padding */
+.footer .container {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding: 0 2rem; /* Match main content padding */
+}
+
 /* Responsive adjustments */
 @media (max-width: 1024px) {
   :root {
@@ -686,6 +732,17 @@
   
   .sidebar.expanded {
     width: 15rem; /* 240px for tablets */
+  }
+  
+  /* Footer adjustments for tablets */
+  .layout:has(.main-content.with-sidebar.sidebar-expanded) .footer {
+    margin-left: 15rem;
+  }
+  
+  @supports not selector(:has(*)) {
+    .footer.with-sidebar-expanded {
+      margin-left: 15rem;
+    }
   }
   
   .sidebar {
@@ -755,8 +812,27 @@
     margin-left: 0; /* Remove margin on mobile - sidebar becomes overlay */
   }
 
+  /* Footer full width on mobile - no sidebar margin */
+  .layout:has(.main-content.with-sidebar.sidebar-expanded) .footer,
+  .layout:has(.main-content.with-sidebar.sidebar-collapsed) .footer,
+  .layout:has(.main-content.without-sidebar) .footer {
+    margin-left: 0;
+  }
+  
+  @supports not selector(:has(*)) {
+    .footer.with-sidebar-expanded,
+    .footer.with-sidebar-collapsed,
+    .footer.without-sidebar {
+      margin-left: 0;
+    }
+  }
+
   .content-container {
     padding: 1rem;
+  }
+  
+  .footer .container {
+    padding: 0 1rem; /* Reduce padding on mobile */
   }
 
   /* Overlay effect when sidebar is open on mobile */
@@ -826,6 +902,10 @@
   
   .mobile-menu-button {
     top: calc(var(--header-total-height) + 1rem);
+  }
+  
+  .footer .container {
+    padding: 0 0.75rem; /* Match content container padding */
   }
 }
 
@@ -916,6 +996,10 @@
   .header {
     position: relative;
   }
+  
+  .footer {
+    margin-left: 0;
+  }
 }
 
 /* High contrast mode support */
@@ -961,7 +1045,8 @@
   .nav-text,
   .expand-button,
   .chevron-icon,
-  .contact-btn {
+  .contact-btn,
+  .footer {
     transition: none;
   }
 

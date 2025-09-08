@@ -82,7 +82,11 @@ const Header = ({
   user = null, 
   onLogin, 
   onLogout, 
-  cartItems = [] 
+  cartItems = [],
+  // New props for search coordination
+  searchQuery: propSearchQuery = '',
+  onSearchQueryChange = null,
+  hideSearchOnSearchPage = true
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -130,7 +134,7 @@ const Header = ({
   // State management
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(propSearchQuery || '');
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [searchSuggestions, setSearchSuggestions] = useState([]);
   const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
@@ -140,6 +144,16 @@ const Header = ({
   const userDropdownRef = useRef(null);
   const searchRef = useRef(null);
   const searchTimeoutRef = useRef(null);
+
+  // Check if we're on the search page
+  const isSearchPage = location.pathname === '/search' || location.pathname.startsWith('/search');
+
+  // Update local search query when prop changes
+  useEffect(() => {
+    if (propSearchQuery !== undefined && propSearchQuery !== searchQuery) {
+      setSearchQuery(propSearchQuery);
+    }
+  }, [propSearchQuery]);
 
   // Handle scroll effect
   useEffect(() => {
@@ -279,15 +293,39 @@ const Header = ({
 
     try {
       const encodedQuery = encodeURIComponent(query.replace(/[<>]/g, ''));
-      navigate(`${PRODUCT_ROUTES.SEARCH}?q=${encodedQuery}`);
+      
+      // If we're already on search page and have callback, update search query
+      if (isSearchPage && onSearchQueryChange) {
+        onSearchQueryChange(query);
+        // Update URL
+        navigate(`${PRODUCT_ROUTES.SEARCH}?q=${encodedQuery}`, { replace: true });
+      } else {
+        // Navigate to search page
+        navigate(`${PRODUCT_ROUTES.SEARCH}?q=${encodedQuery}`);
+      }
+      
       setShowSearchSuggestions(false);
-      setSearchQuery('');
+      
+      // Only clear search query if we're not on search page
+      if (!isSearchPage) {
+        setSearchQuery('');
+      }
     } catch (error) {
       console.error('Search navigation error:', error);
       addNotification({
         type: 'error',
         message: 'Search failed. Please try again.'
       });
+    }
+  };
+
+  const handleSearchInputChange = (e) => {
+    const newQuery = e.target.value;
+    setSearchQuery(newQuery);
+    
+    // If we're on search page and have callback, notify parent component
+    if (isSearchPage && onSearchQueryChange) {
+      onSearchQueryChange(newQuery);
     }
   };
 
@@ -409,6 +447,9 @@ const Header = ({
     { label: 'Homepage', path: ADMIN_ROUTES.ADMIN_HOMEPAGE, icon: Grid3X3, preload: 'admin.homepage' },
   ];
 
+  // Determine if search should be shown
+  const shouldShowSearch = !isAdminRoute && (!isSearchPage || !hideSearchOnSearchPage);
+
   return (
     <header className={`header ${isScrolled ? 'header--scrolled' : ''} ${isAdminRoute ? 'header--admin' : ''}`}>
       {/* Top Bar */}
@@ -499,7 +540,7 @@ const Header = ({
               </button>
             </div>
 
-            {!isAdminRoute && (
+            {shouldShowSearch && (
               <div className="header__search desktop-only" ref={searchRef}>
                 <div className="search-container">
                   <form onSubmit={handleSearch} className="search-input-container">
@@ -507,9 +548,20 @@ const Header = ({
                       type="text"
                       placeholder="Search for products, categories..."
                       value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onChange={handleSearchInputChange}
                       onFocus={() => searchQuery.length > 1 && setShowSearchSuggestions(true)}
                       className="search-input"
+                      style={{
+                        color: '#333',
+                        backgroundColor: '#fff',
+                        border: '1px solid #ddd',
+                        padding: '12px 16px',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        width: '100%',
+                        outline: 'none',
+                        caretColor: '#007bff'
+                      }}
                       autoComplete="off"
                       aria-label="Search products and categories"
                       disabled={isLoading || searchLoading}
@@ -517,20 +569,58 @@ const Header = ({
                     <button 
                       type="submit" 
                       className="search-btn"
+                      style={{
+                        position: 'absolute',
+                        right: '8px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: '#007bff',
+                        border: 'none',
+                        borderRadius: '4px',
+                        padding: '8px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
                       aria-label="Search"
                       disabled={isLoading || searchLoading}
                     >
-                      <Search className="icon" aria-hidden="true" />
+                      <Search className="icon" style={{ color: '#fff', width: '16px', height: '16px' }} aria-hidden="true" />
                     </button>
                   </form>
                   
-                  {showSearchSuggestions && searchSuggestions.length > 0 && (
-                    <div className="search-suggestions" role="listbox">
+                  {showSearchSuggestions && searchSuggestions.length > 0 && !isSearchPage && (
+                    <div className="search-suggestions" role="listbox" style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: '0',
+                      right: '0',
+                      backgroundColor: '#fff',
+                      border: '1px solid #ddd',
+                      borderRadius: '6px',
+                      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                      zIndex: 1000,
+                      maxHeight: '300px',
+                      overflowY: 'auto'
+                    }}>
                       {searchSuggestions.map(suggestion => (
                         <button
                           key={suggestion.id}
                           onClick={() => handleSuggestionClick(suggestion)}
                           className="search-suggestion-item"
+                          style={{
+                            width: '100%',
+                            padding: '12px 16px',
+                            border: 'none',
+                            backgroundColor: 'transparent',
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                            borderBottom: '1px solid #f0f0f0'
+                          }}
                           role="option"
                           aria-selected="false"
                           aria-label={`${suggestion.title} ${suggestion.type}`}
@@ -538,15 +628,17 @@ const Header = ({
                         >
                           <div className="suggestion-icon">
                             {suggestion.type === 'product' ? 
-                              <ShoppingBag className="icon" aria-hidden="true" /> : 
+                              <ShoppingBag className="icon" style={{ width: '16px', height: '16px', color: '#666' }} aria-hidden="true" /> : 
                               suggestion.type === 'flash_sale' ?
-                              <Zap className="icon" aria-hidden="true" /> :
-                              <Grid3X3 className="icon" aria-hidden="true" />
+                              <Zap className="icon" style={{ width: '16px', height: '16px', color: '#666' }} aria-hidden="true" /> :
+                              <Grid3X3 className="icon" style={{ width: '16px', height: '16px', color: '#666' }} aria-hidden="true" />
                             }
                           </div>
                           <div className="suggestion-content">
-                            <span className="suggestion-title">{suggestion.title}</span>
-                            <span className="suggestion-meta">
+                            <span className="suggestion-title" style={{ color: '#333', fontSize: '14px', fontWeight: '500' }}>
+                              {suggestion.title}
+                            </span>
+                            <span className="suggestion-meta" style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '2px' }}>
                               {suggestion.type === 'product' ? 
                                 `in ${suggestion.category}` : 
                                 suggestion.type === 'flash_sale' ?
@@ -561,9 +653,29 @@ const Header = ({
                   )}
 
                   {searchLoading && (
-                    <div className="search-loading">
-                      <div className="loading-spinner" aria-hidden="true"></div>
-                      <span>Searching...</span>
+                    <div className="search-loading" style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: '0',
+                      right: '0',
+                      backgroundColor: '#fff',
+                      border: '1px solid #ddd',
+                      borderRadius: '6px',
+                      padding: '16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      zIndex: 1000
+                    }}>
+                      <div className="loading-spinner" style={{
+                        width: '16px',
+                        height: '16px',
+                        border: '2px solid #f0f0f0',
+                        borderTop: '2px solid #007bff',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite'
+                      }} aria-hidden="true"></div>
+                      <span style={{ color: '#666', fontSize: '14px' }}>Searching...</span>
                     </div>
                   )}
                 </div>
@@ -731,27 +843,52 @@ const Header = ({
       </div>
 
       {/* Mobile Search */}
-      {!isAdminRoute && (
+      {shouldShowSearch && (
         <div className="header__mobile-search mobile-only">
           <div className="container">
             <div className="search-container">
-              <form onSubmit={handleSearch} className="search-input-container">
+              <form onSubmit={handleSearch} className="search-input-container" style={{ position: 'relative' }}>
                 <input
                   type="text"
                   placeholder="Search products..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={handleSearchInputChange}
                   className="search-input"
+                  style={{
+                    color: '#333',
+                    backgroundColor: '#fff',
+                    border: '1px solid #ddd',
+                    padding: '12px 45px 12px 16px',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    width: '100%',
+                    outline: 'none',
+                    caretColor: '#007bff'
+                  }}
                   aria-label="Search products"
                   disabled={isLoading || searchLoading}
                 />
                 <button 
                   type="submit" 
                   className="search-btn"
+                  style={{
+                    position: 'absolute',
+                    right: '8px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: '#007bff',
+                    border: 'none',
+                    borderRadius: '4px',
+                    padding: '8px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
                   aria-label="Search"
                   disabled={isLoading || searchLoading}
                 >
-                  <Search className="icon" aria-hidden="true" />
+                  <Search className="icon" style={{ color: '#fff', width: '16px', height: '16px' }} aria-hidden="true" />
                 </button>
               </form>
             </div>
@@ -923,6 +1060,14 @@ const Header = ({
           </div>
         </div>
       )}
+      
+      {/* Add keyframe animation for loading spinner */}
+      <style jsx>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </header>
   );
 };
@@ -941,10 +1086,14 @@ Header.propTypes = {
     PropTypes.shape({
       id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
       quantity: PropTypes.number,
-    })
+    })  
   ),
   onLogin: PropTypes.func,
   onLogout: PropTypes.func,
+  // New prop types for search coordination
+  searchQuery: PropTypes.string,
+  onSearchQueryChange: PropTypes.func,
+  hideSearchOnSearchPage: PropTypes.bool,
 };
 
 export default Header;

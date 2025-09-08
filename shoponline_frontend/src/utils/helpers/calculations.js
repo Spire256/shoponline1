@@ -9,8 +9,7 @@
  * - Currency formatting for UGX
  */
 
-import { CURRENCY } from '../constants/paymentMethods';
-import { MOBILE_MONEY_PROVIDERS, COD_CONFIG } from '../constants/paymentMethods';
+import { CURRENCY, MOBILE_MONEY_PROVIDERS, COD_CONFIG } from '../constants/paymentMethods';
 
 // =============================================================================
 // CURRENCY FORMATTING

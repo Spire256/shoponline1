@@ -327,7 +327,7 @@ export const validatePhoneForPaymentMethod = (phone, method) => {
   if (!phone) return false;
 
   // Clean phone number
-  const cleanPhone = phone.replace(/[\s\-\(\)]/g, '');
+  const cleanPhone = phone.replace(/[\s\-()]/g, '');
 
   if (method === PAYMENT_METHODS.MTN_MOMO) {
     return PAYMENT_VALIDATION.MTN_PHONE_REGEX.test(cleanPhone);
@@ -343,7 +343,7 @@ export const validatePhoneForPaymentMethod = (phone, method) => {
 export const getProviderFromPhone = phone => {
   if (!phone) return null;
 
-  const cleanPhone = phone.replace(/[\s\-\(\)]/g, '');
+  const cleanPhone = phone.replace(/[\s\-()]/g, '');
   const prefix = cleanPhone.slice(-9, -7); // Get the 2-digit prefix
 
   for (const [provider, prefixes] of Object.entries(UGANDA_PHONE_CONFIG.PROVIDER_PREFIXES)) {

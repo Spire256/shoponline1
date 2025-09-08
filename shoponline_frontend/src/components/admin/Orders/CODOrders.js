@@ -1,260 +1,224 @@
-// src/components/admin/Orders/CODOrders.js
-
 import React, { useState, useEffect, useCallback } from 'react';
-import OrderStatus from './OrderStatus';
-import { useAuth } from '../../../hooks/useAuth';
-import { useNotifications } from '../../../hooks/useNotifications';
+import { 
+  CheckCircle, 
+  XCircle, 
+  Clock, 
+  Phone, 
+  MapPin, 
+  Package, 
+  DollarSign,
+  AlertTriangle,
+  Eye,
+  Filter,
+  Search,
+  Download
+} from 'lucide-react';
 
 const CODOrders = ({ onRefresh, onViewOrder }) => {
-  const { user } = useAuth();
-  const { showNotification } = useNotifications();
-
-  // State management
   const [codOrders, setCodOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedOrders, setSelectedOrders] = useState([]);
-
-  // Filter states
-  const [verificationFilter, setVerificationFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
-
-  // Pagination
+  const [filters, setFilters] = useState({
+    verification_status: '',
+    search: '',
+    date_from: '',
+    date_to: '',
+  });
+  const [stats, setStats] = useState({
+    pending: 0,
+    verified: 0,
+    rejected: 0,
+    delivered_paid: 0,
+  });
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
-  const [totalOrders, setTotalOrders] = useState(0);
-
-  // Modal states
   const [showVerificationModal, setShowVerificationModal] = useState(false);
-  const [selectedOrderForVerification, setSelectedOrderForVerification] = useState(null);
+  const [selectedOrder, setSelectedOrder] = useState(null);
   const [verificationNotes, setVerificationNotes] = useState('');
-  const [bulkVerifying, setBulkVerifying] = useState(false);
-
-  // COD Statistics
-  const [codStats, setCodStats] = useState({
-    total: 0,
-    pending_verification: 0,
-    verified: 0,
-    delivered_paid: 0,
-    rejected: 0,
-  });
 
   // Fetch COD orders
-  const fetchCODOrders = useCallback(
-    async (page = 1) => {
-      try {
-        setLoading(true);
-        setError(null);
+  const fetchCODOrders = useCallback(async (page = 1) => {
+    try {
+      setLoading(true);
+      setError(null);
 
-        const params = new URLSearchParams({
-          page: page.toString(),
-          page_size: '20',
-        });
+      const params = new URLSearchParams({
+        page: page.toString(),
+        page_size: '20',
+        is_cod: 'true',
+        ...Object.fromEntries(
+          Object.entries(filters).filter(([_, value]) => value !== '')
+        ),
+      });
 
-        // Add filters
-        if (verificationFilter) {
-          params.append('verification_status', verificationFilter);
-        }
-        if (statusFilter) {
-          params.append('status', statusFilter);
-        }
-        if (searchTerm) {
-          params.append('search', searchTerm);
-        }
+      const response = await fetch(`/api/v1/orders/?${params}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
-        const response = await fetch(`/api/orders/cod/?${params}`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('access_token')}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch COD orders: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        setCodOrders(data.results || []);
-        setTotalPages(Math.ceil(data.count / 20));
-        setTotalOrders(data.count);
-        setCurrentPage(page);
-
-        // Calculate stats from the results
-        calculateStats(data.results);
-      } catch (err) {
-        console.error('Error fetching COD orders:', err);
-        setError(err.message);
-        showNotification('Failed to load COD orders', 'error');
-      } finally {
-        setLoading(false);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch COD orders: ${response.status}`);
       }
-    },
-    [verificationFilter, statusFilter, searchTerm, showNotification]
-  );
 
-  // Calculate COD statistics
-  const calculateStats = orders => {
-    const stats = {
-      total: orders.length,
-      pending_verification: 0,
-      verified: 0,
-      delivered_paid: 0,
-      rejected: 0,
-    };
+      const data = await response.json();
+      setCodOrders(data.results || []);
+      setTotalPages(Math.ceil(data.count / 20));
+      setCurrentPage(page);
 
-    orders.forEach(order => {
-      if (order.cod_verification) {
-        switch (order.cod_verification.verification_status) {
-          case 'pending':
-            stats.pending_verification++;
-            break;
-          case 'verified':
-            stats.verified++;
-            break;
-          case 'delivered_paid':
-            stats.delivered_paid++;
-            break;
-          case 'rejected':
-            stats.rejected++;
-            break;
-        }
-      } else {
-        stats.pending_verification++;
-      }
-    });
+      // Calculate stats
+      const stats = data.results?.reduce(
+        (acc, order) => {
+          const status = order.cod_verification?.verification_status || 'pending';
+          acc[status] = (acc[status] || 0) + 1;
+          return acc;
+        },
+        { pending: 0, verified: 0, rejected: 0, delivered_paid: 0 }
+      ) || { pending: 0, verified: 0, rejected: 0, delivered_paid: 0 };
 
-    setCodStats(stats);
-  };
+      setStats(stats);
+    } catch (err) {
+      console.error('Error fetching COD orders:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [filters]);
 
-  // Initial load
   useEffect(() => {
-    fetchCODOrders();
+    fetchCODOrders(1);
   }, [fetchCODOrders]);
 
   // Handle filter changes
-  const handleFilterChange = (type, value) => {
-    switch (type) {
-      case 'verification':
-        setVerificationFilter(value);
-        break;
-      case 'status':
-        setStatusFilter(value);
-        break;
-      case 'search':
-        setSearchTerm(value);
-        break;
-    }
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
     setCurrentPage(1);
   };
 
   // Handle order selection
-  const handleOrderSelect = (orderId, isSelected) => {
-    if (isSelected) {
-      setSelectedOrders(prev => [...prev, orderId]);
-    } else {
-      setSelectedOrders(prev => prev.filter(id => id !== orderId));
-    }
+  const handleOrderSelect = (orderId) => {
+    setSelectedOrders(prev =>
+      prev.includes(orderId)
+        ? prev.filter(id => id !== orderId)
+        : [...prev, orderId]
+    );
   };
 
   // Handle select all
-  const handleSelectAll = isSelected => {
-    if (isSelected) {
-      setSelectedOrders(codOrders.map(order => order.id));
-    } else {
-      setSelectedOrders([]);
-    }
+  const handleSelectAll = () => {
+    setSelectedOrders(
+      selectedOrders.length === codOrders.length
+        ? []
+        : codOrders.map(order => order.id)
+    );
   };
 
-  // Handle verify single order
-  const handleVerifyOrder = order => {
-    setSelectedOrderForVerification(order);
-    setVerificationNotes('');
-    setShowVerificationModal(true);
-  };
-
-  // Handle confirm verification
-  const handleConfirmVerification = async () => {
-    if (!selectedOrderForVerification) return;
-
+  // Handle verification
+  const handleVerifyOrder = async (orderId, action = 'verify') => {
     try {
-      const response = await fetch(`/api/orders/${selectedOrderForVerification.id}/verify-cod/`, {
+      const response = await fetch(`/api/v1/orders/${orderId}/verify-cod/`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${localStorage.getItem('access_token')}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          action,
           notes: verificationNotes,
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to verify COD order');
+        throw new Error('Failed to verify order');
       }
 
       // Refresh orders
-      await fetchCODOrders(currentPage);
+      fetchCODOrders(currentPage);
       setShowVerificationModal(false);
-      setSelectedOrderForVerification(null);
+      setSelectedOrder(null);
       setVerificationNotes('');
-      showNotification('COD order verified successfully', 'success');
-      onRefresh();
     } catch (err) {
-      console.error('Error verifying COD order:', err);
-      showNotification('Failed to verify COD order', 'error');
+      console.error('Error verifying order:', err);
+      setError('Failed to verify order');
     }
   };
 
   // Handle bulk verification
-  const handleBulkVerification = async () => {
-    if (selectedOrders.length === 0) {
-      showNotification('Please select orders to verify', 'warning');
-      return;
-    }
-
-    setBulkVerifying(true);
-    let successCount = 0;
-    let errorCount = 0;
+  const handleBulkVerification = async (action) => {
+    if (selectedOrders.length === 0) return;
 
     try {
-      for (const orderId of selectedOrders) {
-        try {
-          await fetch(`/api/orders/${orderId}/verify-cod/`, {
+      await Promise.all(
+        selectedOrders.map(orderId =>
+          fetch(`/api/v1/orders/${orderId}/verify-cod/`, {
             method: 'POST',
             headers: {
               Authorization: `Bearer ${localStorage.getItem('access_token')}`,
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-              notes: 'Bulk verification by admin',
-            }),
-          });
-          successCount++;
-        } catch (err) {
-          errorCount++;
-        }
-      }
+            body: JSON.stringify({ action }),
+          })
+        )
+      );
 
-      if (successCount > 0) {
-        showNotification(`Successfully verified ${successCount} orders`, 'success');
-      }
-      if (errorCount > 0) {
-        showNotification(`Failed to verify ${errorCount} orders`, 'error');
-      }
-
-      // Refresh and clear selection
+      fetchCODOrders(currentPage);
       setSelectedOrders([]);
-      await fetchCODOrders(currentPage);
-      onRefresh();
-    } finally {
-      setBulkVerifying(false);
+    } catch (err) {
+      console.error('Error with bulk verification:', err);
+      setError('Failed to perform bulk action');
     }
   };
 
+  // Export COD orders
+  const handleExport = async () => {
+    try {
+      const params = new URLSearchParams(filters);
+      const response = await fetch(`/api/v1/orders/export/?is_cod=true&${params}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+        },
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `cod_orders_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }
+    } catch (err) {
+      console.error('Export error:', err);
+    }
+  };
+
+  // Get verification status badge
+  const getVerificationStatusBadge = (status) => {
+    const statusConfig = {
+      pending: { color: 'bg-yellow-100 text-yellow-800', icon: Clock },
+      verified: { color: 'bg-green-100 text-green-800', icon: CheckCircle },
+      rejected: { color: 'bg-red-100 text-red-800', icon: XCircle },
+      delivered_paid: { color: 'bg-blue-100 text-blue-800', icon: Package },
+    };
+
+    const config = statusConfig[status] || statusConfig.pending;
+    const Icon = config.icon;
+
+    return (
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.color}`}>
+        <Icon className="w-3 h-3 mr-1" />
+        {status.replace('_', ' ').toUpperCase()}
+      </span>
+    );
+  };
+
   // Format currency
-  const formatCurrency = amount => {
+  const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-UG', {
       style: 'currency',
       currency: 'UGX',
@@ -262,508 +226,458 @@ const CODOrders = ({ onRefresh, onViewOrder }) => {
     }).format(amount);
   };
 
-  // Format date
-  const formatDate = dateString => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleString('en-UG', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  // Get verification status display
-  const getVerificationStatusDisplay = order => {
-    if (!order.cod_verification) {
-      return { status: 'pending', label: 'Pending Verification', class: 'pending' };
-    }
-
-    const status = order.cod_verification.verification_status;
-    switch (status) {
-      case 'verified':
-        return { status, label: '✅ Verified', class: 'verified' };
-      case 'delivered_paid':
-        return { status, label: '💰 Delivered & Paid', class: 'completed' };
-      case 'rejected':
-        return { status, label: '❌ Rejected', class: 'rejected' };
-      default:
-        return { status, label: '⏳ Pending', class: 'pending' };
-    }
-  };
-
   if (loading && codOrders.length === 0) {
     return (
-      <div className="cod-orders">
-        <div className="cod-orders__loading">
-          <div className="loading-spinner" />
-          <p>Loading COD orders...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error && codOrders.length === 0) {
-    return (
-      <div className="cod-orders">
-        <div className="cod-orders__error">
-          <div className="error-icon">⚠️</div>
-          <h3>Failed to Load COD Orders</h3>
-          <p>{error}</p>
-          <button className="btn btn-primary" onClick={() => fetchCODOrders()}>
-            Try Again
-          </button>
-        </div>
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <span className="ml-3 text-gray-600">Loading COD orders...</span>
       </div>
     );
   }
 
   return (
-    <div className="cod-orders">
-      {/* COD Statistics */}
-      <div className="cod-stats">
-        <div className="stat-card total">
-          <div className="stat-icon">💰</div>
-          <div className="stat-content">
-            <h3>{codStats.total}</h3>
-            <p>Total COD Orders</p>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Cash on Delivery Orders</h2>
+          <p className="text-gray-600">Manage and verify COD orders</p>
+        </div>
+        <div className="flex space-x-3">
+          <button
+            onClick={handleExport}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export
+          </button>
+          <button
+            onClick={() => fetchCODOrders(currentPage)}
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700"
+          >
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <Clock className="h-6 w-6 text-yellow-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Pending Verification</dt>
+                  <dd className="text-lg font-medium text-gray-900">{stats.pending}</dd>
+                </dl>
+              </div>
+            </div>
           </div>
         </div>
-        <div className="stat-card pending">
-          <div className="stat-icon">⏳</div>
-          <div className="stat-content">
-            <h3>{codStats.pending_verification}</h3>
-            <p>Pending Verification</p>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <CheckCircle className="h-6 w-6 text-green-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Verified</dt>
+                  <dd className="text-lg font-medium text-gray-900">{stats.verified}</dd>
+                </dl>
+              </div>
+            </div>
           </div>
         </div>
-        <div className="stat-card verified">
-          <div className="stat-icon">✅</div>
-          <div className="stat-content">
-            <h3>{codStats.verified}</h3>
-            <p>Verified</p>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <Package className="h-6 w-6 text-blue-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Delivered & Paid</dt>
+                  <dd className="text-lg font-medium text-gray-900">{stats.delivered_paid}</dd>
+                </dl>
+              </div>
+            </div>
           </div>
         </div>
-        <div className="stat-card completed">
-          <div className="stat-icon">🎉</div>
-          <div className="stat-content">
-            <h3>{codStats.delivered_paid}</h3>
-            <p>Delivered & Paid</p>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <XCircle className="h-6 w-6 text-red-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Rejected</dt>
+                  <dd className="text-lg font-medium text-gray-900">{stats.rejected}</dd>
+                </dl>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* COD Filters */}
-      <div className="cod-filters">
-        <div className="filter-row">
-          <div className="filter-group">
-            <label>Search COD Orders</label>
+      {/* Filters */}
+      <div className="bg-white shadow rounded-lg p-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <input
+                type="text"
+                placeholder="Search orders..."
+                value={filters.search}
+                onChange={(e) => handleFilterChange('search', e.target.value)}
+                className="pl-10 w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Verification Status</label>
+            <select
+              value={filters.verification_status}
+              onChange={(e) => handleFilterChange('verification_status', e.target.value)}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="verified">Verified</option>
+              <option value="rejected">Rejected</option>
+              <option value="delivered_paid">Delivered & Paid</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Date From</label>
             <input
-              type="text"
-              placeholder="Search by order #, customer name, or phone..."
-              value={searchTerm}
-              onChange={e => handleFilterChange('search', e.target.value)}
-              className="search-input"
+              type="date"
+              value={filters.date_from}
+              onChange={(e) => handleFilterChange('date_from', e.target.value)}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
-          <div className="filter-group">
-            <label>Verification Status</label>
-            <select
-              value={verificationFilter}
-              onChange={e => handleFilterChange('verification', e.target.value)}
-              className="filter-select"
-            >
-              <option value="">All Verification Status</option>
-              <option value="pending">⏳ Pending Verification</option>
-              <option value="verified">✅ Verified</option>
-              <option value="delivered_paid">💰 Delivered & Paid</option>
-              <option value="rejected">❌ Rejected</option>
-            </select>
-          </div>
-
-          <div className="filter-group">
-            <label>Order Status</label>
-            <select
-              value={statusFilter}
-              onChange={e => handleFilterChange('status', e.target.value)}
-              className="filter-select"
-            >
-              <option value="">All Order Status</option>
-              <option value="pending">Pending</option>
-              <option value="confirmed">Confirmed</option>
-              <option value="processing">Processing</option>
-              <option value="out_for_delivery">Out for Delivery</option>
-              <option value="delivered">Delivered</option>
-            </select>
-          </div>
-
-          <div className="filter-group">
-            <button
-              className="btn btn-secondary"
-              onClick={() => fetchCODOrders(currentPage)}
-              disabled={loading}
-            >
-              {loading ? 'Refreshing...' : '🔄 Refresh'}
-            </button>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Date To</label>
+            <input
+              type="date"
+              value={filters.date_to}
+              onChange={(e) => handleFilterChange('date_to', e.target.value)}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+            />
           </div>
         </div>
       </div>
 
       {/* Bulk Actions */}
       {selectedOrders.length > 0 && (
-        <div className="bulk-actions">
-          <div className="bulk-info">
-            <span>{selectedOrders.length} order(s) selected</span>
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-blue-800">
+              {selectedOrders.length} order(s) selected
+            </span>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => handleBulkVerification('verify')}
+                className="px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700"
+              >
+                Verify Selected
+              </button>
+              <button
+                onClick={() => handleBulkVerification('reject')}
+                className="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700"
+              >
+                Reject Selected
+              </button>
+              <button
+                onClick={() => setSelectedOrders([])}
+                className="px-3 py-1.5 bg-gray-600 text-white text-xs font-medium rounded hover:bg-gray-700"
+              >
+                Clear Selection
+              </button>
+            </div>
           </div>
-          <div className="bulk-buttons">
+        </div>
+      )}
+
+      {/* Error Display */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+          <div className="flex">
+            <AlertTriangle className="h-5 w-5 text-red-400" />
+            <div className="ml-3">
+              <p className="text-sm text-red-800">{error}</p>
+            </div>
             <button
-              className="btn btn-success"
-              onClick={handleBulkVerification}
-              disabled={bulkVerifying}
+              onClick={() => setError(null)}
+              className="ml-auto text-red-400 hover:text-red-600"
             >
-              {bulkVerifying ? 'Verifying...' : '✅ Bulk Verify'}
-            </button>
-            <button className="btn btn-secondary" onClick={() => setSelectedOrders([])}>
-              Clear Selection
+              <XCircle className="h-5 w-5" />
             </button>
           </div>
         </div>
       )}
 
-      {/* COD Orders Table */}
-      <div className="cod-table-container">
-        <table className="cod-table">
-          <thead>
-            <tr>
-              <th className="checkbox-column">
-                <input
-                  type="checkbox"
-                  checked={selectedOrders.length === codOrders.length && codOrders.length > 0}
-                  onChange={e => handleSelectAll(e.target.checked)}
-                />
-              </th>
-              <th>Order #</th>
-              <th>Customer</th>
-              <th>Phone</th>
-              <th>Amount</th>
-              <th>Order Status</th>
-              <th>Verification Status</th>
-              <th>Order Date</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {codOrders.length === 0 ? (
-              <tr className="empty-row">
-                <td colSpan="9">
-                  <div className="empty-state">
-                    <div className="empty-icon">💰</div>
-                    <h3>No COD Orders Found</h3>
-                    <p>No cash on delivery orders match your current filters.</p>
-                  </div>
-                </td>
+      {/* Orders Table */}
+      <div className="bg-white shadow rounded-lg overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              checked={selectedOrders.length === codOrders.length && codOrders.length > 0}
+              onChange={handleSelectAll}
+              className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+            />
+            <span className="ml-3 text-sm font-medium text-gray-900">
+              {codOrders.length} COD Orders
+            </span>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Order
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Customer
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Amount
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Verification
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Date
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
               </tr>
-            ) : (
-              codOrders.map(order => {
-                const verificationStatus = getVerificationStatusDisplay(order);
-                return (
-                  <tr
-                    key={order.id}
-                    className={`cod-row ${selectedOrders.includes(order.id) ? 'selected' : ''}`}
-                  >
-                    <td onClick={e => e.stopPropagation()}>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {codOrders.map((order) => (
+                <tr
+                  key={order.id}
+                  className={`hover:bg-gray-50 ${selectedOrders.includes(order.id) ? 'bg-blue-50' : ''}`}
+                >
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
                       <input
                         type="checkbox"
                         checked={selectedOrders.includes(order.id)}
-                        onChange={e => handleOrderSelect(order.id, e.target.checked)}
+                        onChange={() => handleOrderSelect(order.id)}
+                        className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                       />
-                    </td>
-
-                    <td className="order-number">
-                      <span className="order-number-text">{order.order_number}</span>
-                    </td>
-
-                    <td className="customer-info">
-                      <div className="customer-details">
-                        <div className="customer-name">{order.customer_name}</div>
-                        <div className="customer-email">{order.email}</div>
+                      <div className="ml-3">
+                        <div className="text-sm font-medium text-gray-900">
+                          #{order.order_number}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {order.items?.length || 0} items
+                        </div>
                       </div>
-                    </td>
-
-                    <td className="phone">
-                      <span className="phone-number">{order.phone}</span>
-                    </td>
-
-                    <td className="amount">
-                      <span className="amount-value">{formatCurrency(order.total_amount)}</span>
-                    </td>
-
-                    <td className="order-status">
-                      <OrderStatus status={order.status} />
-                    </td>
-
-                    <td className="verification-status">
-                      <span className={`verification-badge ${verificationStatus.class}`}>
-                        {verificationStatus.label}
-                      </span>
-                    </td>
-
-                    <td className="order-date">
-                      <span className="date-text">{formatDate(order.created_at)}</span>
-                    </td>
-
-                    <td className="actions" onClick={e => e.stopPropagation()}>
-                      <div className="action-buttons">
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">
+                      {order.first_name} {order.last_name}
+                    </div>
+                    <div className="text-sm text-gray-500 flex items-center">
+                      <Phone className="w-3 h-3 mr-1" />
+                      {order.phone}
+                    </div>
+                    <div className="text-xs text-gray-500 flex items-center">
+                      <MapPin className="w-3 h-3 mr-1" />
+                      {order.city}, {order.district}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">
+                      {formatCurrency(order.total_amount)}
+                    </div>
+                    <div className="text-xs text-gray-500 flex items-center">
+                      <DollarSign className="w-3 h-3 mr-1" />
+                      Cash on Delivery
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      order.status === 'delivered' 
+                        ? 'bg-green-100 text-green-800'
+                        : order.status === 'confirmed'
+                        ? 'bg-blue-100 text-blue-800'
+                        : order.status === 'cancelled'
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {order.status?.replace('_', ' ').toUpperCase()}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {getVerificationStatusBadge(
+                      order.cod_verification?.verification_status || 'pending'
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {new Date(order.created_at).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <div className="flex items-center justify-end space-x-2">
+                      <button
+                        onClick={() => onViewOrder && onViewOrder(order)}
+                        className="text-blue-600 hover:text-blue-900"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      {(!order.cod_verification?.verification_status || 
+                        order.cod_verification.verification_status === 'pending') && (
                         <button
-                          className="action-btn view"
-                          onClick={() => onViewOrder(order)}
-                          title="View Details"
+                          onClick={() => {
+                            setSelectedOrder(order);
+                            setShowVerificationModal(true);
+                          }}
+                          className="text-green-600 hover:text-green-900"
                         >
-                          👁️
+                          <CheckCircle className="w-4 h-4" />
                         </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-                        {verificationStatus.status === 'pending' && (
-                          <button
-                            className="action-btn verify"
-                            onClick={() => handleVerifyOrder(order)}
-                            title="Verify COD Order"
-                          >
-                            ✅
-                          </button>
-                        )}
-
-                        {order.status === 'pending' && (
-                          <button
-                            className="action-btn confirm"
-                            onClick={async () => {
-                              try {
-                                await fetch(`/api/orders/${order.id}/confirm/`, {
-                                  method: 'POST',
-                                  headers: {
-                                    Authorization: `Bearer ${localStorage.getItem('access_token')}`,
-                                  },
-                                });
-                                fetchCODOrders(currentPage);
-                                onRefresh();
-                                showNotification('Order confirmed', 'success');
-                              } catch (err) {
-                                showNotification('Failed to confirm order', 'error');
-                              }
-                            }}
-                            title="Confirm Order"
-                          >
-                            📋
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200">
+            <div className="flex-1 flex justify-between sm:hidden">
+              <button
+                onClick={() => fetchCODOrders(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => fetchCODOrders(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages}
+                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-gray-700">
+                  Page <span className="font-medium">{currentPage}</span> of{' '}
+                  <span className="font-medium">{totalPages}</span>
+                </p>
+              </div>
+              <div>
+                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                  <button
+                    onClick={() => fetchCODOrders(Math.max(1, currentPage - 1))}
+                    disabled={currentPage === 1}
+                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => fetchCODOrders(Math.min(totalPages, currentPage + 1))}
+                    disabled={currentPage === totalPages}
+                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </nav>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="cod-pagination">
-          <div className="pagination-info">
-            <span>
-              Page {currentPage} of {totalPages}
-            </span>
-          </div>
-
-          <div className="pagination-controls">
-            <button
-              className="pagination-btn"
-              onClick={() => fetchCODOrders(currentPage - 1)}
-              disabled={currentPage === 1}
-            >
-              ⏪ Previous
-            </button>
-
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-              const page = Math.max(1, currentPage - 2) + i;
-              if (page > totalPages) return null;
-
-              return (
-                <button
-                  key={page}
-                  className={`page-btn ${page === currentPage ? 'active' : ''}`}
-                  onClick={() => fetchCODOrders(page)}
-                >
-                  {page}
-                </button>
-              );
-            })}
-
-            <button
-              className="pagination-btn"
-              onClick={() => fetchCODOrders(currentPage + 1)}
-              disabled={currentPage === totalPages}
-            >
-              Next ⏩
-            </button>
-          </div>
+      {/* Empty State */}
+      {codOrders.length === 0 && !loading && (
+        <div className="text-center py-12">
+          <Package className="mx-auto h-12 w-12 text-gray-400" />
+          <h3 className="mt-2 text-sm font-medium text-gray-900">No COD orders</h3>
+          <p className="mt-1 text-sm text-gray-500">
+            No cash on delivery orders found for the current filters.
+          </p>
         </div>
       )}
 
       {/* Verification Modal */}
-      {showVerificationModal && selectedOrderForVerification && (
-        <div className="verification-modal">
-          <div className="modal-overlay" onClick={() => setShowVerificationModal(false)} />
-          <div className="modal-content">
-            <div className="modal-header">
-              <h3>Verify COD Order</h3>
-              <button className="btn btn-close" onClick={() => setShowVerificationModal(false)}>
-                ✕
-              </button>
-            </div>
-
-            <div className="modal-body">
-              <div className="order-summary">
-                <h4>Order Details</h4>
-                <div className="summary-grid">
-                  <div className="summary-item">
-                    <label>Order Number:</label>
-                    <span>{selectedOrderForVerification.order_number}</span>
-                  </div>
-                  <div className="summary-item">
-                    <label>Customer:</label>
-                    <span>{selectedOrderForVerification.customer_name}</span>
-                  </div>
-                  <div className="summary-item">
-                    <label>Phone:</label>
-                    <span>{selectedOrderForVerification.phone}</span>
-                  </div>
-                  <div className="summary-item">
-                    <label>Amount:</label>
-                    <span>{formatCurrency(selectedOrderForVerification.total_amount)}</span>
-                  </div>
-                </div>
+      {showVerificationModal && selectedOrder && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Verify COD Order #{selectedOrder.order_number}
+              </h3>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Verification Notes
+                </label>
+                <textarea
+                  value={verificationNotes}
+                  onChange={(e) => setVerificationNotes(e.target.value)}
+                  placeholder="Add verification notes (optional)"
+                  rows={3}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                />
               </div>
 
-              <div className="verification-form">
-                <div className="form-group">
-                  <label>Verification Notes:</label>
-                  <textarea
-                    value={verificationNotes}
-                    onChange={e => setVerificationNotes(e.target.value)}
-                    placeholder="Add any notes about the verification process..."
-                    rows="4"
-                    className="verification-textarea"
-                  />
-                </div>
-
-                <div className="verification-checklist">
-                  <h5>Verification Checklist:</h5>
-                  <div className="checklist-items">
-                    <div className="checklist-item">
-                      <input type="checkbox" id="phone-verified" />
-                      <label htmlFor="phone-verified">Customer phone number verified</label>
-                    </div>
-                    <div className="checklist-item">
-                      <input type="checkbox" id="address-confirmed" />
-                      <label htmlFor="address-confirmed">Delivery address confirmed</label>
-                    </div>
-                    <div className="checklist-item">
-                      <input type="checkbox" id="payment-confirmed" />
-                      <label htmlFor="payment-confirmed">Payment method confirmed</label>
-                    </div>
-                  </div>
-                </div>
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowVerificationModal(false);
+                    setSelectedOrder(null);
+                    setVerificationNotes('');
+                  }}
+                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleVerifyOrder(selectedOrder.id, 'reject')}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                >
+                  Reject
+                </button>
+                <button
+                  onClick={() => handleVerifyOrder(selectedOrder.id, 'verify')}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                >
+                  Verify
+                </button>
               </div>
-            </div>
-
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowVerificationModal(false)}>
-                Cancel
-              </button>
-              <button className="btn btn-success" onClick={handleConfirmVerification}>
-                ✅ Verify Order
-              </button>
             </div>
           </div>
         </div>
       )}
-
-      {/* Quick Actions Panel */}
-      <div className="cod-quick-actions">
-        <h4>Quick Actions</h4>
-        <div className="quick-actions-grid">
-          <button
-            className="quick-action-btn pending"
-            onClick={() => handleFilterChange('verification', 'pending')}
-          >
-            <span className="icon">⏳</span>
-            <span>Pending Verification</span>
-            <span className="count">{codStats.pending_verification}</span>
-          </button>
-          <button
-            className="quick-action-btn verified"
-            onClick={() => handleFilterChange('verification', 'verified')}
-          >
-            <span className="icon">✅</span>
-            <span>Verified Orders</span>
-            <span className="count">{codStats.verified}</span>
-          </button>
-          <button
-            className="quick-action-btn completed"
-            onClick={() => handleFilterChange('verification', 'delivered_paid')}
-          >
-            <span className="icon">💰</span>
-            <span>Delivered & Paid</span>
-            <span className="count">{codStats.delivered_paid}</span>
-          </button>
-        </div>
-      </div>
-
-      {/* COD Instructions */}
-      <div className="cod-instructions">
-        <h4>COD Order Management Instructions</h4>
-        <div className="instructions-content">
-          <div className="instruction-step">
-            <div className="step-number">1</div>
-            <div className="step-content">
-              <h5>Review Order Details</h5>
-              <p>
-                Check customer information, delivery address, and order items before verification.
-              </p>
-            </div>
-          </div>
-          <div className="instruction-step">
-            <div className="step-number">2</div>
-            <div className="step-content">
-              <h5>Verify Customer Contact</h5>
-              <p>
-                Call the customer to confirm the order and verify their phone number and delivery
-                address.
-              </p>
-            </div>
-          </div>
-          <div className="instruction-step">
-            <div className="step-number">3</div>
-            <div className="step-content">
-              <h5>Mark as Verified</h5>
-              <p>
-                Once verified, mark the order as verified to proceed with processing and delivery.
-              </p>
-            </div>
-          </div>
-          <div className="instruction-step">
-            <div className="step-number">4</div>
-            <div className="step-content">
-              <h5>Track Delivery</h5>
-              <p>
-                Monitor the delivery process and mark as "Delivered & Paid" once payment is
-                collected.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

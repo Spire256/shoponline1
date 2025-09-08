@@ -1,16 +1,31 @@
 // src/components/admin/Orders/OrderTable.js
 
 import React, { useState } from 'react';
-import OrderStatus from './OrderStatus';
-import { useNotifications } from '../../../hooks/useNotifications';
+import { 
+  Eye, 
+  Edit, 
+  Check, 
+  Truck, 
+  Clock, 
+  DollarSign, 
+  MapPin,
+  Phone,
+  Mail,
+  Package,
+  ChevronLeft,
+  ChevronRight,
+  Filter,
+  Download
+} from 'lucide-react';
+import './OrderManagement.css';
 
 const OrderTable = ({
-  orders,
-  loading,
-  error,
-  selectedOrders,
-  currentPage,
-  totalPages,
+  orders = [],
+  loading = false,
+  error = null,
+  selectedOrders = [],
+  currentPage = 1,
+  totalPages = 0,
   onOrderSelect,
   onSelectAll,
   onViewOrder,
@@ -18,97 +33,105 @@ const OrderTable = ({
   onConfirmOrder,
   onMarkDelivered,
   onPageChange,
-  onRefresh,
+  onRefresh
 }) => {
-  const { showNotification } = useNotifications();
-  const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'desc' });
+  const [sortField, setSortField] = useState('created_at');
+  const [sortOrder, setSortOrder] = useState('desc');
+  const [filterStatus, setFilterStatus] = useState('');
 
-  // Format currency
-  const formatCurrency = amount => {
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
+
+  const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-UG', {
       style: 'currency',
       currency: 'UGX',
       minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(amount);
   };
 
-  // Format date
-  const formatDate = dateString => {
-    return new Date(dateString).toLocaleString('en-UG', {
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-UG', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit',
+      minute: '2-digit'
     });
   };
 
-  // Handle sort
-  const handleSort = key => {
-    let direction = 'asc';
-    if (sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc';
-    }
-    setSortConfig({ key, direction });
+  const getStatusColor = (status) => {
+    const colors = {
+      pending: 'status-warning',
+      confirmed: 'status-info',
+      processing: 'status-info',
+      out_for_delivery: 'status-warning',
+      delivered: 'status-success',
+      cancelled: 'status-danger',
+      refunded: 'status-secondary'
+    };
+    return colors[status] || 'status-secondary';
   };
 
-  // Handle quick status update
-  const handleQuickStatusUpdate = async (orderId, newStatus, event) => {
-    event.stopPropagation();
-    try {
-      await onStatusUpdate(orderId, newStatus);
-    } catch (err) {
-      showNotification('Failed to update order status', 'error');
-    }
+  const getPaymentMethodColor = (method) => {
+    const colors = {
+      mtn_momo: 'payment-mtn',
+      airtel_money: 'payment-airtel',
+      cash_on_delivery: 'payment-cod'
+    };
+    return colors[method] || 'payment-default';
   };
 
-  // Handle quick actions
-  const handleQuickAction = async (orderId, action, event) => {
-    event.stopPropagation();
+  const getStatusActions = (order) => {
+    const actions = [];
 
-    switch (action) {
-      case 'confirm':
-        await onConfirmOrder(orderId);
-        break;
-      case 'deliver':
-        await onMarkDelivered(orderId);
-        break;
-      case 'view':
-        const order = orders.find(o => o.id === orderId);
-        onViewOrder(order);
-        break;
-      default:
-        break;
+    if (order.status === 'pending') {
+      actions.push({
+        label: 'Confirm',
+        icon: Check,
+        action: () => onConfirmOrder(order.id),
+        className: 'btn-success btn-sm'
+      });
     }
+
+    if (['confirmed', 'processing', 'out_for_delivery'].includes(order.status)) {
+      actions.push({
+        label: 'Mark Delivered',
+        icon: Truck,
+        action: () => onMarkDelivered(order.id),
+        className: 'btn-info btn-sm'
+      });
+    }
+
+    return actions;
   };
 
-  // Generate pagination
-  const generatePagination = () => {
-    const pages = [];
-    const maxVisible = 5;
-
-    let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
-    const endPage = Math.min(totalPages, startPage + maxVisible - 1);
-
-    if (endPage - startPage + 1 < maxVisible) {
-      startPage = Math.max(1, endPage - maxVisible + 1);
-    }
-
-    for (let i = startPage; i <= endPage; i++) {
-      pages.push(i);
-    }
-
-    return pages;
-  };
+  if (loading && orders.length === 0) {
+    return (
+      <div className="table-container">
+        <div className="table-loading">
+          <div className="loading-spinner" />
+          <p>Loading orders...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (error) {
     return (
-      <div className="order-table-error">
-        <div className="error-content">
+      <div className="table-container">
+        <div className="table-error">
           <div className="error-icon">⚠️</div>
           <h3>Error Loading Orders</h3>
           <p>{error}</p>
-          <button className="btn btn-primary" onClick={onRefresh}>
+          <button onClick={onRefresh} className="btn btn-primary">
             Try Again
           </button>
         </div>
@@ -117,249 +140,262 @@ const OrderTable = ({
   }
 
   return (
-    <div className="order-table-container">
-      {/* Table Actions */}
-      <div className="table-actions">
-        <div className="actions-left">
-          <span className="results-info">
-            Showing {orders.length} of {(currentPage - 1) * 20 + orders.length} orders
-          </span>
+    <div className="table-container">
+      {/* Table Header */}
+      <div className="table-header">
+        <div className="table-title">
+          <h3>Orders ({orders.length})</h3>
+          {selectedOrders.length > 0 && (
+            <span className="selection-count">
+              {selectedOrders.length} selected
+            </span>
+          )}
         </div>
-        <div className="actions-right">
-          <button className="btn btn-outline" onClick={onRefresh} disabled={loading}>
-            {loading ? '🔄 Refreshing...' : '🔄 Refresh'}
+        
+        <div className="table-actions">
+          <div className="table-filters">
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="filter-select"
+            >
+              <option value="">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="processing">Processing</option>
+              <option value="out_for_delivery">Out for Delivery</option>
+              <option value="delivered">Delivered</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+
+          <button onClick={onRefresh} className="btn btn-outline" disabled={loading}>
+            🔄 Refresh
+          </button>
+
+          <button className="btn btn-secondary">
+            <Download size={16} />
+            Export
           </button>
         </div>
       </div>
 
-      {/* Orders Table */}
-      <div className="order-table-wrapper">
-        <table className="order-table">
+      {/* Table */}
+      <div className="table-wrapper">
+        <table className="orders-table">
           <thead>
             <tr>
               <th className="checkbox-column">
                 <input
                   type="checkbox"
                   checked={selectedOrders.length === orders.length && orders.length > 0}
-                  onChange={e => onSelectAll(e.target.checked)}
+                  onChange={onSelectAll}
                 />
               </th>
-              <th
-                className={`sortable ${
-                  sortConfig.key === 'order_number' ? sortConfig.direction : ''
-                }`}
+              <th 
+                className="sortable"
                 onClick={() => handleSort('order_number')}
               >
-                Order #
-                <span className="sort-indicator">
-                  {sortConfig.key === 'order_number' &&
-                    (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                </span>
+                Order ID
+                {sortField === 'order_number' && (
+                  <span className={`sort-indicator ${sortOrder}`}>
+                    {sortOrder === 'asc' ? '↑' : '↓'}
+                  </span>
+                )}
               </th>
-              <th
-                className={`sortable ${
-                  sortConfig.key === 'customer_name' ? sortConfig.direction : ''
-                }`}
-                onClick={() => handleSort('customer_name')}
-              >
-                Customer
-                <span className="sort-indicator">
-                  {sortConfig.key === 'customer_name' &&
-                    (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                </span>
-              </th>
-              <th>Contact</th>
-              <th
-                className={`sortable ${
-                  sortConfig.key === 'total_amount' ? sortConfig.direction : ''
-                }`}
+              <th>Customer</th>
+              <th>Items</th>
+              <th 
+                className="sortable"
                 onClick={() => handleSort('total_amount')}
               >
                 Amount
-                <span className="sort-indicator">
-                  {sortConfig.key === 'total_amount' &&
-                    (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                </span>
+                {sortField === 'total_amount' && (
+                  <span className={`sort-indicator ${sortOrder}`}>
+                    {sortOrder === 'asc' ? '↑' : '↓'}
+                  </span>
+                )}
               </th>
-              <th>Payment</th>
               <th>Status</th>
-              <th>Items</th>
-              <th
-                className={`sortable ${
-                  sortConfig.key === 'created_at' ? sortConfig.direction : ''
-                }`}
+              <th>Payment</th>
+              <th 
+                className="sortable"
                 onClick={() => handleSort('created_at')}
               >
                 Date
-                <span className="sort-indicator">
-                  {sortConfig.key === 'created_at' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                </span>
+                {sortField === 'created_at' && (
+                  <span className={`sort-indicator ${sortOrder}`}>
+                    {sortOrder === 'asc' ? '↑' : '↓'}
+                  </span>
+                )}
               </th>
-              <th className="actions-column">Actions</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {loading ? (
-              // Loading rows
-              Array.from({ length: 5 }).map((_, index) => (
-                <tr key={`loading-${index}`} className="loading-row">
-                  <td>
-                    <div className="skeleton checkbox-skeleton" />
-                  </td>
-                  <td>
-                    <div className="skeleton text-skeleton" />
-                  </td>
-                  <td>
-                    <div className="skeleton text-skeleton" />
-                  </td>
-                  <td>
-                    <div className="skeleton text-skeleton" />
-                  </td>
-                  <td>
-                    <div className="skeleton text-skeleton" />
-                  </td>
-                  <td>
-                    <div className="skeleton badge-skeleton" />
-                  </td>
-                  <td>
-                    <div className="skeleton badge-skeleton" />
-                  </td>
-                  <td>
-                    <div className="skeleton text-skeleton" />
-                  </td>
-                  <td>
-                    <div className="skeleton text-skeleton" />
-                  </td>
-                  <td>
-                    <div className="skeleton actions-skeleton" />
-                  </td>
-                </tr>
-              ))
-            ) : orders.length === 0 ? (
-              <tr className="empty-row">
-                <td colSpan="10">
-                  <div className="empty-state">
-                    <div className="empty-icon">📦</div>
+            {orders.length === 0 ? (
+              <tr>
+                <td colSpan="9" className="empty-state">
+                  <div className="empty-content">
+                    <Package size={48} />
                     <h3>No Orders Found</h3>
-                    <p>No orders match your current filters.</p>
+                    <p>No orders match your current filters</p>
                   </div>
                 </td>
               </tr>
             ) : (
               orders.map(order => (
-                <tr
-                  key={order.id}
+                <tr 
+                  key={order.id} 
                   className={`order-row ${selectedOrders.includes(order.id) ? 'selected' : ''}`}
-                  onClick={() => onViewOrder(order)}
                 >
-                  <td onClick={e => e.stopPropagation()}>
+                  {/* Checkbox */}
+                  <td>
                     <input
                       type="checkbox"
                       checked={selectedOrders.includes(order.id)}
-                      onChange={e => onOrderSelect(order.id, e.target.checked)}
+                      onChange={() => onOrderSelect(order.id, !selectedOrders.includes(order.id))}
                     />
                   </td>
 
-                  <td className="order-number">
-                    <span className="order-number-text">{order.order_number}</span>
-                  </td>
-
-                  <td className="customer-info">
-                    <div className="customer-name">{order.customer_name}</div>
-                  </td>
-
-                  <td className="contact-info">
-                    <div className="contact-details">
-                      <div className="email">{order.email}</div>
-                      <div className="phone">{order.phone}</div>
+                  {/* Order Number */}
+                  <td>
+                    <div className="order-id">
+                      <span className="order-number">{order.order_number}</span>
+                      {order.is_cash_on_delivery && (
+                        <span className="cod-badge">COD</span>
+                      )}
                     </div>
                   </td>
 
-                  <td className="amount">
-                    <span className="amount-value">{formatCurrency(order.total_amount)}</span>
+                  {/* Customer */}
+                  <td>
+                    <div className="customer-info">
+                      <div className="customer-name">
+                        {order.first_name} {order.last_name}
+                      </div>
+                      <div className="customer-contact">
+                        <span className="email">
+                          <Mail size={12} />
+                          {order.email}
+                        </span>
+                        <span className="phone">
+                          <Phone size={12} />
+                          {order.phone}
+                        </span>
+                      </div>
+                    </div>
                   </td>
 
-                  <td className="payment-method">
-                    <div className="payment-info">
-                      <span className={`payment-badge ${order.payment_method}`}>
-                        {order.payment_method_display}
+                  {/* Items */}
+                  <td>
+                    <div className="order-items">
+                      <span className="items-count">
+                        {order.items?.length || 0} item{(order.items?.length || 0) !== 1 ? 's' : ''}
                       </span>
-                      {order.is_cash_on_delivery && (
-                        <span
-                          className={`cod-status ${order.cod_verified ? 'verified' : 'pending'}`}
-                        >
-                          {order.cod_verified ? '✅' : '⏳'}
+                      {order.has_flash_sale_items && (
+                        <span className="flash-sale-indicator">⚡ Flash Sale</span>
+                      )}
+                    </div>
+                  </td>
+
+                  {/* Amount */}
+                  <td>
+                    <div className="order-amount">
+                      <span className="total-amount">
+                        {formatCurrency(order.total_amount)}
+                      </span>
+                      {order.flash_sale_savings > 0 && (
+                        <span className="savings">
+                          Saved: {formatCurrency(order.flash_sale_savings)}
                         </span>
                       )}
                     </div>
                   </td>
 
-                  <td className="status">
-                    <OrderStatus status={order.status} />
+                  {/* Status */}
+                  <td>
+                    <span className={`status-badge ${getStatusColor(order.status)}`}>
+                      {order.status.replace('_', ' ').toUpperCase()}
+                    </span>
                   </td>
 
-                  <td className="items-count">
-                    <span className="items-badge">{order.items_count} items</span>
+                  {/* Payment */}
+                  <td>
+                    <div className="payment-info">
+                      <span className={`payment-method ${getPaymentMethodColor(order.payment_method)}`}>
+                        {order.payment_method === 'mtn_momo' && (
+                          <>
+                            <DollarSign size={12} />
+                            MTN MoMo
+                          </>
+                        )}
+                        {order.payment_method === 'airtel_money' && (
+                          <>
+                            <DollarSign size={12} />
+                            Airtel Money
+                          </>
+                        )}
+                        {order.payment_method === 'cash_on_delivery' && (
+                          <>
+                            <DollarSign size={12} />
+                            Cash on Delivery
+                          </>
+                        )}
+                      </span>
+                      <span className={`payment-status status-${order.payment_status}`}>
+                        {order.payment_status}
+                      </span>
+                    </div>
                   </td>
 
-                  <td className="order-date">
-                    <span className="date-text">{formatDate(order.created_at)}</span>
+                  {/* Date */}
+                  <td>
+                    <div className="order-date">
+                      <span className="date-primary">
+                        {formatDate(order.created_at)}
+                      </span>
+                      <span className="location">
+                        <MapPin size={12} />
+                        {order.city}, {order.district}
+                      </span>
+                    </div>
                   </td>
 
-                  <td className="actions" onClick={e => e.stopPropagation()}>
+                  {/* Actions */}
+                  <td>
                     <div className="action-buttons">
                       <button
-                        className="action-btn view"
-                        onClick={e => handleQuickAction(order.id, 'view', e)}
-                        title="View Details"
+                        onClick={() => onViewOrder(order)}
+                        className="btn btn-outline btn-sm"
+                        title="View Order"
                       >
-                        👁️
+                        <Eye size={14} />
                       </button>
 
-                      {order.status === 'pending' && (
+                      {getStatusActions(order).map((action, index) => (
                         <button
-                          className="action-btn confirm"
-                          onClick={e => handleQuickAction(order.id, 'confirm', e)}
-                          title="Confirm Order"
+                          key={index}
+                          onClick={action.action}
+                          className={action.className}
+                          title={action.label}
                         >
-                          ✅
+                          <action.icon size={14} />
                         </button>
-                      )}
+                      ))}
 
-                      {['confirmed', 'processing', 'out_for_delivery'].includes(order.status) && (
-                        <button
-                          className="action-btn deliver"
-                          onClick={e => handleQuickAction(order.id, 'deliver', e)}
-                          title="Mark as Delivered"
-                        >
-                          🚚
-                        </button>
-                      )}
-
-                      {/* Status dropdown for quick updates */}
                       <select
+                        value={order.status}
+                        onChange={(e) => onStatusUpdate(order.id, { status: e.target.value })}
                         className="status-select"
-                        value=""
-                        onChange={e => {
-                          if (e.target.value) {
-                            handleQuickStatusUpdate(order.id, e.target.value, e);
-                            e.target.value = '';
-                          }
-                        }}
-                        onClick={e => e.stopPropagation()}
+                        title="Change Status"
                       >
-                        <option value="">Change Status</option>
-                        {order.status !== 'confirmed' && <option value="confirmed">Confirm</option>}
-                        {order.status !== 'processing' && (
-                          <option value="processing">Processing</option>
-                        )}
-                        {order.status !== 'out_for_delivery' && (
-                          <option value="out_for_delivery">Out for Delivery</option>
-                        )}
-                        {order.status !== 'delivered' && (
-                          <option value="delivered">Delivered</option>
-                        )}
-                        {order.can_be_cancelled && <option value="cancelled">Cancel</option>}
+                        <option value="pending">Pending</option>
+                        <option value="confirmed">Confirmed</option>
+                        <option value="processing">Processing</option>
+                        <option value="out_for_delivery">Out for Delivery</option>
+                        <option value="delivered">Delivered</option>
+                        <option value="cancelled">Cancelled</option>
                       </select>
                     </div>
                   </td>
@@ -374,87 +410,55 @@ const OrderTable = ({
       {totalPages > 1 && (
         <div className="table-pagination">
           <div className="pagination-info">
-            <span>
-              Page {currentPage} of {totalPages}
-            </span>
+            Page {currentPage} of {totalPages}
           </div>
-
+          
           <div className="pagination-controls">
             <button
-              className="pagination-btn"
-              onClick={() => onPageChange(1)}
-              disabled={currentPage === 1}
-            >
-              ⏮️ First
-            </button>
-
-            <button
-              className="pagination-btn"
               onClick={() => onPageChange(currentPage - 1)}
               disabled={currentPage === 1}
+              className="btn btn-outline btn-sm"
             >
-              ⏪ Previous
+              <ChevronLeft size={16} />
+              Previous
             </button>
-
+            
             <div className="page-numbers">
-              {generatePagination().map(page => (
-                <button
-                  key={page}
-                  className={`page-btn ${page === currentPage ? 'active' : ''}`}
-                  onClick={() => onPageChange(page)}
-                >
-                  {page}
-                </button>
-              ))}
+              {[...Array(Math.min(5, totalPages))].map((_, index) => {
+                const page = Math.max(1, currentPage - 2) + index;
+                if (page <= totalPages) {
+                  return (
+                    <button
+                      key={page}
+                      onClick={() => onPageChange(page)}
+                      className={`btn ${currentPage === page ? 'btn-primary' : 'btn-outline'} btn-sm`}
+                    >
+                      {page}
+                    </button>
+                  );
+                }
+                return null;
+              })}
             </div>
-
+            
             <button
-              className="pagination-btn"
               onClick={() => onPageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
+              className="btn btn-outline btn-sm"
             >
-              Next ⏩
-            </button>
-
-            <button
-              className="pagination-btn"
-              onClick={() => onPageChange(totalPages)}
-              disabled={currentPage === totalPages}
-            >
-              Last ⏭️
+              Next
+              <ChevronRight size={16} />
             </button>
           </div>
         </div>
       )}
 
-      {/* Table Footer Summary */}
-      <div className="table-footer">
-        <div className="footer-stats">
-          <span className="stat">
-            <strong>{orders.length}</strong> orders shown
-          </span>
-          {orders.length > 0 && (
-            <>
-              <span className="stat">
-                Total Value:{' '}
-                <strong>
-                  {formatCurrency(
-                    orders.reduce((sum, order) => sum + parseFloat(order.total_amount), 0)
-                  )}
-                </strong>
-              </span>
-              <span className="stat">
-                COD Orders:{' '}
-                <strong>{orders.filter(order => order.is_cash_on_delivery).length}</strong>
-              </span>
-              <span className="stat">
-                Pending:{' '}
-                <strong>{orders.filter(order => order.status === 'pending').length}</strong>
-              </span>
-            </>
-          )}
+      {/* Loading Overlay */}
+      {loading && orders.length > 0 && (
+        <div className="table-loading-overlay">
+          <div className="loading-spinner" />
         </div>
-      </div>
+      )}
     </div>
   );
 };

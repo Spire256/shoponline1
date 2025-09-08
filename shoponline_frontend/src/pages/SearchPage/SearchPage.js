@@ -1,279 +1,202 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Filter, Grid, List, SortAsc, SortDesc } from 'lucide-react';
-import SearchFilters from './SearchFilters';
+import { useLocation } from 'react-router-dom';
+import Header from '../../components/common/Header/Header';
 import SearchResults from './SearchResults';
 import './SearchPage.css';
 
 const SearchPage = () => {
-  // State management
-  const [searchQuery, setSearchQuery] = useState('');
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [totalResults, setTotalResults] = useState(0);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const location = useLocation();
 
-  // Filter states
-  const [filters, setFilters] = useState({
-    category: '',
-    min_price: '',
-    max_price: '',
-    brand: '',
-    material: '',
-    color: '',
-    size: '',
-    condition: '',
-    rating_min: '',
-    in_stock: false,
-    on_sale: false,
-    is_featured: false,
+  // Initialize with completely safe defaults
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState({
+    results: [],
+    count: 0,
+    query: '',
+    filters: {}
   });
 
-  // UI states
-  const [showFilters, setShowFilters] = useState(false);
-  const [viewMode, setViewMode] = useState('grid');
-  const [sortBy, setSortBy] = useState('-created_at');
+  // Extract search query from URL parameters with maximum safety
+  useEffect(() => {
+    try {
+      if (!location || !location.search) {
+        return;
+      }
+      
+      const urlParams = new URLSearchParams(location.search);
+      const queryFromUrl = urlParams.get('q');
+      
+      // Convert to string safely
+      const safeQuery = queryFromUrl === null ? '' : String(queryFromUrl);
+      
+      if (safeQuery !== searchQuery) {
+        setSearchQuery(safeQuery);
+      }
+    } catch (error) {
+      console.warn('Error parsing URL search params:', error);
+      setSearchQuery('');
+    }
+  }, [location?.search, searchQuery]);
 
-  // Search API call
-  const performSearch = useCallback(
-    async (query, currentFilters, page = 1, sort = sortBy) => {
-      if (!query.trim()) {
-        setProducts([]);
-        setTotalResults(0);
+  // Handle search query change from Header
+  const handleSearchQueryChange = useCallback((newQuery) => {
+    try {
+      // Ensure we always have a string
+      const query = newQuery === null || newQuery === undefined ? '' : String(newQuery);
+      setSearchQuery(query);
+
+      // Update URL when search query changes
+      if (query && query.trim()) {
+        const newUrl = `/search?q=${encodeURIComponent(query)}`;
+        if (window.history && window.history.replaceState) {
+          const currentUrl = `${location?.pathname || ''}${location?.search || ''}`;
+          if (currentUrl !== newUrl) {
+            window.history.replaceState({}, '', newUrl);
+          }
+        }
+      } else {
+        // Clear URL params when search is empty
+        if (window.history && window.history.replaceState) {
+          window.history.replaceState({}, '', '/search');
+        }
+      }
+    } catch (error) {
+      console.warn('Error in handleSearchQueryChange:', error);
+      // Fallback to just setting the query
+      setSearchQuery(newQuery === null || newQuery === undefined ? '' : String(newQuery));
+    }
+  }, [location]);
+
+  // Handle results change from SearchResults component
+  const handleResultsChange = useCallback((resultsData) => {
+    try {
+      // Completely safe result processing
+      if (!resultsData || typeof resultsData !== 'object') {
+        setSearchResults({
+          results: [],
+          count: 0,
+          query: '',
+          filters: {}
+        });
         return;
       }
 
-      setLoading(true);
-      setError(null);
+      const safeResults = {
+        results: [],
+        count: 0,
+        query: '',
+        filters: {}
+      };
 
-      try {
-        const params = new URLSearchParams();
-        params.append('q', query);
-        params.append('page', page.toString());
-        params.append('ordering', sort);
-
-        // Add filters to params
-        Object.entries(currentFilters).forEach(([key, value]) => {
-          if (value && value !== '') {
-            if (typeof value === 'boolean') {
-              if (value) params.append(key, 'true');
-            } else {
-              params.append(key, value.toString());
-            }
+      // Process results array
+      if (resultsData.results) {
+        if (Array.isArray(resultsData.results)) {
+          safeResults.results = resultsData.results;
+        } else if (resultsData.results && typeof resultsData.results === 'object' && resultsData.results.length !== null && resultsData.results.length !== undefined) {
+          // Handle array-like objects
+          try {
+            safeResults.results = Array.from(resultsData.results);
+          } catch {
+            safeResults.results = [];
           }
-        });
-
-        const response = await fetch(`/api/products/search/?${params.toString()}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
         }
-
-        const data = await response.json();
-
-        setProducts(data.results || []);
-        setTotalResults(data.count || 0);
-        setTotalPages(Math.ceil((data.count || 0) / 12));
-        setCurrentPage(page);
-      } catch (err) {
-        console.error('Search error:', err);
-        setError('Failed to search products. Please try again.');
-        setProducts([]);
-        setTotalResults(0);
-      } finally {
-        setLoading(false);
       }
-    },
-    [sortBy]
-  );
 
-  // Handle search input change
-  const handleSearchChange = e => {
-    setSearchQuery(e.target.value);
-  };
+      // Process count
+      if (typeof resultsData.count === 'number' && !isNaN(resultsData.count)) {
+        safeResults.count = Math.max(0, resultsData.count);
+      }
 
-  // Handle search submit
-  const handleSearchSubmit = e => {
-    e.preventDefault();
-    setCurrentPage(1);
-    performSearch(searchQuery, filters, 1, sortBy);
-  };
+      // Process query
+      if (typeof resultsData.query === 'string') {
+        safeResults.query = resultsData.query;
+      }
 
-  // Handle filter changes
-  const handleFiltersChange = newFilters => {
-    setFilters(newFilters);
-    setCurrentPage(1);
-    performSearch(searchQuery, newFilters, 1, sortBy);
-  };
+      // Process filters
+      if (resultsData.filters && typeof resultsData.filters === 'object' && !Array.isArray(resultsData.filters)) {
+        safeResults.filters = resultsData.filters;
+      }
 
-  // Handle sort change
-  const handleSortChange = newSort => {
-    setSortBy(newSort);
-    performSearch(searchQuery, filters, currentPage, newSort);
-  };
-
-  // Handle pagination
-  const handlePageChange = page => {
-    if (page >= 1 && page <= totalPages) {
-      performSearch(searchQuery, filters, page, sortBy);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setSearchResults(safeResults);
+    } catch (error) {
+      console.warn('Error in handleResultsChange:', error);
+      setSearchResults({
+        results: [],
+        count: 0,
+        query: '',
+        filters: {}
+      });
     }
-  };
-
-  // Clear all filters
-  const clearFilters = () => {
-    const clearedFilters = {
-      category: '',
-      min_price: '',
-      max_price: '',
-      brand: '',
-      material: '',
-      color: '',
-      size: '',
-      condition: '',
-      rating_min: '',
-      in_stock: false,
-      on_sale: false,
-      is_featured: false,
-    };
-    setFilters(clearedFilters);
-    setCurrentPage(1);
-    performSearch(searchQuery, clearedFilters, 1, sortBy);
-  };
-
-  // Initial search on component mount
-  useEffect(() => {
-    // You can set initial search query here if needed
-    // For now, we'll leave it empty until user searches
   }, []);
 
-  // Sort options
-  const sortOptions = [
-    { value: '-created_at', label: 'Newest First' },
-    { value: 'created_at', label: 'Oldest First' },
-    { value: 'name', label: 'Name A-Z' },
-    { value: '-name', label: 'Name Z-A' },
-    { value: 'price', label: 'Price Low to High' },
-    { value: '-price', label: 'Price High to Low' },
-    { value: '-rating_average', label: 'Highest Rated' },
-    { value: '-view_count', label: 'Most Popular' },
-  ];
+  // Get initial filters from URL parameters
+  const getInitialFilters = useCallback(() => {
+    const defaultFilters = {};
+    
+    try {
+      if (!location || !location.search) {
+        return defaultFilters;
+      }
+
+      const urlParams = new URLSearchParams(location.search);
+      const filterKeys = [
+        'category', 'price_min', 'price_max', 'brand', 'color', 'size', 
+        'condition', 'material', 'rating_min', 'in_stock', 'on_sale', 'is_featured'
+      ];
+
+      filterKeys.forEach(key => {
+        try {
+          const value = urlParams.get(key);
+          if (value !== null && value !== '') {
+            if (key === 'in_stock' || key === 'on_sale' || key === 'is_featured') {
+              defaultFilters[key] = value === 'true';
+            } else if (key === 'price_min' || key === 'price_max' || key === 'rating_min') {
+              const numValue = parseFloat(value);
+              if (!isNaN(numValue) && isFinite(numValue)) {
+                defaultFilters[key] = numValue;
+              }
+            } else {
+              defaultFilters[key] = String(value);
+            }
+          }
+        } catch (filterError) {
+          console.warn(`Error parsing filter ${key}:`, filterError);
+        }
+      });
+    } catch (error) {
+      console.warn('Error getting initial filters:', error);
+    }
+
+    return defaultFilters;
+  }, [location]);
+
+  // Ensure searchQuery is always a string
+  const safeSearchQuery = searchQuery === null || searchQuery === undefined ? '' : String(searchQuery);
 
   return (
     <div className="search-page">
-      {/* Search Header */}
-      <div className="search-header">
-        <div className="container">
-          <div className="search-form-container">
-            <div className="search-form">
-              <div className="search-input-group">
-                <Search className="search-icon" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={handleSearchChange}
-                  placeholder="Search for products..."
-                  className="search-input"
-                  onKeyDown={e => e.key === 'Enter' && handleSearchSubmit(e)}
-                />
-                <button type="button" onClick={handleSearchSubmit} className="search-btn">
-                  Search
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
+      <Header
+        searchQuery={safeSearchQuery}
+        onSearchQueryChange={handleSearchQueryChange}
+        hideSearchOnSearchPage={false}
+      />
       <div className="container">
         <div className="search-content">
-          {/* Results Header */}
-          {searchQuery && (
-            <div className="search-results-header">
-              <div className="results-info">
-                <h1 className="results-title">Search Results for "{searchQuery}"</h1>
-                {!loading && (
-                  <p className="results-count">
-                    {totalResults} {totalResults === 1 ? 'product' : 'products'} found
-                  </p>
-                )}
-              </div>
-
-              <div className="search-controls">
-                {/* Filter Toggle */}
-                <button
-                  onClick={() => setShowFilters(!showFilters)}
-                  className={`filter-toggle ${showFilters ? 'active' : ''}`}
-                >
-                  <Filter size={18} />
-                  Filters
-                </button>
-
-                {/* View Mode Toggle */}
-                <div className="view-mode-toggle">
-                  <button
-                    onClick={() => setViewMode('grid')}
-                    className={`view-btn ${viewMode === 'grid' ? 'active' : ''}`}
-                  >
-                    <Grid size={18} />
-                  </button>
-                  <button
-                    onClick={() => setViewMode('list')}
-                    className={`view-btn ${viewMode === 'list' ? 'active' : ''}`}
-                  >
-                    <List size={18} />
-                  </button>
-                </div>
-
-                {/* Sort Dropdown */}
-                <div className="sort-dropdown">
-                  <select
-                    value={sortBy}
-                    onChange={e => handleSortChange(e.target.value)}
-                    className="sort-select"
-                  >
-                    {sortOptions.map(option => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+          {!safeSearchQuery && (
+            <div className="search-welcome">
+              <h1 className="welcome-title">Search Products</h1>
+              <p className="welcome-message">
+                Use the search bar above to find products, categories, and more.
+              </p>
             </div>
           )}
-
-          <div className="search-body">
-            {/* Filters Sidebar */}
-            <SearchFilters
-              filters={filters}
-              onFiltersChange={handleFiltersChange}
-              onClearFilters={clearFilters}
-              visible={showFilters}
-              loading={loading}
-            />
-
-            {/* Search Results */}
-            <div className={`search-results ${showFilters ? 'with-filters' : 'full-width'}`}>
-              <SearchResults
-                products={products}
-                loading={loading}
-                error={error}
-                searchQuery={searchQuery}
-                viewMode={viewMode}
-                currentPage={currentPage}
-                totalPages={totalPages}
-                totalResults={totalResults}
-                onPageChange={handlePageChange}
-              />
-            </div>
-          </div>
+          <SearchResults
+            searchQuery={safeSearchQuery}
+            initialFilters={getInitialFilters()}
+            onResultsChange={handleResultsChange}
+            showHeader={Boolean(safeSearchQuery)}
+            showFilters={true}
+          />
         </div>
       </div>
     </div>

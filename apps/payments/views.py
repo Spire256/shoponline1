@@ -46,6 +46,10 @@ class PaymentCreateView(generics.CreateAPIView):
             payment_data = serializer.validated_data
             payment_data['user'] = request.user
             
+            # Extract amount from order - THIS FIXES THE ERROR
+            order = payment_data['order']
+            payment_data['amount'] = order.total_amount
+            
             # Get the appropriate payment service
             payment_method = payment_data['payment_method']
             service = self._get_payment_service(payment_method)

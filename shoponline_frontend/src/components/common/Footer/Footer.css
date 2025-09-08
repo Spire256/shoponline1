@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 .footer {
-  background-color: #1e40af; /* Dark Blue */
+  background-color: #3b82f6; /* Dark Blue */
   color: #f8fafc; /* Light Background for text */
 }
 
@@ -23,7 +23,7 @@
 
 .footer button {
   background-color: #2563eb; /* Primary Blue */
-}
+}    
 
 .footer button:hover {
   background-color: #3b82f6; /* Light Blue */
