@@ -170,13 +170,37 @@ class PaymentCreateSerializer(serializers.Serializer):
     delivery_phone = serializers.CharField(required=False, allow_blank=True)
     delivery_notes = serializers.CharField(required=False, allow_blank=True)
     
+    def validate_order_id(self, value):
+        """Validate order exists and belongs to the current user"""
+        if hasattr(self, 'context') and 'request' in self.context:
+            user = self.context['request'].user
+            try:
+                order = Order.objects.get(id=value, user=user)
+                return value
+            except Order.DoesNotExist:
+                raise serializers.ValidationError("Order not found or doesn't belong to you")
+        
+        # Fallback validation if context is not available
+        try:
+            Order.objects.get(id=value)
+            return value
+        except Order.DoesNotExist:
+            raise serializers.ValidationError("Order not found")
+    
     def validate(self, data):
         """Validate payment creation data"""
         payment_method = data['payment_method']
         
-        # Validate order exists and belongs to user
+        # Validate order exists and set it in data
         try:
             order = Order.objects.get(id=data['order_id'])
+            
+            # Check if user owns the order (if context is available)
+            if hasattr(self, 'context') and 'request' in self.context:
+                user = self.context['request'].user
+                if order.user != user:
+                    raise serializers.ValidationError("Order doesn't belong to you")
+            
             data['order'] = order
         except Order.DoesNotExist:
             raise serializers.ValidationError("Order not found")
@@ -185,7 +209,7 @@ class PaymentCreateSerializer(serializers.Serializer):
         if order.payments.filter(status=PaymentStatus.COMPLETED).exists():
             raise serializers.ValidationError("Order has already been paid")
         
-        # Validate amount constraints based on payment method configuration
+        # Validate payment method configuration and amount constraints
         try:
             config = PaymentMethodConfig.objects.get(payment_method=payment_method)
             if not config.is_active:

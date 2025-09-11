@@ -17,12 +17,12 @@ class MTNMoMoService(BasePaymentService):
     def __init__(self):
         super().__init__()
         self.base_url = getattr(settings, 'MTN_MOMO_BASE_URL', 'https://sandbox.momodeveloper.mtn.com')
-        self.subscription_key = getattr(settings, 'MTN_MOMO_SUBSCRIPTION_KEY', '878d5c3421094497b460207379326a53')
+        self.subscription_key = getattr(settings, 'MTN_MOMO_SUBSCRIPTION_KEY', '464d259493434c8991d7dc06c1d7a533')
         self.secondary_key = getattr(settings, 'MTN_MOMO_SECONDARY_KEY', '91735b447b134358828f0b8b1d260c5c')
-        self.reference_id = getattr(settings, 'MTN_MOMO_REFERENCE_ID', '')
-        self.api_key = getattr(settings, 'MTN_MOMO_API_KEY', '')
+        self.reference_id = getattr(settings, 'MTN_MOMO_REFERENCE_ID', 'e47a5f32-bb2d-490c-ad5b-475b1ec2e819')
+        self.api_key = getattr(settings, 'MTN_MOMO_API_KEY', '70ce2e463cf94af9bbecd7c1d05e63fd')
         self.target_environment = getattr(settings, 'MTN_MOMO_TARGET_ENVIRONMENT', 'sandbox')
-        self.callback_url = getattr(settings, 'MTN_MOMO_CALLBACK_URL', '')
+        self.callback_url = getattr(settings, 'MTN_MOMO_CALLBACK_URL', 'https://webhook.site/ced741d6-0265-4fa7-93bc-4f342a015424')
         
         # API endpoints
         self.endpoints = {
@@ -34,6 +34,39 @@ class MTNMoMoService(BasePaymentService):
             'account_balance': '/collection/v1_0/account/balance',
             'account_status': '/collection/v1_0/accountholder/msisdn/{phone}/active'
         }
+    
+    def _serialize_for_json(self, data):
+        """
+        Recursively convert non-JSON serializable objects for JSON serialization
+        
+        Args:
+            data: Data structure that may contain UUIDs, Django models, etc.
+            
+        Returns:
+            Data structure with non-serializable objects converted
+        """
+        from django.db import models
+        from datetime import datetime, date
+        
+        if isinstance(data, dict):
+            return {key: self._serialize_for_json(value) for key, value in data.items()}
+        elif isinstance(data, list):
+            return [self._serialize_for_json(item) for item in data]
+        elif isinstance(data, uuid.UUID):
+            return str(data)
+        elif isinstance(data, Decimal):
+            return float(data)
+        elif isinstance(data, (datetime, date)):
+            return data.isoformat()
+        elif isinstance(data, models.Model):
+            # For Django model instances, return their string representation or ID
+            return {
+                'id': str(data.pk) if data.pk else None,
+                'model': data.__class__.__name__,
+                'str': str(data)
+            }
+        else:
+            return data
     
     def _ensure_api_user_setup(self):
         """
@@ -167,12 +200,15 @@ class MTNMoMoService(BasePaymentService):
                 expires_at=timezone.now() + timezone.timedelta(minutes=15)  # 15 min expiry
             )
             
+            # Serialize payment_data to ensure UUIDs are converted to strings
+            serialized_payment_data = self._serialize_for_json(payment_data)
+            
             # Create mobile money details
             mobile_money = MobileMoneyPayment.objects.create(
                 payment=payment,
                 phone_number=payment_data['phone_number'],
                 customer_name=payment_data.get('customer_name', ''),
-                request_payload=payment_data
+                request_payload=serialized_payment_data
             )
             
             # Process with MTN API
@@ -181,7 +217,7 @@ class MTNMoMoService(BasePaymentService):
             if result['success']:
                 # Update mobile money details with provider response
                 mobile_money.provider_request_id = result['reference_id']
-                mobile_money.response_payload = result['response']
+                mobile_money.response_payload = self._serialize_for_json(result['response'])
                 mobile_money.save()
                 
                 # Update payment status
@@ -196,7 +232,7 @@ class MTNMoMoService(BasePaymentService):
                 self.log_payment_activity(
                     payment=payment,
                     activity="MTN MoMo payment initiated",
-                    details={'reference_id': result['reference_id']}
+                    details=self._serialize_for_json({'reference_id': result['reference_id']})
                 )
                 
                 return {
@@ -344,7 +380,7 @@ class MTNMoMoService(BasePaymentService):
             # Update mobile money details
             mobile_money.provider_status = provider_status
             mobile_money.provider_transaction_id = status_data.get('financialTransactionId', '')
-            mobile_money.response_payload.update(status_data)
+            mobile_money.response_payload.update(self._serialize_for_json(status_data))
             mobile_money.save()
             
             # Map MTN status to our payment status
@@ -457,7 +493,7 @@ class MTNMoMoService(BasePaymentService):
             # Update callback information
             mobile_money.callback_received = True
             mobile_money.callback_at = timezone.now()
-            mobile_money.callback_payload = payload
+            mobile_money.callback_payload = self._serialize_for_json(payload)
             mobile_money.save()
             
             # Verify payment status

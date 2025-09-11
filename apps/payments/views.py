@@ -38,8 +38,13 @@ class PaymentCreateView(generics.CreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
     
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        logger.info(f"Payment creation request from user {request.user.email}: {request.data}")
+        
+        serializer = self.get_serializer(data=request.data, context={'request': request})
+        
+        if not serializer.is_valid():
+            logger.error(f"Payment creation validation failed for user {request.user.email}: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
         try:
             # Get validated data
@@ -50,6 +55,8 @@ class PaymentCreateView(generics.CreateAPIView):
             order = payment_data['order']
             payment_data['amount'] = order.total_amount
             
+            logger.info(f"Processing payment for order {order.order_number}, amount: {order.total_amount}, method: {payment_data['payment_method']}")
+            
             # Get the appropriate payment service
             payment_method = payment_data['payment_method']
             service = self._get_payment_service(payment_method)
@@ -58,12 +65,14 @@ class PaymentCreateView(generics.CreateAPIView):
             result = service.process_payment(payment_data)
             
             if result['success']:
+                logger.info(f"Payment processed successfully for order {order.order_number}")
                 return Response(result, status=status.HTTP_201_CREATED)
             else:
+                logger.error(f"Payment processing failed for order {order.order_number}: {result.get('error', 'Unknown error')}")
                 return Response(result, status=status.HTTP_400_BAD_REQUEST)
                 
         except Exception as e:
-            logger.error(f"Error creating payment: {str(e)}")
+            logger.error(f"Error creating payment for user {request.user.email}: {str(e)}", exc_info=True)
             return Response(
                 {'error': 'Payment creation failed', 'details': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR

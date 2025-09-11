@@ -338,10 +338,10 @@ if USE_S3:
 MTN_MOMO_BASE_URL = get_env_variable('MTN_MOMO_BASE_URL', 'https://sandbox.momodeveloper.mtn.com')
 MTN_MOMO_SUBSCRIPTION_KEY = get_env_variable('MTN_MOMO_SUBSCRIPTION_KEY', '464d259493434c8991d7dc06c1d7a533')
 MTN_MOMO_SECONDARY_KEY = get_env_variable('MTN_MOMO_SECONDARY_KEY', '91735b447b134358828f0b8b1d260c5c')
-MTN_MOMO_REFERENCE_ID = get_env_variable('MTN_MOMO_REFERENCE_ID', '')
-MTN_MOMO_API_KEY = get_env_variable('MTN_MOMO_API_KEY', '')
+MTN_MOMO_REFERENCE_ID = get_env_variable('MTN_MOMO_REFERENCE_ID', 'e47a5f32-bb2d-490c-ad5b-475b1ec2e819')
+MTN_MOMO_API_KEY = get_env_variable('MTN_MOMO_API_KEY', '70ce2e463cf94af9bbecd7c1d05e63fd')
 MTN_MOMO_TARGET_ENVIRONMENT = get_env_variable('MTN_MOMO_TARGET_ENVIRONMENT', 'sandbox')
-MTN_MOMO_CALLBACK_URL = get_env_variable('MTN_MOMO_CALLBACK_URL', 'http://localhost:8000/api/v1/payments/mtn/webhook/')
+MTN_MOMO_CALLBACK_URL = get_env_variable('MTN_MOMO_CALLBACK_URL', 'https://webhook.site/ced741d6-0265-4fa7-93bc-4f342a015424')
 
 # Airtel Money API Configuration
 AIRTEL_MONEY_CLIENT_ID = get_env_variable('AIRTEL_MONEY_CLIENT_ID', '')
@@ -386,11 +386,12 @@ LOGGING = {
     'handlers': {
         'file': {
             'level': 'INFO',
-            'class': 'logging.handlers.RotatingFileHandler',
+            'class': 'concurrent_log_handler.ConcurrentRotatingFileHandler',
             'filename': BASE_DIR / 'logs' / 'django.log',
             'maxBytes': 1024*1024*15,  # 15MB
             'backupCount': 10,
             'formatter': 'verbose',
+            'encoding': 'utf-8',
         },
         'console': {
             'level': 'INFO',  
