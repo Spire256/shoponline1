@@ -18,36 +18,17 @@ import {
   Grid3X3,
   Heart,
   Package,
-  Zap
+  Zap,
+  HelpCircle,
+  Mail
 } from 'lucide-react';
 import PropTypes from 'prop-types';
 
 // Import the logo image
 import logoImage from '../../../assets/images/logo/logo-blue.svg.jpg';
 
-// Import page components
-import HomePage from '../../../pages/HomePage/HomePage';
-import CategoryPage from '../../../pages/CategoryPage/CategoryPage';
-import ProductPage from '../../../pages/ProductPage/ProductPage';
-import FlashSalesPage from '../../../pages/FlashSalesPage/FlashSalesPage';
-import CartPage from '../../../pages/CartPage/CartPage';
-import CheckoutPage from '../../../pages/CheckoutPage/CheckoutPage';
-import ProfilePage from '../../../pages/ProfilePage/ProfilePage';
-import SearchPage from '../../../pages/SearchPage/SearchPage';
-
-// Import auth pages
-import Login from '../../auth/Login/Login';
-import Register from '../../auth/Register/Register';
-
-// Import admin pages
-import AdminDashboardPage from '../../../pages/AdminPages/AdminDashboardPage';
-import ProductManagementPage from '../../../pages/AdminPages/ProductManagementPage';
-import OrderManagementPage from '../../../pages/AdminPages/OrderManagementPage';
-import FlashSalesManagementPage from '../../../pages/AdminPages/FlashSalesManagementPage';
-import HomepageManagementPage from '../../../pages/AdminPages/HomepageManagementPage';
-
-// Import contexts
-import { useAuth } from '../../../contexts/AuthContext';
+// FIXED: Import from the custom hook, not directly from context
+import { useAuth } from '../../../hooks/useAuth';
 import { useCart } from '../../../contexts/CartContext';
 import { useNotifications } from '../../../contexts/NotificationContext';
 
@@ -78,11 +59,12 @@ const isValidSearchQuery = (query) => {
 };
 
 const Header = ({ 
-  isAuthenticated = false, 
-  user = null, 
-  onLogin, 
-  onLogout, 
-  cartItems = [],
+  // Legacy props for backward compatibility - but we'll use context instead
+  isAuthenticated: propIsAuthenticated = false, 
+  user: propUser = null, 
+  onLogin: propOnLogin, 
+  onLogout: propOnLogout, 
+  cartItems: propCartItems = [],
   // New props for search coordination
   searchQuery: propSearchQuery = '',
   onSearchQueryChange = null,
@@ -91,13 +73,20 @@ const Header = ({
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Context hooks
+  // FIXED: Use the enhanced useAuth hook properly
   const { 
-    user: contextUser, 
-    isAuthenticated: contextIsAuth, 
-    logout: contextLogout,
-    isLoading: authLoading 
+    user,
+    isAuthenticated,
+    isLoading: authLoading,
+    isAdmin,
+    isClient,
+    canAccessAdmin,
+    logout: logoutUser,
+    getUserDisplayName,
+    validateSession,
+    ensureValidToken
   } = useAuth();
+  
   const { 
     cartItems: contextCartItems, 
     getCartCount, 
@@ -105,31 +94,14 @@ const Header = ({
   } = useCart();
   const { addNotification } = useNotifications();
 
-  // Page component references for potential dynamic loading
-  const pageComponents = {
-    home: HomePage,
-    categories: CategoryPage,
-    products: ProductPage,
-    flashSales: FlashSalesPage,
-    cart: CartPage,
-    checkout: CheckoutPage,
-    profile: ProfilePage,
-    search: SearchPage,
-    login: Login,
-    register: Register,
-    admin: {
-      dashboard: AdminDashboardPage,
-      products: ProductManagementPage,
-      orders: OrderManagementPage,
-      flashSales: FlashSalesManagementPage,
-      homepage: HomepageManagementPage,
-    }
-  };
-
-  // Use context data if available, otherwise fall back to props
-  const currentUser = contextUser || user;
-  const currentIsAuth = contextIsAuth !== undefined ? contextIsAuth : isAuthenticated;
-  const currentCartItems = contextCartItems || cartItems;
+  // Use context data (preferred) or fall back to props for backward compatibility
+  const currentUser = user || propUser;
+  const currentIsAuth = isAuthenticated !== undefined ? isAuthenticated : propIsAuthenticated;
+  const currentCartItems = contextCartItems || propCartItems;
+  
+  // FIXED: Use the auth hook's admin detection instead of custom logic
+  const isAdminUser = canAccessAdmin();
+  const isClientUser = isClient();
   
   // State management
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -147,6 +119,76 @@ const Header = ({
 
   // Check if we're on the search page
   const isSearchPage = location.pathname === '/search' || location.pathname.startsWith('/search');
+  
+  // Check if we're on help or contact pages
+  const isHelpPage = location.pathname === '/help' || location.pathname.startsWith('/help');
+  const isContactPage = location.pathname === '/contact' || location.pathname.startsWith('/contact');
+
+  // FIXED: Add session validation on component mount and route changes
+  useEffect(() => {
+    const validateCurrentSession = async () => {
+      if (currentIsAuth && currentUser) {
+        try {
+          const result = await validateSession();
+          if (!result.valid) {
+            console.warn('Session validation failed:', result.error);
+            // Don't show notification for expired sessions, just let the auth system handle it
+          }
+        } catch (error) {
+          console.error('Session validation error:', error);
+        }
+      }
+    };
+
+    validateCurrentSession();
+  }, [location.pathname, currentIsAuth, currentUser, validateSession]);
+
+  // FIXED: Add token refresh on admin route access
+  useEffect(() => {
+    const checkAdminAccess = async () => {
+      const isAdminRoute = location.pathname.startsWith('/admin');
+      
+      if (isAdminRoute && currentIsAuth) {
+        try {
+          // Ensure we have a valid token before accessing admin routes
+          const tokenResult = await ensureValidToken();
+          if (!tokenResult.success) {
+            console.warn('Token validation failed for admin route');
+            addNotification({
+              type: 'warning',
+              message: 'Please log in again to access admin features'
+            });
+            navigate(PUBLIC_ROUTES.LOGIN, { 
+              state: { from: location.pathname },
+              replace: true 
+            });
+            return;
+          }
+
+          // Double-check admin permissions
+          if (!canAccessAdmin()) {
+            addNotification({
+              type: 'error',
+              message: 'Admin access required'
+            });
+            navigate(PUBLIC_ROUTES.HOME, { replace: true });
+          }
+        } catch (error) {
+          console.error('Admin access check failed:', error);
+          addNotification({
+            type: 'error',
+            message: 'Authentication error. Please log in again.'
+          });
+          navigate(PUBLIC_ROUTES.LOGIN, { 
+            state: { from: location.pathname },
+            replace: true 
+          });
+        }
+      }
+    };
+
+    checkAdminAccess();
+  }, [location.pathname, currentIsAuth, canAccessAdmin, ensureValidToken, navigate, addNotification]);
 
   // Update local search query when prop changes
   useEffect(() => {
@@ -189,7 +231,7 @@ const Header = ({
       setSearchLoading(true);
       searchTimeoutRef.current = setTimeout(() => {
         try {
-          // Mock search suggestions since searchService doesn't exist
+          // Mock search suggestions - enhanced to include help content
           const mockSuggestions = [
             {
               id: 1,
@@ -206,6 +248,31 @@ const Header = ({
               slug: 'categories-containing'
             }
           ];
+
+          // Add help suggestions if query matches help-related terms
+          const helpTerms = ['help', 'support', 'faq', 'question', 'order', 'payment', 'delivery', 'return'];
+          const contactTerms = ['contact', 'phone', 'call', 'email', 'support'];
+          
+          if (helpTerms.some(term => searchQuery.toLowerCase().includes(term))) {
+            mockSuggestions.push({
+              id: 3,
+              title: `Help articles about "${searchQuery}"`,
+              type: 'help',
+              category: 'Help Center',
+              slug: 'help-articles'
+            });
+          }
+
+          if (contactTerms.some(term => searchQuery.toLowerCase().includes(term))) {
+            mockSuggestions.push({
+              id: 4,
+              title: `Contact support for "${searchQuery}"`,
+              type: 'contact',
+              category: 'Support',
+              slug: 'contact-support'
+            });
+          }
+
           setSearchSuggestions(mockSuggestions.slice(0, 6));
           setShowSearchSuggestions(true);
         } catch (error) {
@@ -240,37 +307,6 @@ const Header = ({
     navigate(path);
   };
 
-  // Optional: Preload page component for faster navigation
-  const preloadPage = (pageName) => {
-    try {
-      const component = pageComponents[pageName];
-      if (component && typeof component.preload === 'function') {
-        component.preload();
-      }
-    } catch (error) {
-      console.warn('Page preload failed:', error);
-    }
-  };
-
-  // Enhanced navigation with preloading
-  const handleNavigationWithPreload = (path, pageName = null) => {
-    if (pageName) {
-      preloadPage(pageName);
-    }
-    handleNavigation(path);
-  };
-
-  // Quick access to page components if needed
-  const getPageComponent = (pageName) => {
-    const keys = pageName.split('.');
-    let component = pageComponents;
-    for (const key of keys) {
-      component = component[key];
-      if (!component) return null;
-    }
-    return component;
-  };
-
   const handleSearch = async (e) => {
     e.preventDefault();
     const query = searchQuery.trim();
@@ -294,19 +330,15 @@ const Header = ({
     try {
       const encodedQuery = encodeURIComponent(query.replace(/[<>]/g, ''));
       
-      // If we're already on search page and have callback, update search query
       if (isSearchPage && onSearchQueryChange) {
         onSearchQueryChange(query);
-        // Update URL
         navigate(`${PRODUCT_ROUTES.SEARCH}?q=${encodedQuery}`, { replace: true });
       } else {
-        // Navigate to search page
         navigate(`${PRODUCT_ROUTES.SEARCH}?q=${encodedQuery}`);
       }
       
       setShowSearchSuggestions(false);
       
-      // Only clear search query if we're not on search page
       if (!isSearchPage) {
         setSearchQuery('');
       }
@@ -323,7 +355,6 @@ const Header = ({
     const newQuery = e.target.value;
     setSearchQuery(newQuery);
     
-    // If we're on search page and have callback, notify parent component
     if (isSearchPage && onSearchQueryChange) {
       onSearchQueryChange(newQuery);
     }
@@ -337,6 +368,12 @@ const Header = ({
         handleNavigation(`${PRODUCT_ROUTES.CATEGORY.replace(':slug', suggestion.slug)}`);
       } else if (suggestion.type === 'flash_sale') {
         handleNavigation(`${FLASH_SALES_ROUTES.FLASH_SALES}/${suggestion.slug}`);
+      } else if (suggestion.type === 'help') {
+        // Navigate to help page with search query
+        handleNavigation(`/help?search=${encodeURIComponent(searchQuery)}`);
+      } else if (suggestion.type === 'contact') {
+        // Navigate to contact page
+        handleNavigation('/contact');
       }
     } catch (error) {
       console.error('Suggestion navigation error:', error);
@@ -351,38 +388,38 @@ const Header = ({
     setShowUserDropdown(prev => !prev);
   };
 
+  // FIXED: Enhanced auth action handler with proper auth hook integration
   const handleAuthAction = async (action) => {
     if (isLoading || authLoading) return;
     
     setIsLoading(true);
     try {
       if (action === 'login') {
-        preloadPage('login');
         handleNavigation(PUBLIC_ROUTES.LOGIN);
       } else if (action === 'register') {
-        preloadPage('register');
         handleNavigation(PUBLIC_ROUTES.REGISTER);
       } else if (action === 'logout') {
-        const logoutFunction = contextLogout || onLogout;
-        if (logoutFunction) {
-          await logoutFunction();
+        // Use the auth hook's logout method
+        const result = await logoutUser();
+        
+        if (result.success) {
           addNotification({
             type: 'success',
             message: 'Logged out successfully'
           });
+          
+          // Clear cart on logout
+          if (clearCart) {
+            clearCart();
+          }
+          
+          handleNavigation(PUBLIC_ROUTES.HOME);
         } else {
-          await authService.logout();
           addNotification({
-            type: 'success',
-            message: 'Logged out successfully'
+            type: 'error',
+            message: result.error || 'Logout failed'
           });
         }
-        // Clear cart on logout if using context
-        if (clearCart) {
-          clearCart();
-        }
-        preloadPage('home');
-        handleNavigation(PUBLIC_ROUTES.HOME);
       }
     } catch (error) {
       console.error('Auth action failed:', error);
@@ -413,7 +450,6 @@ const Header = ({
   };
 
   const handleCartClick = () => {
-    preloadPage('cart');
     handleNavigation(SHOPPING_ROUTES.CART);
   };
 
@@ -421,37 +457,65 @@ const Header = ({
   const cartCount = getCartCount ? getCartCount() : 
     currentCartItems.reduce((total, item) => total + (item.quantity || 1), 0);
 
-  // Navigation menu items with proper routes and preload hints
+  // Navigation menu items - Enhanced with better help/contact integration
   const navigationItems = [
-    { label: 'Home', path: PUBLIC_ROUTES.HOME, icon: null, preload: 'home' },
-    { label: 'Categories', path: PRODUCT_ROUTES.CATEGORY.replace('/:slug', ''), icon: Grid3X3, preload: 'categories' },
-    { label: 'All Products', path: PRODUCT_ROUTES.PRODUCTS, icon: Package, preload: 'products' },
-    { label: 'Flash Sales', path: FLASH_SALES_ROUTES.FLASH_SALES, icon: Zap, preload: 'flashSales' },
+    { label: 'Home', path: PUBLIC_ROUTES.HOME, icon: null },
+    { label: 'Categories', path: PRODUCT_ROUTES.CATEGORY.replace('/:slug', ''), icon: Grid3X3 },
+    { label: 'All Products', path: PRODUCT_ROUTES.PRODUCTS, icon: Package },
+    { label: 'Flash Sales', path: FLASH_SALES_ROUTES.FLASH_SALES, icon: Zap },
+    { label: 'Help Center', path: '/help', icon: HelpCircle }, // Direct path for help
+    { label: 'Contact Us', path: '/contact', icon: Mail }, // Direct path for contact
     { label: 'About', path: PUBLIC_ROUTES.ABOUT, icon: null },
-    { label: 'Contact', path: PUBLIC_ROUTES.CONTACT, icon: null },
   ];
 
-  // User menu items with proper routes and preload hints
-  const userMenuItems = [
-    { label: 'Profile', path: USER_ROUTES.PROFILE, icon: User, preload: 'profile' },
+  // Client user menu items
+  const clientUserMenuItems = [
+    { label: 'Profile', path: USER_ROUTES.PROFILE, icon: User },
     { label: 'My Orders', path: USER_ROUTES.ORDERS, icon: ShoppingBag },
     { label: 'Wishlist', path: SHOPPING_ROUTES.WISHLIST, icon: Heart },
+    { label: 'Help Center', path: '/help', icon: HelpCircle }, // Added help to user menu
   ];
 
-  // Admin menu items with proper routes and preload hints
-  const adminMenuItems = [
-    { label: 'Admin Dashboard', path: ADMIN_ROUTES.ADMIN_DASHBOARD, icon: Settings, preload: 'admin.dashboard' },
-    { label: 'Manage Products', path: ADMIN_ROUTES.ADMIN_PRODUCTS, icon: Package, preload: 'admin.products' },
-    { label: 'Manage Orders', path: ADMIN_ROUTES.ADMIN_ORDERS, icon: ShoppingBag, preload: 'admin.orders' },
-    { label: 'Flash Sales', path: ADMIN_ROUTES.ADMIN_FLASH_SALES, icon: Zap, preload: 'admin.flashSales' },
-    { label: 'Homepage', path: ADMIN_ROUTES.ADMIN_HOMEPAGE, icon: Grid3X3, preload: 'admin.homepage' },
+  // Admin user menu items
+  const adminUserMenuItems = [
+    { label: 'Admin Dashboard', path: ADMIN_ROUTES.ADMIN_DASHBOARD, icon: Settings },
+    { label: 'Manage Products', path: ADMIN_ROUTES.ADMIN_PRODUCTS, icon: Package },
+    { label: 'Manage Orders', path: ADMIN_ROUTES.ADMIN_ORDERS, icon: ShoppingBag },
+    { label: 'Flash Sales', path: ADMIN_ROUTES.ADMIN_FLASH_SALES, icon: Zap },
+    { label: 'Homepage', path: ADMIN_ROUTES.ADMIN_HOMEPAGE, icon: Grid3X3 },
   ];
+
+  // Get appropriate menu items based on user type
+  const getUserMenuItems = () => {
+    if (isAdminUser) {
+      return adminUserMenuItems;
+    }
+    return clientUserMenuItems;
+  };
+
+  // Get user display name using the auth hook
+  const displayName = getUserDisplayName();
 
   // Determine if search should be shown
   const shouldShowSearch = !isAdminRoute && (!isSearchPage || !hideSearchOnSearchPage);
 
+  // Debug logging (remove in production)
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Header Debug:', {
+      currentUser,
+      currentIsAuth,
+      isAdminUser,
+      isClientUser,
+      canAccessAdmin: canAccessAdmin(),
+      isAdminRoute,
+      isHelpPage,
+      isContactPage,
+      path: location.pathname
+    });
+  }
+
   return (
-    <header className={`header ${isScrolled ? 'header--scrolled' : ''} ${isAdminRoute ? 'header--admin' : ''}`}>
+    <header className={`header ${isScrolled ? 'header--scrolled' : ''} ${isAdminRoute ? 'header--admin' : ''} ${isHelpPage ? 'header--help' : ''} ${isContactPage ? 'header--contact' : ''}`}>
       {/* Top Bar */}
       {!isAdminRoute && (
         <div className="header__topbar">
@@ -467,21 +531,25 @@ const Header = ({
                 <div className="header__topbar-links">
                   <button 
                     onClick={() => handleNavigation('/help')} 
-                    className="header__topbar-link"
+                    className={`header__topbar-link ${isHelpPage ? 'active' : ''}`}
                     aria-label="Help center"
+                    aria-current={isHelpPage ? 'page' : undefined}
                     disabled={isLoading}
                   >
+                    <HelpCircle className="icon" aria-hidden="true" />
                     Help
                   </button>
                   <button 
-                    onClick={() => handleNavigation(PUBLIC_ROUTES.CONTACT)} 
-                    className="header__topbar-link"
+                    onClick={() => handleNavigation('/contact')} 
+                    className={`header__topbar-link ${isContactPage ? 'active' : ''}`}
                     aria-label="Contact us"
+                    aria-current={isContactPage ? 'page' : undefined}
                     disabled={isLoading}
                   >
+                    <Mail className="icon" aria-hidden="true" />
                     Contact
                   </button>
-                  {currentUser?.is_admin && (
+                  {isAdminUser && (
                     <button 
                       onClick={() => handleNavigation(ADMIN_ROUTES.ADMIN_DASHBOARD)} 
                       className="header__topbar-link header__topbar-link--admin"
@@ -523,7 +591,7 @@ const Header = ({
           <div className="header__main-content">
             <div className="header__logo">
               <button 
-                onClick={() => handleNavigationWithPreload(PUBLIC_ROUTES.HOME, 'home')} 
+                onClick={() => handleNavigation(PUBLIC_ROUTES.HOME)} 
                 className="header__logo-link"
                 aria-label="ShopOnline Uganda homepage"
                 disabled={isLoading}
@@ -546,7 +614,7 @@ const Header = ({
                   <form onSubmit={handleSearch} className="search-input-container">
                     <input
                       type="text"
-                      placeholder="Search for products, categories..."
+                      placeholder="Search for products, categories, help..."
                       value={searchQuery}
                       onChange={handleSearchInputChange}
                       onFocus={() => searchQuery.length > 1 && setShowSearchSuggestions(true)}
@@ -563,7 +631,7 @@ const Header = ({
                         caretColor: '#007bff'
                       }}
                       autoComplete="off"
-                      aria-label="Search products and categories"
+                      aria-label="Search products, categories, and help"
                       disabled={isLoading || searchLoading}
                     />
                     <button 
@@ -590,6 +658,7 @@ const Header = ({
                     </button>
                   </form>
                   
+                  {/* Enhanced search suggestions with help/contact integration */}
                   {showSearchSuggestions && searchSuggestions.length > 0 && !isSearchPage && (
                     <div className="search-suggestions" role="listbox" style={{
                       position: 'absolute',
@@ -604,51 +673,63 @@ const Header = ({
                       maxHeight: '300px',
                       overflowY: 'auto'
                     }}>
-                      {searchSuggestions.map(suggestion => (
-                        <button
-                          key={suggestion.id}
-                          onClick={() => handleSuggestionClick(suggestion)}
-                          className="search-suggestion-item"
-                          style={{
-                            width: '100%',
-                            padding: '12px 16px',
-                            border: 'none',
-                            backgroundColor: 'transparent',
-                            textAlign: 'left',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '12px',
-                            borderBottom: '1px solid #f0f0f0'
-                          }}
-                          role="option"
-                          aria-selected="false"
-                          aria-label={`${suggestion.title} ${suggestion.type}`}
-                          disabled={isLoading}
-                        >
-                          <div className="suggestion-icon">
-                            {suggestion.type === 'product' ? 
-                              <ShoppingBag className="icon" style={{ width: '16px', height: '16px', color: '#666' }} aria-hidden="true" /> : 
-                              suggestion.type === 'flash_sale' ?
-                              <Zap className="icon" style={{ width: '16px', height: '16px', color: '#666' }} aria-hidden="true" /> :
-                              <Grid3X3 className="icon" style={{ width: '16px', height: '16px', color: '#666' }} aria-hidden="true" />
-                            }
-                          </div>
-                          <div className="suggestion-content">
-                            <span className="suggestion-title" style={{ color: '#333', fontSize: '14px', fontWeight: '500' }}>
-                              {suggestion.title}
-                            </span>
-                            <span className="suggestion-meta" style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '2px' }}>
-                              {suggestion.type === 'product' ? 
-                                `in ${suggestion.category}` : 
-                                suggestion.type === 'flash_sale' ?
-                                `Flash Sale - ${suggestion.discount}% off` :
-                                `${suggestion.count} products`
-                              }
-                            </span>
-                          </div>
-                        </button>
-                      ))}
+                      {searchSuggestions.map(suggestion => {
+                        // Enhanced icon mapping
+                        const getIcon = (type) => {
+                          switch (type) {
+                            case 'help':
+                              return <HelpCircle className="icon" style={{ width: '16px', height: '16px', color: '#007bff' }} />;
+                            case 'contact':
+                              return <Mail className="icon" style={{ width: '16px', height: '16px', color: '#28a745' }} />;
+                            case 'product':
+                              return <ShoppingBag className="icon" style={{ width: '16px', height: '16px', color: '#666' }} />;
+                            default:
+                              return <Grid3X3 className="icon" style={{ width: '16px', height: '16px', color: '#666' }} />;
+                          }
+                        };
+
+                        return (
+                          <button
+                            key={suggestion.id}
+                            onClick={() => handleSuggestionClick(suggestion)}
+                            className="search-suggestion-item"
+                            style={{
+                              width: '100%',
+                              padding: '12px 16px',
+                              border: 'none',
+                              backgroundColor: 'transparent',
+                              textAlign: 'left',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '12px',
+                              borderBottom: '1px solid #f0f0f0'
+                            }}
+                            role="option"
+                            aria-selected="false"
+                            disabled={isLoading}
+                          >
+                            <div className="suggestion-icon">
+                              {getIcon(suggestion.type)}
+                            </div>
+                            <div className="suggestion-content">
+                              <span className="suggestion-title" style={{ color: '#333', fontSize: '14px', fontWeight: '500' }}>
+                                {suggestion.title}
+                              </span>
+                              <span className="suggestion-meta" style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '2px' }}>
+                                {suggestion.type === 'product' ? 
+                                  `in ${suggestion.category}` : 
+                                  suggestion.type === 'help' ?
+                                  'Help & Support' :
+                                  suggestion.type === 'contact' ?
+                                  'Customer Support' :
+                                  `${suggestion.count} products`
+                                }
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
 
@@ -674,7 +755,7 @@ const Header = ({
                         borderTop: '2px solid #007bff',
                         borderRadius: '50%',
                         animation: 'spin 1s linear infinite'
-                      }} aria-hidden="true"></div>
+                      }}></div>
                       <span style={{ color: '#666', fontSize: '14px' }}>Searching...</span>
                     </div>
                   )}
@@ -696,33 +777,24 @@ const Header = ({
                           disabled={isLoading}
                         >
                           <User className="icon" aria-hidden="true" />
-                          <span>
-                            {currentUser.first_name 
-                              ? `${currentUser.first_name} ${currentUser.last_name || ''}`.trim() 
-                              : currentUser.username || currentUser.email?.split('@')[0] || 'Account'
-                            }
-                          </span>
+                          <span>{displayName || 'Account'}</span>
                           <ChevronDown className={`chevron-icon ${showUserDropdown ? 'rotated' : ''}`} aria-hidden="true" />
                         </button>
                         {showUserDropdown && (
                           <div className="user-dropdown" role="menu">
                             <div className="user-dropdown-header">
                               <div className="user-info">
-                                <span className="user-name">
-                                  {currentUser.first_name 
-                                    ? `${currentUser.first_name} ${currentUser.last_name || ''}`.trim()
-                                    : currentUser.username || 'User'
-                                  }
-                                </span>
+                                <span className="user-name">{displayName}</span>
                                 <span className="user-email">{currentUser.email}</span>
-                                {currentUser.is_admin && <span className="admin-badge">Admin</span>}
+                                {isAdminUser && <span className="admin-badge">Admin</span>}
+                                {isClientUser && <span className="client-badge">Client</span>}
                               </div>
                             </div>
                             
-                            {userMenuItems.map(item => (
+                            {getUserMenuItems().map(item => (
                               <button 
                                 key={item.path}
-                                onClick={() => handleNavigationWithPreload(item.path, item.preload)} 
+                                onClick={() => handleNavigation(item.path)} 
                                 className="dropdown-item"
                                 role="menuitem"
                                 disabled={isLoading}
@@ -731,24 +803,6 @@ const Header = ({
                                 {item.label}
                               </button>
                             ))}
-                            
-                            {currentUser.is_admin && (
-                              <>
-                                <div className="dropdown-divider" role="separator"></div>
-                                {adminMenuItems.slice(0, 1).map(item => (
-                                  <button 
-                                    key={item.path}
-                                    onClick={() => handleNavigationWithPreload(item.path, item.preload)} 
-                                    className="dropdown-item"
-                                    role="menuitem"
-                                    disabled={isLoading}
-                                  >
-                                    <item.icon className="icon" aria-hidden="true" />
-                                    {item.label}
-                                  </button>
-                                ))}
-                              </>
-                            )}
                             
                             <button 
                               onClick={() => handleAuthAction('logout')} 
@@ -850,7 +904,7 @@ const Header = ({
               <form onSubmit={handleSearch} className="search-input-container" style={{ position: 'relative' }}>
                 <input
                   type="text"
-                  placeholder="Search products..."
+                  placeholder="Search products, help..."
                   value={searchQuery}
                   onChange={handleSearchInputChange}
                   className="search-input"
@@ -865,7 +919,7 @@ const Header = ({
                     outline: 'none',
                     caretColor: '#007bff'
                   }}
-                  aria-label="Search products"
+                  aria-label="Search products and help"
                   disabled={isLoading || searchLoading}
                 />
                 <button 
@@ -939,14 +993,9 @@ const Header = ({
                     <User className="icon" aria-hidden="true" />
                   </div>
                   <div className="user-details">
-                    <span className="user-name">
-                      {currentUser.first_name 
-                        ? `${currentUser.first_name} ${currentUser.last_name || ''}`.trim()
-                        : currentUser.username || 'User'
-                      }
-                    </span>
+                    <span className="user-name">{displayName}</span>
                     <span className="user-status">
-                      {currentUser.is_admin ? 'Admin User' : 'Logged in'}
+                      {isAdminUser ? 'Admin User' : isClientUser ? 'Client User' : 'Logged in'}
                     </span>
                   </div>
                 </div>
@@ -974,14 +1023,16 @@ const Header = ({
               )}
             </div>
 
-            {/* Mobile Navigation Links */}
+            {/* Mobile Navigation Links - Enhanced with active states */}
             <div className="mobile-nav-links">
               {navigationItems.map(item => {
-                const isActive = location.pathname === item.path;
+                const isActive = location.pathname === item.path || 
+                  (item.path === '/help' && isHelpPage) ||
+                  (item.path === '/contact' && isContactPage);
                 return (
                   <button 
                     key={item.path}
-                    onClick={() => handleNavigationWithPreload(item.path, item.preload)} 
+                    onClick={() => handleNavigation(item.path)} 
                     className={`mobile-nav-link ${isActive ? 'active' : ''}`}
                     aria-current={isActive ? 'page' : undefined}
                     disabled={isLoading}
@@ -996,10 +1047,10 @@ const Header = ({
             {/* Mobile User Menu */}
             {currentIsAuth && currentUser && (
               <div className="mobile-user-menu">
-                {userMenuItems.map(item => (
+                {getUserMenuItems().map(item => (
                   <button 
                     key={item.path}
-                    onClick={() => handleNavigationWithPreload(item.path, item.preload)} 
+                    onClick={() => handleNavigation(item.path)} 
                     className="mobile-menu-item"
                     disabled={isLoading}
                   >
@@ -1007,23 +1058,6 @@ const Header = ({
                     {item.label}
                   </button>
                 ))}
-                
-                {currentUser.is_admin && (
-                  <>
-                    <div className="mobile-menu-divider" role="separator"></div>
-                    {adminMenuItems.map(item => (
-                      <button 
-                        key={item.path}
-                        onClick={() => handleNavigationWithPreload(item.path, item.preload)} 
-                        className="mobile-menu-item admin-item"
-                        disabled={isLoading}
-                      >
-                        <item.icon className="icon" aria-hidden="true" />
-                        {item.label}
-                      </button>
-                    ))}
-                  </>
-                )}
                 
                 <button 
                   onClick={() => handleAuthAction('logout')} 
@@ -1036,8 +1070,20 @@ const Header = ({
               </div>
             )}
 
-            {/* Mobile Contact */}
+            {/* Mobile Contact - Enhanced with help/contact context */}
             <div className="mobile-contact">
+              <div className="mobile-contact-header">
+                <h4>Need Help?</h4>
+              </div>
+              <button 
+                onClick={() => handleNavigation('/help')} 
+                className={`mobile-contact-item ${isHelpPage ? 'active' : ''}`}
+                aria-label="Help center"
+                disabled={isLoading}
+              >
+                <HelpCircle className="icon" aria-hidden="true" />
+                <span>Visit Help Center</span>
+              </button>
               <button 
                 onClick={() => handleContactAction('phone')} 
                 className="mobile-contact-item"
@@ -1056,6 +1102,49 @@ const Header = ({
                 <MessageCircle className="icon" aria-hidden="true" />
                 <span>WhatsApp Support</span>
               </button>
+              <button 
+                onClick={() => handleNavigation('/contact')} 
+                className={`mobile-contact-item ${isContactPage ? 'active' : ''}`}
+                aria-label="Contact page"
+                disabled={isLoading}
+              >
+                <Mail className="icon" aria-hidden="true" />
+                <span>Contact Form</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Emergency Contact - Enhanced for help/contact pages */}
+      {(isHelpPage || isContactPage) && (
+        <div className="help-contact-banner">
+          <div className="container">
+            <div className="help-contact-content">
+              <div className="help-contact-info">
+                <HelpCircle className="icon" aria-hidden="true" />
+                <span>Need immediate assistance?</span>
+              </div>
+              <div className="help-contact-actions">
+                <button 
+                  onClick={() => handleContactAction('phone')} 
+                  className="help-contact-btn phone"
+                  aria-label="Call support now"
+                  disabled={isLoading}
+                >
+                  <Phone className="icon" aria-hidden="true" />
+                  <span>Call Now</span>
+                </button>
+                <button 
+                  onClick={() => handleContactAction('whatsapp')} 
+                  className="help-contact-btn whatsapp"
+                  aria-label="WhatsApp support"
+                  disabled={isLoading}
+                >
+                  <MessageCircle className="icon" aria-hidden="true" />
+                  <span>WhatsApp</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1066,6 +1155,109 @@ const Header = ({
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
+        }
+        
+        /* Enhanced styles for help/contact integration */
+        .header--help .header__topbar-link:first-child,
+        .header--contact .header__topbar-link:nth-child(2) {
+          background-color: rgba(0, 123, 255, 0.1);
+          color: #007bff;
+          font-weight: 600;
+        }
+        
+        .help-contact-banner {
+          background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+          color: white;
+          padding: 8px 0;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .help-contact-content {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+        }
+        
+        .help-contact-info {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 14px;
+          font-weight: 500;
+        }
+        
+        .help-contact-actions {
+          display: flex;
+          gap: 12px;
+        }
+        
+        .help-contact-btn {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 6px 12px;
+          background: rgba(255, 255, 255, 0.2);
+          border: 1px solid rgba(255, 255, 255, 0.3);
+          border-radius: 4px;
+          color: white;
+          font-size: 13px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+        
+        .help-contact-btn:hover:not(:disabled) {
+          background: rgba(255, 255, 255, 0.3);
+          border-color: rgba(255, 255, 255, 0.4);
+        }
+        
+        .help-contact-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+        
+        .help-contact-btn.whatsapp:hover:not(:disabled) {
+          background: rgba(37, 211, 102, 0.2);
+          border-color: rgba(37, 211, 102, 0.3);
+        }
+        
+        .mobile-contact-header {
+          padding: 12px 0 8px;
+          border-bottom: 1px solid #eee;
+          margin-bottom: 8px;
+        }
+        
+        .mobile-contact-header h4 {
+          font-size: 14px;
+          font-weight: 600;
+          color: #333;
+          margin: 0;
+        }
+        
+        .mobile-contact-item.active {
+          background-color: rgba(0, 123, 255, 0.1);
+          color: #007bff;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+          .help-contact-content {
+            flex-direction: column;
+            text-align: center;
+            gap: 8px;
+          }
+          
+          .help-contact-actions {
+            width: 100%;
+            justify-content: center;
+          }
+          
+          .help-contact-btn {
+            flex: 1;
+            max-width: 120px;
+            justify-content: center;
+          }
         }
       `}</style>
     </header>
@@ -1090,7 +1282,6 @@ Header.propTypes = {
   ),
   onLogin: PropTypes.func,
   onLogout: PropTypes.func,
-  // New prop types for search coordination
   searchQuery: PropTypes.string,
   onSearchQueryChange: PropTypes.func,
   hideSearchOnSearchPage: PropTypes.bool,

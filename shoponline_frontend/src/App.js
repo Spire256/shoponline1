@@ -20,6 +20,11 @@ import CheckoutPage from './pages/CheckoutPage/CheckoutPage';
 import ProfilePage from './pages/ProfilePage/ProfilePage';
 import SearchPage from './pages/SearchPage/SearchPage';
 
+// Import support and information pages
+import HelpPage from './pages/HelpPage/HelpPage';
+import ContactPage from './pages/ContactPage/ContactPage';
+import AboutPage from './pages/AboutPage/AboutPage';
+
 // Import auth pages
 import Login from './components/auth/Login/Login';
 import Register from './components/auth/Register/Register';
@@ -78,6 +83,11 @@ function App() {
           <Route path="search" element={<SearchPage />} />
           <Route path="cart" element={<CartPage />} />
           
+          {/* Support and Information Pages */}
+          <Route path="help" element={<HelpPage />} />
+          <Route path="contact" element={<ContactPage />} />
+          <Route path="about" element={<AboutPage />} />
+          
           {/* Client Protected Routes */}
           <Route
             path="checkout"
@@ -90,6 +100,25 @@ function App() {
           
           <Route
             path="profile"
+            element={
+              <ClientRoute>
+                <ProfilePage />
+              </ClientRoute>
+            }
+          />
+          
+          {/* User Account Routes - Protected */}
+          <Route
+            path="orders"
+            element={
+              <ClientRoute>
+                <ProfilePage />
+              </ClientRoute>
+            }
+          />
+          
+          <Route
+            path="wishlist"
             element={
               <ClientRoute>
                 <ProfilePage />

@@ -5,6 +5,7 @@ import AuthContext from '../contexts/AuthContext';
 /**
  * Custom hook for authentication functionality
  * Provides access to auth state and methods with additional utilities
+ * Enhanced with robust admin checking
  */
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -29,9 +30,76 @@ export const useAuth = () => {
     updateProfile,
     validateInvitation,
     clearError,
-    isAdmin,
-    isClient,
+    isAdmin: contextIsAdmin,
+    isClient: contextIsClient,
   } = context;
+
+  // Enhanced isAdmin function with multiple fallback checks
+  const isAdmin = useCallback(() => {
+    if (!isAuthenticated || !user) return false;
+
+    // Method 1: Use context isAdmin function
+    if (typeof contextIsAdmin === 'function') {
+      try {
+        const result = contextIsAdmin();
+        if (result) return true;
+      } catch (error) {
+        console.warn('Context isAdmin function error:', error);
+      }
+    }
+
+    // Method 2: Check role from context
+    if (role === 'admin') return true;
+
+    // Method 3: Check user role property
+    if (user.role === 'admin') return true;
+
+    // Method 4: Check Django-style is_staff flag
+    if (user.is_staff === true) return true;
+
+    // Method 5: Check email domain (fallback for admin@shoponline.com)
+    if (user.email && user.email.endsWith('@shoponline.com')) return true;
+
+    // Method 6: Check stored user data as final fallback
+    try {
+      const storedUser = JSON.parse(localStorage.getItem('user') || 'null');
+      if (storedUser && (
+        storedUser.role === 'admin' || 
+        storedUser.is_staff === true ||
+        (storedUser.email && storedUser.email.endsWith('@shoponline.com'))
+      )) {
+        return true;
+      }
+    } catch (error) {
+      console.warn('Error checking stored user for admin status:', error);
+    }
+
+    return false;
+  }, [isAuthenticated, user, contextIsAdmin, role]);
+
+  // Enhanced isClient function
+  const isClient = useCallback(() => {
+    if (!isAuthenticated || !user) return false;
+
+    // If user is admin, they can also access client features
+    if (isAdmin()) return true;
+
+    // Method 1: Use context isClient function
+    if (typeof contextIsClient === 'function') {
+      try {
+        const result = contextIsClient();
+        if (result) return true;
+      } catch (error) {
+        console.warn('Context isClient function error:', error);
+      }
+    }
+
+    // Method 2: Check role
+    if (role === 'client' || user.role === 'client') return true;
+
+    // Method 3: Default to client if authenticated but not admin
+    return !isAdmin();
+  }, [isAuthenticated, user, contextIsClient, role, isAdmin]);
 
   // Enhanced login with proper credentials object handling
   const loginUser = useCallback(
@@ -51,7 +119,12 @@ export const useAuth = () => {
         const result = await login(loginCredentials);
 
         if (result.success) {
-          console.log('User logged in successfully');
+          console.log('User logged in successfully:', {
+            email: result.user?.email,
+            role: result.user?.role,
+            is_staff: result.user?.is_staff,
+            isAdmin: result.user?.role === 'admin' || result.user?.is_staff === true
+          });
           return result;
         } else {
           return result;
@@ -194,7 +267,7 @@ export const useAuth = () => {
     [updateProfile]
   );
 
-  // Check if user has specific permission (basic implementation)
+  // Enhanced permission checking
   const hasPermission = useCallback(
     permission => {
       if (!isAuthenticated || !user) return false;
@@ -202,7 +275,7 @@ export const useAuth = () => {
       // Admin users have all permissions
       if (isAdmin()) return true;
 
-      // Basic permission mapping - expand as needed
+      // Basic permission mapping for clients
       const clientPermissions = [
         'view_profile',
         'edit_profile',
@@ -212,6 +285,8 @@ export const useAuth = () => {
         'view_products',
         'view_categories',
         'view_flash_sales',
+        'add_to_cart',
+        'manage_wishlist',
       ];
 
       return clientPermissions.includes(permission);
@@ -307,7 +382,7 @@ export const useAuth = () => {
     };
   }, [accessToken]);
 
-  // Validate current session
+  // Enhanced session validation
   const validateSession = useCallback(async () => {
     if (!isAuthenticated || !accessToken) {
       return { valid: false, error: 'No active session' };
@@ -366,6 +441,54 @@ export const useAuth = () => {
     [validateInvitation]
   );
 
+  // Debug function for troubleshooting (development only)
+  const getDebugInfo = useCallback(() => {
+    if (process.env.NODE_ENV !== 'development') {
+      return 'Debug info only available in development mode';
+    }
+
+    return {
+      // Auth state
+      isAuthenticated,
+      isLoading,
+      role,
+      error,
+
+      // User info
+      user,
+      userEmail: user?.email,
+      userRole: user?.role,
+      userIsStaff: user?.is_staff,
+
+      // Token info
+      hasAccessToken: Boolean(accessToken),
+      hasRefreshToken: Boolean(refreshToken),
+      tokenExpiringSoon: isTokenExpiringSoon(),
+
+      // Permission checks
+      isAdmin: isAdmin(),
+      isClient: isClient(),
+      canAccessAdmin: canAccessAdmin(),
+      canAccessClient: canAccessClient(),
+
+      // Storage
+      storedUser: (() => {
+        try {
+          return JSON.parse(localStorage.getItem('user') || 'null');
+        } catch {
+          return 'parse error';
+        }
+      })(),
+      storedTokens: {
+        access_token: localStorage.getItem('access_token'),
+        refresh_token: localStorage.getItem('refresh_token'),
+      },
+    };
+  }, [
+    isAuthenticated, isLoading, role, error, user, accessToken, refreshToken,
+    isTokenExpiringSoon, isAdmin, isClient, canAccessAdmin, canAccessClient
+  ]);
+
   return {
     // State
     user,
@@ -399,6 +522,9 @@ export const useAuth = () => {
     ensureValidToken,
     validateSession,
     isTokenExpiringSoon,
+
+    // Debug (development only)
+    getDebugInfo,
 
     // Raw methods (for advanced use)
     refreshToken: refreshTokenMethod,

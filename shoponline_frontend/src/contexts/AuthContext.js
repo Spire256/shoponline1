@@ -1,5 +1,5 @@
 // src/contexts/AuthContext.js
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 
 // Auth action types
 const AUTH_ACTIONS = {
@@ -48,7 +48,7 @@ const authReducer = (state, action) => {
         isAuthenticated: true,
         isLoading: false,
         error: null,
-        role: action.payload.user.role,
+        role: action.payload.user.role || (action.payload.user.is_staff ? 'admin' : 'client'),
       };
 
     case AUTH_ACTIONS.LOGIN_FAILURE:
@@ -108,51 +108,112 @@ export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
   // Get API base URL
-  const getAPIBaseURL = () => {
+  const getAPIBaseURL = useCallback(() => {
     const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
     return baseUrl.includes('/api/v1') ? baseUrl : `${baseUrl}/api/v1`;
-  };
-
-  // Initialize auth state from localStorage on mount
-  useEffect(() => {
-    checkAuthStatus();
   }, []);
 
-  // Clear authentication storage
-  const clearAuthStorage = () => {
+  // Clear authentication storage - Fixed to use consistent keys
+  const clearAuthStorage = useCallback(() => {
     const keysToRemove = [
       'user',
-      'accessToken',
       'access_token',
-      'refreshToken',
       'refresh_token',
+      // Legacy keys for backwards compatibility
+      'accessToken',
+      'refreshToken',
+      'shoponline_user',
+      'shoponline_access_token',
+      'shoponline_refresh_token',
     ];
     
     keysToRemove.forEach(key => {
       localStorage.removeItem(key);
     });
-  };
+  }, []);
 
-  // Store tokens with multiple keys for compatibility
-  const storeTokens = (user, tokens) => {
+  // Store tokens with consistent keys
+  const storeTokens = useCallback((user, tokens) => {
     localStorage.setItem('user', JSON.stringify(user));
-    localStorage.setItem('accessToken', tokens.access);
     localStorage.setItem('access_token', tokens.access);
-    localStorage.setItem('refreshToken', tokens.refresh);
     localStorage.setItem('refresh_token', tokens.refresh);
-  };
+  }, []);
+
+  // Get stored tokens with fallback to legacy keys
+  const getStoredTokens = useCallback(() => {
+    return {
+      user: (() => {
+        try {
+          return JSON.parse(
+            localStorage.getItem('user') || 
+            localStorage.getItem('shoponline_user') || 
+            'null'
+          );
+        } catch {
+          return null;
+        }
+      })(),
+      accessToken: localStorage.getItem('access_token') || 
+                    localStorage.getItem('accessToken') || 
+                    localStorage.getItem('shoponline_access_token'),
+      refreshToken: localStorage.getItem('refresh_token') || 
+                    localStorage.getItem('refreshToken') || 
+                    localStorage.getItem('shoponline_refresh_token'),
+    };
+  }, []);
+
+  // Refresh token function
+  const refreshTokenMethod = useCallback(async () => {
+    try {
+      const { refreshToken: refreshTokenValue } = getStoredTokens();
+      if (!refreshTokenValue) {
+        throw new Error('No refresh token available');
+      }
+
+      const apiUrl = getAPIBaseURL();
+      const response = await fetch(`${apiUrl}/auth/token/refresh/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refresh: refreshTokenValue }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        localStorage.setItem('access_token', data.access);
+        if (data.refresh) {
+          localStorage.setItem('refresh_token', data.refresh);
+        }
+
+        dispatch({
+          type: AUTH_ACTIONS.REFRESH_TOKEN,
+          payload: data,
+        });
+
+        return { success: true, accessToken: data.access };
+      } else {
+        clearAuthStorage();
+        dispatch({ type: AUTH_ACTIONS.LOGOUT });
+        return { success: false, error: 'Session expired' };
+      }
+    } catch (error) {
+      console.error('Token refresh failed:', error);
+      clearAuthStorage();
+      dispatch({ type: AUTH_ACTIONS.LOGOUT });
+      return { success: false, error: 'Session expired' };
+    }
+  }, [getAPIBaseURL, clearAuthStorage, getStoredTokens]);
 
   // Check authentication status function
-  const checkAuthStatus = async () => {
+  const checkAuthStatus = useCallback(async () => {
     try {
       dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: true });
 
-      const userData = localStorage.getItem('user');
-      const accessToken = localStorage.getItem('accessToken') || localStorage.getItem('access_token');
-      const refreshToken = localStorage.getItem('refreshToken') || localStorage.getItem('refresh_token');
+      const { user: userData, accessToken, refreshToken } = getStoredTokens();
 
       if (userData && accessToken && refreshToken) {
-        const user = JSON.parse(userData);
         const apiUrl = getAPIBaseURL();
 
         // Verify token is still valid by making a test request
@@ -170,7 +231,7 @@ export const AuthProvider = ({ children }) => {
             dispatch({
               type: AUTH_ACTIONS.LOGIN_SUCCESS,
               payload: {
-                user,
+                user: userData,
                 tokens: { access: accessToken, refresh: refreshToken },
               },
             });
@@ -186,12 +247,12 @@ export const AuthProvider = ({ children }) => {
             dispatch({ type: AUTH_ACTIONS.LOGOUT });
           }
         } catch (error) {
-          // Network error, use stored data
+          // Network error, use stored data but don't retry automatically
           console.warn('Auth check failed, using stored data:', error);
           dispatch({
             type: AUTH_ACTIONS.LOGIN_SUCCESS,
             payload: {
-              user,
+              user: userData,
               tokens: { access: accessToken, refresh: refreshToken },
             },
           });
@@ -203,10 +264,27 @@ export const AuthProvider = ({ children }) => {
       console.error('Failed to check auth status:', error);
       dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
     }
-  };
+  }, [getAPIBaseURL, refreshTokenMethod, clearAuthStorage, getStoredTokens]);
 
-  // Login function - Fixed to match backend expectations
-  const login = async (credentials) => {
+  // Initialize auth state from localStorage on mount
+  useEffect(() => {
+    let mounted = true;
+    
+    const initializeAuth = async () => {
+      if (mounted) {
+        await checkAuthStatus();
+      }
+    };
+
+    initializeAuth();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Login function
+  const login = useCallback(async (credentials) => {
     dispatch({ type: AUTH_ACTIONS.LOGIN_START });
 
     try {
@@ -249,10 +327,10 @@ export const AuthProvider = ({ children }) => {
       });
       return { success: false, error: errorMessage };
     }
-  };
+  }, [getAPIBaseURL, storeTokens]);
 
-  // Register client function - Fixed to match backend field names
-  const registerClient = async (userData) => {
+  // Register client function
+  const registerClient = useCallback(async (userData) => {
     dispatch({ type: AUTH_ACTIONS.REGISTER_START });
 
     try {
@@ -297,10 +375,10 @@ export const AuthProvider = ({ children }) => {
       });
       return { success: false, error: errorMessage };
     }
-  };
+  }, [getAPIBaseURL, storeTokens]);
 
-  // Register admin function - Fixed to match backend field names
-  const registerAdmin = async (userData) => {
+  // Register admin function
+  const registerAdmin = useCallback(async (userData) => {
     dispatch({ type: AUTH_ACTIONS.REGISTER_START });
 
     try {
@@ -345,13 +423,12 @@ export const AuthProvider = ({ children }) => {
       });
       return { success: false, error: errorMessage };
     }
-  };
+  }, [getAPIBaseURL, storeTokens]);
 
   // Logout function
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
-      const refreshTokenValue = localStorage.getItem('refreshToken') || localStorage.getItem('refresh_token');
-      const accessToken = localStorage.getItem('accessToken') || localStorage.getItem('access_token');
+      const { refreshToken: refreshTokenValue, accessToken } = getStoredTokens();
       
       if (refreshTokenValue) {
         const apiUrl = getAPIBaseURL();
@@ -371,56 +448,12 @@ export const AuthProvider = ({ children }) => {
       clearAuthStorage();
       dispatch({ type: AUTH_ACTIONS.LOGOUT });
     }
-  };
-
-  // Refresh token function
-  const refreshTokenMethod = async () => {
-    try {
-      const refreshTokenValue = localStorage.getItem('refreshToken') || localStorage.getItem('refresh_token');
-      if (!refreshTokenValue) {
-        throw new Error('No refresh token available');
-      }
-
-      const apiUrl = getAPIBaseURL();
-      const response = await fetch(`${apiUrl}/auth/token/refresh/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ refresh: refreshTokenValue }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        localStorage.setItem('accessToken', data.access);
-        localStorage.setItem('access_token', data.access);
-        if (data.refresh) {
-          localStorage.setItem('refreshToken', data.refresh);
-          localStorage.setItem('refresh_token', data.refresh);
-        }
-
-        dispatch({
-          type: AUTH_ACTIONS.REFRESH_TOKEN,
-          payload: data,
-        });
-
-        return { success: true, accessToken: data.access };
-      } else {
-        logout();
-        return { success: false, error: 'Session expired' };
-      }
-    } catch (error) {
-      console.error('Token refresh failed:', error);
-      logout();
-      return { success: false, error: 'Session expired' };
-    }
-  };
+  }, [getAPIBaseURL, clearAuthStorage, getStoredTokens]);
 
   // Update profile function
-  const updateProfile = async (profileData) => {
+  const updateProfile = useCallback(async (profileData) => {
     try {
-      const accessToken = localStorage.getItem('accessToken') || localStorage.getItem('access_token');
+      const { accessToken } = getStoredTokens();
       const apiUrl = getAPIBaseURL();
 
       const response = await fetch(`${apiUrl}/auth/profile/`, {
@@ -451,10 +484,10 @@ export const AuthProvider = ({ children }) => {
       console.error('Profile update failed:', error);
       return { success: false, error: 'Failed to update profile' };
     }
-  };
+  }, [getAPIBaseURL, state.user, getStoredTokens]);
 
   // Validate invitation token
-  const validateInvitation = async (token) => {
+  const validateInvitation = useCallback(async (token) => {
     try {
       const apiUrl = getAPIBaseURL();
       const response = await fetch(`${apiUrl}/auth/invitations/validate/${token}/`);
@@ -463,16 +496,31 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       return { success: false, error: 'Failed to validate invitation' };
     }
-  };
+  }, [getAPIBaseURL]);
 
   // Clear error function
-  const clearError = () => {
+  const clearError = useCallback(() => {
     dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
-  };
+  }, []);
 
-  // Helper functions
-  const isAdmin = () => state.role === 'admin';
-  const isClient = () => state.role === 'client';
+  // Helper functions - Enhanced with multiple fallback checks
+  const isAdmin = useCallback(() => {
+    if (!state.user) return false;
+    
+    // Check multiple possible admin indicators
+    return state.user.role === 'admin' || 
+           state.user.is_staff === true ||
+           state.role === 'admin' ||
+           (state.user.email && state.user.email.endsWith('@shoponline.com'));
+  }, [state.user, state.role]);
+
+  const isClient = useCallback(() => {
+    if (!state.user) return false;
+    
+    return state.user.role === 'client' || 
+           state.role === 'client' ||
+           (!isAdmin() && state.isAuthenticated);
+  }, [state.user, state.role, state.isAuthenticated, isAdmin]);
 
   // Context value
   const value = {

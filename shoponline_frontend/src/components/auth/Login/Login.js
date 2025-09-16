@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import LoginForm from './LoginForm';
@@ -7,14 +7,26 @@ import './Login.css';
 const Login = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const { login } = useAuth();
+  const { login, isAuthenticated, isLoading, isAdmin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   // Get the redirect path from location state
   const from = location.state?.from?.pathname || '/';
 
-  const handleLogin = async credentials => {
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated && !isLoading) {
+      // Enhanced redirect logic with admin check
+      const redirectPath = isAdmin() ? '/admin/dashboard' : from;
+      navigate(redirectPath, { replace: true });
+    }
+  }, [isAuthenticated, isLoading, navigate, from, isAdmin]);
+
+  const handleLogin = useCallback(async (credentials) => {
+    // Prevent multiple simultaneous login attempts
+    if (loading) return;
+
     setLoading(true);
     setError('');
 
@@ -22,23 +34,68 @@ const Login = () => {
       const response = await login(credentials);
 
       if (response.success) {
-        // Redirect based on user role
-        if (response.user.role === 'admin') {
-          navigate('/admin/dashboard', { replace: true });
-        } else {
-          navigate(from, { replace: true });
-        }
+        // Clear any existing errors
+        setError('');
+        
+        // Enhanced debug logging
+        console.log('Login successful:', {
+          user: response.user,
+          role: response.user?.role,
+          is_staff: response.user?.is_staff,
+          email: response.user?.email
+        });
+        
+        // Determine redirect path based on user role with multiple fallback checks
+        const user = response.user;
+        const isAdminUser = user?.role === 'admin' || 
+                           user?.is_staff === true || 
+                           (user?.email && user.email.endsWith('@shoponline.com'));
+        
+        const redirectPath = isAdminUser ? '/admin/dashboard' : from;
+        
+        console.log('Redirecting to:', redirectPath);
+        navigate(redirectPath, { replace: true });
       } else {
         // Handle specific error messages from backend
-        setError(response.error || 'Login failed. Please check your credentials.');
+        const errorMessage = typeof response.error === 'string' 
+          ? response.error 
+          : response.error?.detail || 
+            response.error?.non_field_errors?.[0] || 
+            response.error?.email?.[0] ||
+            response.error?.password?.[0] ||
+            'Login failed. Please check your credentials.';
+        
+        setError(errorMessage);
+        console.error('Login failed:', response.error);
       }
     } catch (err) {
-      setError('An unexpected error occurred. Please try again.');
       console.error('Login error:', err);
+      setError('Network error. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [loading, login, navigate, from]);
+
+  // Clear error when user starts typing
+  const clearError = useCallback(() => {
+    if (error) setError('');
+  }, [error]);
+
+  // Show loading state while auth context is initializing
+  if (isLoading) {
+    return (
+      <div className="login-container">
+        <div className="login-wrapper">
+          <div className="login-card">
+            <div className="loading-spinner">
+              <div className="spinner"></div>
+              <p>Loading...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="login-container">
@@ -51,7 +108,7 @@ const Login = () => {
                 alt="ShopOnline Uganda"
                 className="login-logo"
                 onError={e => {
-                  e.target.src = '/favicon.ico'; // Fallback image
+                  e.target.src = '/favicon.ico';
                 }}
               />
             </div>
@@ -61,13 +118,24 @@ const Login = () => {
 
           <div className="login-body">
             {error && (
-              <div className="error-alert">
+              <div className="error-alert" role="alert">
                 <div className="error-icon">⚠</div>
                 <span className="error-message">{error}</span>
+                <button 
+                  className="error-close"
+                  onClick={() => setError('')}
+                  aria-label="Close error"
+                >
+                  ×
+                </button>
               </div>
             )}
 
-            <LoginForm onSubmit={handleLogin} loading={loading} />
+            <LoginForm 
+              onSubmit={handleLogin} 
+              loading={loading}
+              onInputChange={clearError}
+            />
 
             <div className="login-divider">
               <span className="divider-text">or</span>

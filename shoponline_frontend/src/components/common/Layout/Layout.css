@@ -536,80 +536,8 @@
   margin-left: 1rem;
 }
 
-/* Sidebar Footer */
-.sidebar-footer {
-  border-top: 1px solid var(--gray-200);
-  padding: 1rem;
-  background: var(--gray-50);
-  flex-shrink: 0;
-}
-
-.quick-contact {
-  text-align: center;
-}
-
-.contact-title {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--gray-800);
-  margin-bottom: 1rem;
-}
-
-.contact-methods {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-}
-
-.contact-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  border: 1px solid var(--gray-300);
-  background: var(--white);
-  color: var(--gray-700);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: all var(--transition-normal);
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-.contact-btn:hover {
-  background: var(--primary-blue);
-  color: var(--white);
-  border-color: var(--primary-blue);
-  transform: translateY(-1px);
-}
-
-.contact-btn.whatsapp:hover {
-  background: #25d366;
-  border-color: #25d366;
-}
-
-.whatsapp-icon {
-  font-size: 16px;
-}
-
-.business-hours {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  font-size: 0.75rem;
-  color: var(--gray-600);
-  padding: 0.5rem;
-  background: var(--white);
-  border-radius: var(--radius-md);
-}
-
-.business-hours .icon {
-  width: 14px;
-  height: 14px;
-}
+/* REMOVED: Sidebar Footer and Quick Contact */
+/* All .sidebar-footer, .quick-contact, .contact-title, .contact-methods, .contact-btn, and .business-hours styles have been removed */
 
 /* Main Content Area */
 .main-content {
@@ -621,6 +549,8 @@
   flex-direction: column;
   /* Ensure main content starts at the right position */
   position: relative;
+  /* IMPORTANT: Ensure content never overlaps sidebar */
+  overflow-x: auto;
 }
 
 /* Sidebar positioning adjustments for main content */
@@ -636,15 +566,16 @@
   margin-left: 0;
 }
 
-/* Content container */
+/* Content container - CRUCIAL for preventing overlap */
 .content-container {
   flex: 1;
   padding: 2rem 1rem;
-  max-width: 1200px;
-  margin: 0 auto;
+  max-width: none; /* Allow full width usage */
+  margin: 0;
   width: 100%;
-  /* Ensure content doesn't overlap with header */
+  /* Prevent content from going under sidebar */
   position: relative;
+  box-sizing: border-box;
 }
 
 /* Override Tailwind container for better spacing */
@@ -652,6 +583,7 @@
   max-width: none;
   padding: 0;
   margin: 0;
+  width: 100%;
 }
 
 /* Breadcrumb styling */
@@ -659,8 +591,9 @@
   background: var(--white);
   border-bottom: 1px solid var(--gray-200);
   padding: 1rem;
-  /* Ensure breadcrumbs respect the header height */
   margin-top: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* Navigation bar adjustments if it exists */
@@ -673,12 +606,12 @@
 }
 
 /* FOOTER POSITIONING - KEY FIX */
-/* Footer should align with the main content area, not span full width */
 .footer {
   background-color: var(--primary-blue-dark);
   color: var(--white);
   transition: margin-left var(--transition-normal);
-  margin-top: auto; /* Push footer to bottom */
+  margin-top: auto;
+  width: 100%;
 }
 
 /* Footer positioning adjustments to match main content */
@@ -696,7 +629,6 @@
 
 /* Fallback for browsers that don't support :has() selector */
 @supports not selector(:has(*)) {
-  /* JavaScript will need to add classes to handle footer positioning */
   .footer.with-sidebar-expanded {
     margin-left: 17rem;
   }
@@ -715,7 +647,103 @@
   max-width: none;
   width: 100%;
   margin: 0;
-  padding: 0 2rem; /* Match main content padding */
+  padding: 0 2rem;
+  box-sizing: border-box;
+}
+
+/* HOMEPAGE SPECIFIC FIXES - PREVENT SIDEBAR OVERLAP */
+.homepage {
+  background-color: var(--gray-50);
+  margin: 0;
+  width: 100%;
+  min-height: calc(100vh - var(--header-total-height));
+  /* Ensure all homepage content respects sidebar boundary */
+  box-sizing: border-box;
+}
+
+.homepage .container {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding: 0 1rem;
+  box-sizing: border-box;
+}
+
+/* Hero section - CRITICAL FIX to prevent sidebar overlap */
+.hero-section {
+  margin: 0;
+  padding: 2rem 0;
+  width: 100%;
+  box-sizing: border-box;
+  /* Ensure hero never goes under sidebar */
+  position: relative;
+  z-index: 1;
+}
+
+.hero-section .container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* All homepage sections should respect content boundaries */
+.featured-products,
+.category-showcase,
+.testimonials-section,
+.flash-sales-homepage,
+.newsletter-section {
+  width: 100%;
+  margin: 2rem 0;
+  padding: 0 1rem;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 1;
+}
+
+/* Newsletter section adjustments */
+.newsletter-section {
+  margin: 2rem 0 0 0;
+  padding: 2rem 1rem;
+}
+
+/* Ensure all grids and content respect boundaries */
+.section-header,
+.products-grid,
+.categories-grid,
+.flash-products-grid,
+.testimonials-container {
+  width: 100%;
+  max-width: none;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* Banner and hero content positioning */
+.banner-content,
+.hero-content {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Prevent any negative margins that could cause overlap */
+.homepage * {
+  box-sizing: border-box;
+}
+
+.homepage > *,
+.hero-section > *,
+.featured-products > *,
+.category-showcase > *,
+.testimonials-section > *,
+.flash-sales-homepage > *,
+.newsletter-section > * {
+  margin-left: 0;
+  margin-right: 0;
 }
 
 /* Responsive adjustments */
@@ -767,7 +795,7 @@
   }
   
   .layout-body {
-    flex-direction: row; /* Keep horizontal layout */
+    flex-direction: row;
     position: relative;
     margin-top: var(--header-total-height);
   }
@@ -784,15 +812,14 @@
 
   .sidebar {
     position: fixed;
-    top: var(--header-total-height); /* Ensure it starts below complete header on mobile too */
+    top: var(--header-total-height);
     left: 0;
-    height: calc(100vh - var(--header-total-height)); /* Full height minus complete header */
+    height: calc(100vh - var(--header-total-height));
     z-index: 1100;
     transform: translateX(-100%);
     transition: transform var(--transition-normal);
   }
 
-  /* Show sidebar when expanded on mobile */
   .sidebar.expanded {
     transform: translateX(0);
     width: 100%;
@@ -800,7 +827,7 @@
   }
 
   .sidebar.collapsed {
-    transform: translateX(-100%); /* Hide collapsed sidebar on mobile */
+    transform: translateX(-100%);
   }
 
   .sidebar.mobile-open {
@@ -809,10 +836,10 @@
 
   .main-content.with-sidebar.sidebar-expanded,
   .main-content.with-sidebar.sidebar-collapsed {
-    margin-left: 0; /* Remove margin on mobile - sidebar becomes overlay */
+    margin-left: 0;
   }
 
-  /* Footer full width on mobile - no sidebar margin */
+  /* Footer full width on mobile */
   .layout:has(.main-content.with-sidebar.sidebar-expanded) .footer,
   .layout:has(.main-content.with-sidebar.sidebar-collapsed) .footer,
   .layout:has(.main-content.without-sidebar) .footer {
@@ -832,10 +859,9 @@
   }
   
   .footer .container {
-    padding: 0 1rem; /* Reduce padding on mobile */
+    padding: 0 1rem;
   }
 
-  /* Overlay effect when sidebar is open on mobile */
   .layout-body::before {
     content: '';
     position: fixed;
@@ -850,7 +876,6 @@
     transition: all var(--transition-normal);
   }
 
-  /* Show overlay when sidebar is expanded on mobile */
   .layout-body.sidebar-open::before {
     opacity: 1;
     visibility: visible;
@@ -869,6 +894,20 @@
   .sidebar-header {
     padding: 1rem;
   }
+
+  /* Homepage mobile adjustments */
+  .homepage .container,
+  .hero-section .container {
+    padding: 0 1rem;
+  }
+
+  .featured-products,
+  .category-showcase,
+  .testimonials-section,
+  .flash-sales-homepage,
+  .newsletter-section {
+    padding: 0 1rem;
+  }
 }
 
 @media (max-width: 480px) {
@@ -883,7 +922,7 @@
   }
   
   .sidebar.expanded {
-    width: 14rem; /* 224px for small mobile */
+    width: 14rem;
   }
 
   .sidebar.mobile-open {
@@ -905,77 +944,22 @@
   }
   
   .footer .container {
-    padding: 0 0.75rem; /* Match content container padding */
+    padding: 0 0.75rem;
   }
-}
 
-/* HomePage specific adjustments */
-.homepage {
-  background-color: var(--gray-50);
-  margin: 0;
-  width: 100%;
-  /* Ensure homepage content doesn't overlap with header */
-  min-height: calc(100vh - var(--header-total-height));
-}
+  /* Mobile homepage spacing */
+  .homepage .container,
+  .hero-section .container {
+    padding: 0 0.75rem;
+  }
 
-.homepage .container {
-  max-width: 100%;
-  padding: 0 1rem;
-}
-
-/* Hero section adjustments for layout */
-.hero-section {
-  margin: 0 -1rem 2rem -1rem; /* Remove negative top margin that was causing overlap */
-  /* Add padding top to account for any navigation if present */
-  padding-top: 0;
-}
-
-.hero-section .container {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 0 1rem;
-}
-
-/* Section spacing adjustments */
-.featured-products,
-.category-showcase,
-.testimonials-section,
-.flash-sales-homepage {
-  margin-left: -1rem;
-  margin-right: -1rem;
-  padding-left: 1rem;
-  padding-right: 1rem;
-}
-
-/* Newsletter section full width */
-.newsletter-section {
-  margin: 2rem -1rem 0 -1rem;
-}
-
-/* Ensure consistent spacing */
-.section-header,
-.products-grid,
-.categories-grid,
-.flash-products-grid,
-.testimonials-container {
-  width: 100%;
-}
-
-/* Fix any overflow issues */
-.main-content {
-  overflow-x: hidden;
-}
-
-/* Smooth transitions for layout changes */
-.layout-body > * {
-  transition: all var(--transition-normal);
-}
-
-/* Ensure sidebar content is visible and scrollable */
-.sidebar-content {
-  padding: 1rem;
-  height: 100%;
-  overflow-y: auto;
+  .featured-products,
+  .category-showcase,
+  .testimonials-section,
+  .flash-sales-homepage,
+  .newsletter-section {
+    padding: 0 0.75rem;
+  }
 }
 
 /* Print styles */
@@ -1045,7 +1029,6 @@
   .nav-text,
   .expand-button,
   .chevron-icon,
-  .contact-btn,
   .footer {
     transition: none;
   }
@@ -1064,8 +1047,7 @@
 .nav-button:focus-visible,
 .category-link:focus-visible,
 .toggle-button:focus-visible,
-.expand-button:focus-visible,
-.contact-btn:focus-visible {
+.expand-button:focus-visible {
   outline: 2px solid var(--primary-blue);
   outline-offset: 2px;
 }
@@ -1084,4 +1066,194 @@
 /* Ensure any floating elements respect the header */
 .floating-element {
   top: calc(var(--header-total-height) + 1rem);
+}
+
+/* ADDITIONAL HOMEPAGE CONTENT FIXES */
+/* Ensure banners, carousels, and promotional content never overlap sidebar */
+.banner,
+.carousel,
+.promotional-banner,
+.hero-banner {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 1;
+}
+
+/* Fix for any full-width sections */
+.full-width-section {
+  width: 100%;
+  margin: 0;
+  padding: 2rem 0;
+  box-sizing: border-box;
+}
+
+.full-width-section .container {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding: 0 1rem;
+  box-sizing: border-box;
+}
+
+/* Ensure product cards and grids respect boundaries */
+.product-card,
+.category-card,
+.testimonial-card {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+/* Fix for any absolute positioned elements that might overlap */
+.absolute-positioned {
+  position: absolute;
+  z-index: 1;
+}
+
+/* Ensure modals and overlays don't interfere with layout */
+.modal-overlay,
+.popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+}
+
+/* Fix for search bars and filters that might overlap */
+.search-bar,
+.filter-bar,
+.sort-options {
+  width: 100%;
+  margin: 0;
+  padding: 1rem;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 1;
+}
+
+/* Ensure images in homepage sections are properly contained */
+.homepage img,
+.hero-section img,
+.banner img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  box-sizing: border-box;
+}
+
+/* Fix for any CSS Grid or Flexbox layouts */
+.grid-layout,
+.flex-layout {
+  width: 100%;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+.grid-layout > *,
+.flex-layout > * {
+  box-sizing: border-box;
+  margin: 0;
+}
+
+/* Special handling for promotional sections */
+.promo-section,
+.deals-section,
+.special-offers {
+  width: 100%;
+  margin: 2rem 0;
+  padding: 0 1rem;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 1;
+}
+
+/* Ensure video elements are properly contained */
+.video-container,
+.video-wrapper {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+.video-container video,
+.video-wrapper video {
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+}
+
+/* Fix for any SVG or icon elements */
+.icon-container,
+.svg-container {
+  display: inline-block;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Ensure forms don't overlap */
+.form-container,
+.contact-form,
+.newsletter-form {
+  width: 100%;
+  margin: 0;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+/* Fix for any sliding animations that might go under sidebar */
+.slide-in,
+.fade-in,
+.animate-in {
+  position: relative;
+  z-index: 1;
+}
+
+/* Ensure call-to-action sections are properly positioned */
+.cta-section,
+.call-to-action {
+  width: 100%;
+  margin: 2rem 0;
+  padding: 2rem 1rem;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 1;
+}
+
+/* Fix for any sticky elements on homepage */
+.sticky-element {
+  position: sticky;
+  top: calc(var(--header-total-height) + 1rem);
+  z-index: 10;
+}
+
+/* Ensure breadcrumbs don't overlap */
+.breadcrumb,
+.breadcrumb-nav {
+  width: 100%;
+  margin: 0;
+  padding: 1rem;
+  box-sizing: border-box;
+  background: var(--white);
+  border-bottom: 1px solid var(--gray-200);
+}
+
+/* Final safety net - ensure no element can go under sidebar */
+.main-content * {
+  position: relative;
+  z-index: auto;
+}
+
+.main-content .fixed-positioned {
+  position: fixed;
+  z-index: 100;
+}
+
+.main-content .absolute-positioned {
+  position: absolute;
+  z-index: 2;
 }

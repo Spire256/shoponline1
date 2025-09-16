@@ -22,22 +22,53 @@ const NotificationCenter = () => {
   });
   const [wsConnected, setWsConnected] = useState(false);
 
-  // WebSocket connection - FIXED: Better error handling
+  // WebSocket connection - FIXED: Proper error handling and connection management
   useEffect(() => {
     let ws = null;
     let reconnectTimeout = null;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 5;
+    const baseReconnectDelay = 1000; // Start with 1 second
 
     const connectWebSocket = () => {
-      try {
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}/ws/notifications/`;
+      // Skip WebSocket connection if we've exceeded max attempts
+      if (reconnectAttempts >= maxReconnectAttempts) {
+        console.warn('Max WebSocket reconnection attempts reached. Switching to polling mode.');
+        setWsConnected(false);
+        return;
+      }
 
+      try {
+        // FIXED: Use correct backend WebSocket URL
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const backendHost = process.env.REACT_APP_BACKEND_HOST || 'localhost:8000';
+        const wsUrl = `${protocol}//${backendHost}/ws/notifications/`;
+
+        // Check if WebSocket is supported
+        if (!window.WebSocket) {
+          console.warn('WebSocket not supported in this browser');
+          setWsConnected(false);
+          return;
+        }
+
+        console.log('Attempting WebSocket connection to:', wsUrl);
         ws = new WebSocket(wsUrl);
 
+        // Set connection timeout
+        const connectionTimeout = setTimeout(() => {
+          if (ws.readyState === WebSocket.CONNECTING) {
+            console.warn('WebSocket connection timeout');
+            ws.close();
+          }
+        }, 10000); // 10 second timeout
+
         ws.onopen = () => {
-          console.log('WebSocket connected');
+          console.log('WebSocket connected successfully');
           setWsConnected(true);
-          // Clear any pending reconnection
+          reconnectAttempts = 0; // Reset attempts on successful connection
+          
+          // Clear timeouts
+          clearTimeout(connectionTimeout);
           if (reconnectTimeout) {
             clearTimeout(reconnectTimeout);
             reconnectTimeout = null;
@@ -62,37 +93,78 @@ const NotificationCenter = () => {
           }
         };
 
-        ws.onclose = () => {
-          console.log('WebSocket disconnected');
+        ws.onclose = (event) => {
+          console.log('WebSocket disconnected. Code:', event.code, 'Reason:', event.reason);
           setWsConnected(false);
-          // Attempt to reconnect after 5 seconds
-          reconnectTimeout = setTimeout(connectWebSocket, 5000);
+          clearTimeout(connectionTimeout);
+          
+          // Only attempt reconnection if it wasn't a manual close
+          if (event.code !== 1000 && reconnectAttempts < maxReconnectAttempts) {
+            reconnectAttempts++;
+            const delay = Math.min(baseReconnectDelay * Math.pow(2, reconnectAttempts), 30000);
+            console.log(`Attempting reconnection ${reconnectAttempts}/${maxReconnectAttempts} in ${delay}ms`);
+            
+            reconnectTimeout = setTimeout(connectWebSocket, delay);
+          }
         };
 
         ws.onerror = (error) => {
-          console.error('WebSocket error:', error);
+          console.error('WebSocket error occurred:', error);
           setWsConnected(false);
+          clearTimeout(connectionTimeout);
         };
 
       } catch (error) {
-        console.error('Error connecting to WebSocket:', error);
+        console.error('Error creating WebSocket connection:', error);
         setWsConnected(false);
-        // Retry connection after 10 seconds
-        reconnectTimeout = setTimeout(connectWebSocket, 10000);
+        
+        // Retry with exponential backoff if under max attempts
+        if (reconnectAttempts < maxReconnectAttempts) {
+          reconnectAttempts++;
+          const delay = Math.min(baseReconnectDelay * Math.pow(2, reconnectAttempts), 30000);
+          reconnectTimeout = setTimeout(connectWebSocket, delay);
+        }
       }
     };
 
-    connectWebSocket();
+    // Only attempt WebSocket connection if backend is available
+    const shouldConnectWebSocket = process.env.REACT_APP_ENABLE_WEBSOCKET !== 'false';
+    
+    if (shouldConnectWebSocket) {
+      connectWebSocket();
+    } else {
+      console.log('WebSocket disabled by configuration');
+      setWsConnected(false);
+    }
 
     return () => {
-      if (ws) {
-        ws.close();
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.close(1000, 'Component unmounting');
       }
       if (reconnectTimeout) {
         clearTimeout(reconnectTimeout);
       }
     };
   }, []);
+
+  // Fallback polling when WebSocket is not connected
+  useEffect(() => {
+    let pollingInterval = null;
+
+    if (!wsConnected) {
+      // Poll for new notifications every 30 seconds when WebSocket is down
+      pollingInterval = setInterval(() => {
+        fetchNotifications();
+        fetchNotificationCounts();
+      }, 30000);
+    }
+
+    return () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+    };
+  }, [wsConnected]);
 
   // Show browser notification for urgent alerts
   const showBrowserNotification = notification => {
@@ -118,7 +190,7 @@ const NotificationCenter = () => {
     }
   }, []);
 
-  // FIXED: Fetch notifications with proper API usage
+  // FIXED: Fetch notifications with proper API usage and error handling
   const fetchNotifications = useCallback(async () => {
     try {
       setLoading(true);
@@ -135,30 +207,49 @@ const NotificationCenter = () => {
         response = await notificationsAPI.getNotifications(params);
       }
 
-      // Handle response structure
-      const notificationsData = response.results || response || [];
+      // Handle different response structures
+      let notificationsData;
+      if (response && typeof response === 'object') {
+        notificationsData = response.results || response.data || response || [];
+      } else {
+        notificationsData = [];
+      }
+
       setNotifications(Array.isArray(notificationsData) ? notificationsData : []);
     } catch (error) {
       console.error('Error fetching notifications:', error);
-      setNotifications([]); // Set empty array on error
+      setNotifications([]);
+      
+      // If it's a network error and WebSocket is also down, show user feedback
+      if (!wsConnected && (error.code === 'NETWORK_ERROR' || error.message.includes('fetch'))) {
+        console.warn('Both WebSocket and HTTP requests failing. Check backend connection.');
+      }
     } finally {
       setLoading(false);
     }
-  }, [activeTab, filters]);
+  }, [activeTab, filters, wsConnected]);
 
   // FIXED: Fetch notification counts with proper error handling
   const fetchNotificationCounts = async () => {
     try {
       const countsData = await notificationsAPI.getUnreadCount();
-      setCounts(countsData);
+      
+      // Ensure counts data has the expected structure
+      const validCounts = {
+        total_count: countsData?.total_count || 0,
+        unread_count: countsData?.unread_count || 0,
+        type_counts: countsData?.type_counts || {},
+      };
+      
+      setCounts(validCounts);
     } catch (error) {
-      console.error('Error fetching counts:', error);
-      // Keep existing counts or set defaults
-      setCounts(prev => prev.total_count ? prev : {
-        total_count: 0,
-        unread_count: 0,
-        type_counts: {},
-      });
+      console.error('Error fetching notification counts:', error);
+      // Keep existing counts on error to avoid UI flashing
+      setCounts(prev => ({
+        total_count: prev.total_count || 0,
+        unread_count: prev.unread_count || 0,
+        type_counts: prev.type_counts || {},
+      }));
     }
   };
 
@@ -182,32 +273,35 @@ const NotificationCenter = () => {
       );
       
       // Refresh counts
-      fetchNotificationCounts();
+      await fetchNotificationCounts();
     } catch (error) {
       console.error('Error marking all as read:', error);
-      // Show user feedback here if needed
+      // Could add toast notification here for user feedback
     }
   };
 
   // FIXED: Mark selected as read with proper error handling
   const markSelectedAsRead = async notificationIds => {
     try {
-      await notificationsAPI.markAsRead(notificationIds);
+      // Ensure notificationIds is an array
+      const idsArray = Array.isArray(notificationIds) ? notificationIds : [notificationIds];
+      
+      await notificationsAPI.markAsRead(idsArray);
       
       // Update local state
       setNotifications(prev =>
         prev.map(notif =>
-          notificationIds.includes(notif.id)
+          idsArray.includes(notif.id)
             ? { ...notif, is_read: true, read_at: new Date().toISOString() }
             : notif
         )
       );
       
       // Refresh counts
-      fetchNotificationCounts();
+      await fetchNotificationCounts();
     } catch (error) {
-      console.error('Error marking as read:', error);
-      // Show user feedback here if needed
+      console.error('Error marking notifications as read:', error);
+      // Could add toast notification here for user feedback
     }
   };
 
@@ -254,7 +348,7 @@ const NotificationCenter = () => {
             <h2>Notification Center</h2>
             <div className={`connection-status ${wsConnected ? 'connected' : 'disconnected'}`}>
               <div className="status-dot" />
-              <span>{wsConnected ? 'Live' : 'Offline'}</span>
+              <span>{wsConnected ? 'Live' : 'Polling'}</span>
             </div>
           </div>
         </div>

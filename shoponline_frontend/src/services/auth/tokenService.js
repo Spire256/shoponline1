@@ -3,16 +3,19 @@
 /**
  * Token Service for JWT token management
  * Handles storing, retrieving, and managing JWT tokens securely
+ * Updated to use consistent storage keys
  */
 class TokenService {
   constructor() {
-    this.ACCESS_TOKEN_KEY = 'shoponline_access_token';
-    this.REFRESH_TOKEN_KEY = 'shoponline_refresh_token';
-    this.TOKEN_EXPIRY_KEY = 'shoponline_token_expiry';
+    // Use consistent keys throughout the application
+    this.ACCESS_TOKEN_KEY = 'access_token';
+    this.REFRESH_TOKEN_KEY = 'refresh_token';
+    this.TOKEN_EXPIRY_KEY = 'token_expiry';
+    this.USER_DATA_KEY = 'user';
   }
 
   /**
-   * Store access and refresh tokens
+   * Store access and refresh tokens with consistent keys
    * @param {string} accessToken - JWT access token
    * @param {string} refreshToken - JWT refresh token
    */
@@ -49,12 +52,14 @@ class TokenService {
   }
 
   /**
-   * Get access token from storage
+   * Get access token from storage with fallback to legacy keys
    * @returns {string|null} Access token or null
    */
   getAccessToken() {
     try {
-      return localStorage.getItem(this.ACCESS_TOKEN_KEY);
+      return localStorage.getItem(this.ACCESS_TOKEN_KEY) || 
+             localStorage.getItem('accessToken') || 
+             localStorage.getItem('shoponline_access_token');
     } catch (error) {
       console.error('Error getting access token:', error);
       return null;
@@ -62,12 +67,14 @@ class TokenService {
   }
 
   /**
-   * Get refresh token from storage
+   * Get refresh token from storage with fallback to legacy keys
    * @returns {string|null} Refresh token or null
    */
   getRefreshToken() {
     try {
-      return localStorage.getItem(this.REFRESH_TOKEN_KEY);
+      return localStorage.getItem(this.REFRESH_TOKEN_KEY) || 
+             localStorage.getItem('refreshToken') || 
+             localStorage.getItem('shoponline_refresh_token');
     } catch (error) {
       console.error('Error getting refresh token:', error);
       return null;
@@ -83,7 +90,14 @@ class TokenService {
     if (!token) return false;
 
     const expiryTime = localStorage.getItem(this.TOKEN_EXPIRY_KEY);
-    if (!expiryTime) return false;
+    if (!expiryTime) {
+      // If no expiry time stored, parse token to get expiry
+      const tokenData = this.parseJWT(token);
+      if (!tokenData || !tokenData.exp) return false;
+      
+      const now = Math.floor(Date.now() / 1000);
+      return now < tokenData.exp - 30; // 30 second buffer
+    }
 
     // Check if token is expired (with 30 second buffer)
     const now = Math.floor(Date.now() / 1000);
@@ -101,10 +115,18 @@ class TokenService {
     if (!token) return false;
 
     const expiryTime = localStorage.getItem(this.TOKEN_EXPIRY_KEY);
-    if (!expiryTime) return false;
+    let expiry;
+
+    if (expiryTime) {
+      expiry = parseInt(expiryTime, 10);
+    } else {
+      // Parse token to get expiry if not stored
+      const tokenData = this.parseJWT(token);
+      if (!tokenData || !tokenData.exp) return true;
+      expiry = tokenData.exp;
+    }
 
     const now = Math.floor(Date.now() / 1000);
-    const expiry = parseInt(expiryTime, 10);
 
     // Check if token expires within 5 minutes (300 seconds)
     return now > expiry - 300;
@@ -116,9 +138,20 @@ class TokenService {
    */
   getTokenExpiry() {
     const expiryTime = localStorage.getItem(this.TOKEN_EXPIRY_KEY);
-    if (!expiryTime) return null;
+    if (expiryTime) {
+      return new Date(parseInt(expiryTime, 10) * 1000);
+    }
 
-    return new Date(parseInt(expiryTime, 10) * 1000);
+    // Fallback: parse token
+    const token = this.getAccessToken();
+    if (token) {
+      const tokenData = this.parseJWT(token);
+      if (tokenData && tokenData.exp) {
+        return new Date(tokenData.exp * 1000);
+      }
+    }
+
+    return null;
   }
 
   /**
@@ -126,23 +159,39 @@ class TokenService {
    * @returns {number} Seconds until expiry, or 0 if expired/invalid
    */
   getTimeUntilExpiry() {
-    const expiryTime = localStorage.getItem(this.TOKEN_EXPIRY_KEY);
-    if (!expiryTime) return 0;
+    const expiry = this.getTokenExpiry();
+    if (!expiry) return 0;
 
-    const now = Math.floor(Date.now() / 1000);
-    const expiry = parseInt(expiryTime, 10);
+    const now = Date.now();
+    const expiryTime = expiry.getTime();
 
-    return Math.max(0, expiry - now);
+    return Math.max(0, Math.floor((expiryTime - now) / 1000));
   }
 
   /**
-   * Clear all tokens from storage
+   * Clear all tokens from storage including legacy keys
    */
   clearTokens() {
     try {
+      // Clear current keys
       localStorage.removeItem(this.ACCESS_TOKEN_KEY);
       localStorage.removeItem(this.REFRESH_TOKEN_KEY);
       localStorage.removeItem(this.TOKEN_EXPIRY_KEY);
+      localStorage.removeItem(this.USER_DATA_KEY);
+
+      // Clear legacy keys for backwards compatibility
+      const legacyKeys = [
+        'accessToken',
+        'refreshToken', 
+        'shoponline_access_token',
+        'shoponline_refresh_token',
+        'shoponline_user',
+        'shoponline_token_expiry'
+      ];
+
+      legacyKeys.forEach(key => {
+        localStorage.removeItem(key);
+      });
     } catch (error) {
       console.error('Error clearing tokens:', error);
     }
@@ -186,6 +235,7 @@ class TokenService {
       email: tokenData.email,
       role: tokenData.role,
       isAdmin: tokenData.is_staff || tokenData.role === 'admin',
+      isStaff: tokenData.is_staff,
       exp: tokenData.exp,
       iat: tokenData.iat,
     };
@@ -235,7 +285,7 @@ class TokenService {
   }
 
   /**
-   * Get token info for debugging
+   * Get comprehensive token info for debugging
    * @returns {Object} Token information
    */
   getTokenInfo() {
@@ -251,6 +301,7 @@ class TokenService {
       expiry: this.getTokenExpiry(),
       timeUntilExpiry: this.getTimeUntilExpiry(),
       userInfo: tokenData,
+      tokenFormat: accessToken ? this.isValidTokenFormat(accessToken) : false,
     };
   }
 
@@ -294,32 +345,37 @@ class TokenService {
   }
 
   /**
-   * Export tokens for backup (use with caution)
-   * @returns {Object} Token data
+   * Migrate from legacy token storage to new format
    */
-  exportTokens() {
-    return {
-      accessToken: this.getAccessToken(),
-      refreshToken: this.getRefreshToken(),
-      expiry: this.getTokenExpiry(),
-    };
-  }
+  migrateLegacyTokens() {
+    try {
+      // Check for legacy tokens and migrate them
+      const legacyAccessToken = localStorage.getItem('accessToken') || 
+                               localStorage.getItem('shoponline_access_token');
+      const legacyRefreshToken = localStorage.getItem('refreshToken') || 
+                                localStorage.getItem('shoponline_refresh_token');
 
-  /**
-   * Import tokens from backup (use with caution)
-   * @param {Object} tokenData - Token data to import
-   */
-  importTokens(tokenData) {
-    if (tokenData.accessToken && tokenData.refreshToken) {
-      this.setTokens(tokenData.accessToken, tokenData.refreshToken);
+      if (legacyAccessToken && legacyRefreshToken) {
+        console.log('Migrating legacy tokens to new format');
+        this.setTokens(legacyAccessToken, legacyRefreshToken);
+        
+        // Remove legacy keys after migration
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('shoponline_access_token');
+        localStorage.removeItem('shoponline_refresh_token');
+      }
+    } catch (error) {
+      console.error('Error migrating legacy tokens:', error);
     }
   }
 
   /**
-   * Clear expired tokens
+   * Clear expired tokens automatically
    */
   clearExpiredTokens() {
     if (!this.isTokenValid()) {
+      console.log('Clearing expired tokens');
       this.clearTokens();
     }
   }
@@ -347,8 +403,23 @@ class TokenService {
       return `${seconds}s remaining`;
     }
   }
+
+  /**
+   * Initialize token service and perform cleanup
+   */
+  initialize() {
+    // Migrate legacy tokens if they exist
+    this.migrateLegacyTokens();
+    
+    // Clear expired tokens
+    this.clearExpiredTokens();
+  }
 }
 
 // Create and export singleton instance
 const tokenService = new TokenService();
+
+// Initialize the service
+tokenService.initialize();
+
 export { tokenService };

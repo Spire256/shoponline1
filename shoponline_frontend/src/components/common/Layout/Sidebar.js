@@ -31,7 +31,11 @@ import {
   LogOut,
   Eye,
   Plus,
-  Minus
+  Minus,
+  Mail,
+  MessageCircle,
+  Info,
+  BookOpen
 } from 'lucide-react';
 import './Layout.css';
 
@@ -62,6 +66,11 @@ const Sidebar = ({
   
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Check if we're on help or contact pages for enhanced integration
+  const isHelpPage = location.pathname === '/help' || location.pathname.startsWith('/help');
+  const isContactPage = location.pathname === '/contact' || location.pathname.startsWith('/contact');
+  const isAboutPage = location.pathname === '/about' || location.pathname.startsWith('/about');
 
   // Filter categories based on search term
   useEffect(() => {
@@ -254,40 +263,71 @@ const Sidebar = ({
     { path: '/payments', icon: CreditCard, label: 'Payment Methods' },
   ];
 
+  // Support items for navigation
   const supportItems = [
-    { path: '/help', icon: HelpCircle, label: 'Help Center' },
-    { path: '/contact', icon: Phone, label: 'Contact Us' },
-    { path: '/faq', icon: FileText, label: 'FAQ' },
+    { 
+      path: '/help', 
+      icon: HelpCircle, 
+      label: 'Help Center',
+      isActive: isHelpPage,
+      description: 'Find answers to common questions'
+    },
+    { 
+      path: '/contact', 
+      icon: Mail, 
+      label: 'Contact Us',
+      isActive: isContactPage,
+      description: 'Get in touch with our support team'
+    },
+    { 
+      path: '/about', 
+      icon: Info, 
+      label: 'About Us',
+      isActive: isAboutPage,
+      description: 'Learn more about ShopOnline Uganda'
+    },
+    { 
+      path: '/faq', 
+      icon: BookOpen, 
+      label: 'FAQ',
+      description: 'Frequently asked questions'
+    },
   ];
 
-  const renderNavItem = ({ path, icon: Icon, label, isSpecial = false, onClick }) => (
+  const renderNavItem = ({ path, icon: Icon, label, isSpecial = false, isActive = false, description, onClick }) => (
     <li key={path} className="nav-item">
       {onClick ? (
         <button
           onClick={onClick}
-          className={`nav-link nav-button ${isCollapsed ? 'collapsed' : ''} ${isSpecial ? 'flash-link' : ''}`}
-          title={isCollapsed ? label : ''}
+          className={`nav-link nav-button ${isCollapsed ? 'collapsed' : ''} ${isSpecial ? 'flash-link' : ''} ${isActive ? 'active' : ''}`}
+          title={isCollapsed ? label : description || label}
           aria-label={label}
         >
           <div className="nav-icon">
             <Icon className={`icon ${isSpecial ? 'flash-icon' : ''}`} />
           </div>
           <span className="nav-text">{label}</span>
+          {!isCollapsed && description && (
+            <span className="nav-description">{description}</span>
+          )}
           {isSpecial && !isCollapsed && <span className="flash-badge">Hot</span>}
         </button>
       ) : (
         <Link
           to={path}
           className={`nav-link ${
-            isActiveRoute(path) ? 'active' : ''
+            isActive || isActiveRoute(path) ? 'active' : ''
           } ${isCollapsed ? 'collapsed' : ''} ${isSpecial ? 'flash-link' : ''}`}
-          title={isCollapsed ? label : ''}
+          title={isCollapsed ? label : description || label}
           aria-label={label}
         >
           <div className="nav-icon">
             <Icon className={`icon ${isSpecial ? 'flash-icon' : ''}`} />
           </div>
           <span className="nav-text">{label}</span>
+          {!isCollapsed && description && (
+            <span className="nav-description">{description}</span>
+          )}
           {isSpecial && !isCollapsed && <span className="flash-badge">Hot</span>}
         </Link>
       )}
@@ -332,7 +372,7 @@ const Sidebar = ({
       )}
 
       <aside 
-        className={`sidebar ${isCollapsed ? 'collapsed' : 'expanded'} ${isMobileMenuOpen ? 'mobile-open' : ''}`}
+        className={`sidebar ${isCollapsed ? 'collapsed' : 'expanded'} ${isMobileMenuOpen ? 'mobile-open' : ''} ${(isHelpPage || isContactPage) ? 'support-context' : ''}`}
         role="navigation"
         aria-label={isAdmin ? 'Admin navigation' : 'Main navigation'}
       >
@@ -469,7 +509,7 @@ const Sidebar = ({
                 )}
 
                 {/* Support Section */}
-                {renderSection('Support', supportItems)}
+                {renderSection('Help & Support', supportItems)}
                 
                 {/* Logout for authenticated users */}
                 {isAuthenticated && (
@@ -490,39 +530,103 @@ const Sidebar = ({
           </ul>
         </nav>
 
-        {/* Quick Contact Footer (for non-admin users only) */}
-        {!isAdmin && !isCollapsed && (
-          <div className="sidebar-footer">
-            <div className="quick-contact">
-              <h4 className="contact-title">Need Help?</h4>
-              <div className="contact-methods">
-                <button 
-                  className="contact-btn phone"
-                  onClick={() => window.open('tel:+256700123456')}
-                  title="Call us"
-                  aria-label="Call customer support"
-                >
-                  <Phone className="icon" />
-                  <span>Call Now</span>
-                </button>
-                <button 
-                  className="contact-btn whatsapp"
-                  onClick={() => window.open('https://wa.me/256700123456', '_blank', 'noopener,noreferrer')}
-                  title="WhatsApp us"
-                  aria-label="Contact us on WhatsApp"
-                >
-                  <div className="whatsapp-icon">💬</div>
-                  <span>WhatsApp</span>
-                </button>
-              </div>
-              <div className="business-hours">
-                <Clock className="icon" />
-                <span>Mon-Fri: 8AM-8PM</span>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* REMOVED: Quick Contact Footer Section */}
+        {/* The sidebar-footer and quick-contact sections have been completely removed */}
+        
       </aside>
+
+      {/* Support context styles - kept for help/contact page integration */}
+      <style jsx>{`
+        .sidebar.support-context .nav-link.active {
+          background: linear-gradient(135deg, #007bff, #0056b3);
+          color: white;
+          box-shadow: 0 2px 4px rgba(0, 123, 255, 0.2);
+        }
+
+        .nav-description {
+          font-size: 11px;
+          color: #666;
+          display: block;
+          margin-top: 2px;
+          opacity: 0.8;
+        }
+
+        .nav-link.active .nav-icon {
+          color: inherit;
+        }
+
+        .nav-link.active .nav-description {
+          color: rgba(255, 255, 255, 0.8);
+        }
+
+        /* Category search styles */
+        .category-search {
+          padding: 0.5rem 1rem;
+        }
+
+        .search-input-container {
+          position: relative;
+          display: flex;
+          align-items: center;
+        }
+
+        .search-icon {
+          position: absolute;
+          left: 8px;
+          width: 16px;
+          height: 16px;
+          color: #666;
+          z-index: 1;
+        }
+
+        .category-search-input {
+          width: 100%;
+          padding: 8px 32px 8px 32px;
+          border: 1px solid #ddd;
+          border-radius: 4px;
+          font-size: 12px;
+          background: white;
+        }
+
+        .category-search-input:focus {
+          outline: none;
+          border-color: var(--primary-blue);
+          box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+        }
+
+        .clear-search-btn {
+          position: absolute;
+          right: 8px;
+          background: none;
+          border: none;
+          color: #999;
+          cursor: pointer;
+          padding: 2px;
+          border-radius: 2px;
+        }
+
+        .clear-search-btn:hover {
+          color: #666;
+          background: #f5f5f5;
+        }
+
+        .categories-loading {
+          padding: 1rem;
+          text-align: center;
+          color: #666;
+          font-size: 14px;
+        }
+
+        .no-results {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 1rem;
+          color: #666;
+          font-size: 13px;
+          justify-content: center;
+        }
+      `}</style>
     </>
   );
 };

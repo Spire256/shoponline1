@@ -2,23 +2,22 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
-import Loading from '../UI/Loading/Spinner'; // Fixed: Added UI folder
-import Alert from '../UI/Alert/Alert'; // Fixed: Added UI folder
+import Loading from '../UI/Loading/Spinner';
 
 /**
  * AdminRoute component for protecting admin-only routes
- * Ensures user has admin role (@shoponline.com email) before allowing access
+ * Ensures user has admin role before allowing access
  */
-const AdminRoute = ({
-  children,
-  redirectTo = '/login',
-  fallback = null
+const AdminRoute = ({ 
+  children, 
+  redirectTo = '/auth/login',
+  fallback = null 
 }) => {
-  const { user, loading, isAuthenticated } = useAuth();
+  const { user, isLoading, isAuthenticated, isAdmin, role } = useAuth();
   const location = useLocation();
 
   // Show loading spinner while checking authentication
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
         <div className="text-center">
@@ -31,19 +30,82 @@ const AdminRoute = ({
 
   // If user is not authenticated, redirect to login
   if (!isAuthenticated) {
-    return <Navigate to={redirectTo} state={{ from: location.pathname }} replace />;
+    return <Navigate to={redirectTo} state={{ from: location }} replace />;
   }
 
-  // Check if user has admin role
-  const isAdmin = user?.role === 'admin' || user?.email?.endsWith('@shoponline.com');
+  // Enhanced admin access check with multiple fallback methods
+  const hasAdminAccess = (() => {
+    if (!user) return false;
 
-  if (!isAdmin) {
+    // Method 1: Use the isAdmin function from hook (primary method)
+    if (typeof isAdmin === 'function') {
+      try {
+        const hookResult = isAdmin();
+        if (hookResult) return true;
+      } catch (error) {
+        console.warn('isAdmin function error:', error);
+      }
+    }
+
+    // Method 2: Check role from context state
+    if (role === 'admin') return true;
+
+    // Method 3: Check user object role property
+    if (user.role === 'admin') return true;
+
+    // Method 4: Check Django-style is_staff flag
+    if (user.is_staff === true) return true;
+
+    // Method 5: Check email domain as fallback (for admin@shoponline.com)
+    if (user.email && user.email.endsWith('@shoponline.com')) return true;
+
+    // Method 6: Check stored user data directly (fallback)
+    try {
+      const storedUser = JSON.parse(localStorage.getItem('user') || 'null');
+      if (storedUser && (
+        storedUser.role === 'admin' || 
+        storedUser.is_staff === true ||
+        (storedUser.email && storedUser.email.endsWith('@shoponline.com'))
+      )) {
+        return true;
+      }
+    } catch (error) {
+      console.warn('Error checking stored user:', error);
+    }
+
+    return false;
+  })();
+
+  // Enhanced debug logging for troubleshooting
+  if (process.env.NODE_ENV === 'development') {
+    console.log('AdminRoute Debug Info:', {
+      user,
+      role,
+      isAuthenticated,
+      hasAdminAccess,
+      isAdminFunction: typeof isAdmin === 'function' ? isAdmin() : 'not a function',
+      userRole: user?.role,
+      userIsStaff: user?.is_staff,
+      userEmail: user?.email,
+      location: location.pathname,
+      tokenExists: Boolean(localStorage.getItem('access_token')),
+      storedUser: (() => {
+        try {
+          return JSON.parse(localStorage.getItem('user') || 'null');
+        } catch {
+          return 'parse error';
+        }
+      })(),
+    });
+  }
+
+  if (!hasAdminAccess) {
     // If fallback component is provided, show it
     if (fallback) {
       return fallback;
     }
 
-    // Show access denied message for non-admin users
+    // Show enhanced access denied message with debug info
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
         <div className="max-w-md w-full">
@@ -64,11 +126,23 @@ const AdminRoute = ({
               </svg>
             </div>
 
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
-
-            <p className="text-gray-600 mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Admin Access Required</h2>
+            
+            <p className="text-gray-600 mb-4">
               You don't have permission to access this area. Admin access is required.
             </p>
+
+            {/* Debug info for development environment */}
+            {process.env.NODE_ENV === 'development' && user && (
+              <div className="bg-gray-100 p-3 rounded text-sm text-left mb-4">
+                <p className="font-semibold mb-2">Debug Info:</p>
+                <p>Email: {user.email || 'undefined'}</p>
+                <p>Role: {user.role || 'undefined'}</p>
+                <p>Is Staff: {String(user.is_staff)}</p>
+                <p>Context Role: {role || 'undefined'}</p>
+                <p>isAdmin(): {String(typeof isAdmin === 'function' ? isAdmin() : 'not function')}</p>
+              </div>
+            )}
 
             <div className="space-y-3">
               <button
@@ -77,10 +151,21 @@ const AdminRoute = ({
               >
                 Go Back
               </button>
-
+              
+              <button
+                onClick={() => {
+                  // Clear auth data and redirect to login
+                  localStorage.clear();
+                  window.location.href = '/auth/login';
+                }}
+                className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors duration-200"
+              >
+                Logout and Try Different Account
+              </button>
+              
               <button
                 onClick={() => window.location.href = '/'}
-                className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors duration-200"
+                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium py-2 px-4 rounded-lg transition-colors duration-200"
               >
                 Return to Homepage
               </button>
