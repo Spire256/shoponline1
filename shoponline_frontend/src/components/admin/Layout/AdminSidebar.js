@@ -13,25 +13,42 @@ import {
   ChevronDown,
   ChevronRight,
   X,
+  CreditCard,
+  Globe,
+  FileText,
+  HelpCircle,
+  User
 } from 'lucide-react';
 
-const AdminSidebar = ({ isOpen, isMobileOpen, onClose, currentPath, user }) => {
+const AdminSidebar = ({ 
+  isOpen = true, 
+  isMobileOpen = false, 
+  onClose, 
+  currentPath = '/admin/dashboard',
+  onNavigate,
+  menuBadges = {}
+}) => {
   const [expandedMenus, setExpandedMenus] = useState({
     products: false,
     orders: false,
     analytics: false,
+    users: false,
   });
 
-  const toggleMenu = menuKey => {
+  const toggleMenu = (menuKey) => {
     setExpandedMenus(prev => ({
       ...prev,
       [menuKey]: !prev[menuKey],
     }));
   };
 
-  const handleMenuItemClick = path => {
-    console.log('Navigate to:', path);
-    if (window.innerWidth < 1024) {
+  const handleMenuItemClick = (path) => {
+    if (onNavigate) {
+      onNavigate(path);
+    }
+    
+    // Close mobile menu after navigation
+    if (typeof window !== 'undefined' && window.innerWidth < 1024 && onClose) {
       onClose();
     }
   };
@@ -43,6 +60,7 @@ const AdminSidebar = ({ isOpen, isMobileOpen, onClose, currentPath, user }) => {
       icon: LayoutDashboard,
       path: '/admin/dashboard',
       active: currentPath === '/admin/dashboard',
+      tooltip: 'Dashboard Overview'
     },
     {
       key: 'products',
@@ -50,6 +68,8 @@ const AdminSidebar = ({ isOpen, isMobileOpen, onClose, currentPath, user }) => {
       icon: Package,
       expandable: true,
       expanded: expandedMenus.products,
+      tooltip: 'Product Management',
+      badge: menuBadges.products,
       children: [
         {
           key: 'product-list',
@@ -69,6 +89,20 @@ const AdminSidebar = ({ isOpen, isMobileOpen, onClose, currentPath, user }) => {
           path: '/admin/products/bulk',
           active: currentPath === '/admin/products/bulk',
         },
+        {
+          key: 'product-reviews',
+          label: 'Reviews',
+          path: '/admin/products/reviews',
+          active: currentPath === '/admin/products/reviews',
+          badge: menuBadges.reviews,
+        },
+        {
+          key: 'inventory',
+          label: 'Inventory',
+          path: '/admin/products/inventory',
+          active: currentPath === '/admin/products/inventory',
+          badge: menuBadges.lowStock,
+        },
       ],
     },
     {
@@ -77,6 +111,7 @@ const AdminSidebar = ({ isOpen, isMobileOpen, onClose, currentPath, user }) => {
       icon: FolderOpen,
       path: '/admin/categories',
       active: currentPath === '/admin/categories',
+      tooltip: 'Product Categories'
     },
     {
       key: 'flash-sales',
@@ -84,7 +119,8 @@ const AdminSidebar = ({ isOpen, isMobileOpen, onClose, currentPath, user }) => {
       icon: Zap,
       path: '/admin/flash-sales',
       active: currentPath === '/admin/flash-sales',
-      badge: '3 Active',
+      badge: menuBadges.flashSales,
+      tooltip: 'Flash Sales & Promotions'
     },
     {
       key: 'orders',
@@ -92,7 +128,8 @@ const AdminSidebar = ({ isOpen, isMobileOpen, onClose, currentPath, user }) => {
       icon: ShoppingCart,
       expandable: true,
       expanded: expandedMenus.orders,
-      badge: '12 New',
+      badge: menuBadges.orders,
+      tooltip: 'Order Management',
       children: [
         {
           key: 'all-orders',
@@ -105,13 +142,26 @@ const AdminSidebar = ({ isOpen, isMobileOpen, onClose, currentPath, user }) => {
           label: 'COD Orders',
           path: '/admin/orders/cod',
           active: currentPath === '/admin/orders/cod',
-          badge: '5 New',
+          badge: menuBadges.codOrders,
         },
         {
           key: 'pending-orders',
           label: 'Pending Orders',
           path: '/admin/orders/pending',
           active: currentPath === '/admin/orders/pending',
+          badge: menuBadges.pendingOrders,
+        },
+        {
+          key: 'completed-orders',
+          label: 'Completed',
+          path: '/admin/orders/completed',
+          active: currentPath === '/admin/orders/completed',
+        },
+        {
+          key: 'cancelled-orders',
+          label: 'Cancelled',
+          path: '/admin/orders/cancelled',
+          active: currentPath === '/admin/orders/cancelled',
         },
       ],
     },
@@ -119,8 +169,38 @@ const AdminSidebar = ({ isOpen, isMobileOpen, onClose, currentPath, user }) => {
       key: 'users',
       label: 'Users',
       icon: Users,
-      path: '/admin/users',
-      active: currentPath === '/admin/users',
+      expandable: true,
+      expanded: expandedMenus.users,
+      tooltip: 'User Management',
+      children: [
+        {
+          key: 'all-users',
+          label: 'All Users',
+          path: '/admin/users',
+          active: currentPath === '/admin/users',
+        },
+        {
+          key: 'admin-invitations',
+          label: 'Admin Invitations',
+          path: '/admin/users/invitations',
+          active: currentPath === '/admin/users/invitations',
+          badge: menuBadges.invitations,
+        },
+        {
+          key: 'user-roles',
+          label: 'User Roles',
+          path: '/admin/users/roles',
+          active: currentPath === '/admin/users/roles',
+        },
+      ],
+    },
+    {
+      key: 'payments',
+      label: 'Payments',
+      icon: CreditCard,
+      path: '/admin/payments',
+      active: currentPath === '/admin/payments',
+      tooltip: 'Payment Management'
     },
     {
       key: 'homepage',
@@ -128,6 +208,7 @@ const AdminSidebar = ({ isOpen, isMobileOpen, onClose, currentPath, user }) => {
       icon: Home,
       path: '/admin/homepage',
       active: currentPath === '/admin/homepage',
+      tooltip: 'Homepage Settings'
     },
     {
       key: 'analytics',
@@ -135,6 +216,7 @@ const AdminSidebar = ({ isOpen, isMobileOpen, onClose, currentPath, user }) => {
       icon: BarChart3,
       expandable: true,
       expanded: expandedMenus.analytics,
+      tooltip: 'Analytics & Reports',
       children: [
         {
           key: 'sales-analytics',
@@ -160,6 +242,12 @@ const AdminSidebar = ({ isOpen, isMobileOpen, onClose, currentPath, user }) => {
           path: '/admin/analytics/flash-sales',
           active: currentPath === '/admin/analytics/flash-sales',
         },
+        {
+          key: 'traffic-analytics',
+          label: 'Traffic Analytics',
+          path: '/admin/analytics/traffic',
+          active: currentPath === '/admin/analytics/traffic',
+        },
       ],
     },
     {
@@ -168,13 +256,30 @@ const AdminSidebar = ({ isOpen, isMobileOpen, onClose, currentPath, user }) => {
       icon: Bell,
       path: '/admin/notifications',
       active: currentPath === '/admin/notifications',
-      badge: '3',
+      badge: menuBadges.notifications,
+      tooltip: 'Notification Center'
+    },
+    {
+      key: 'reports',
+      label: 'Reports',
+      icon: FileText,
+      path: '/admin/reports',
+      active: currentPath === '/admin/reports',
+      tooltip: 'System Reports'
+    },
+    {
+      key: 'settings',
+      label: 'Settings',
+      icon: Settings,
+      path: '/admin/settings',
+      active: currentPath === '/admin/settings',
+      tooltip: 'System Settings'
     },
   ];
 
-  const renderMenuItem = item => {
+  const renderMenuItem = (item) => {
     const Icon = item.icon;
-    const isActive = item.active;
+    const isActive = item.active || (item.children && item.children.some(child => child.active));
     const hasChildren = item.expandable && item.children;
 
     if (hasChildren) {
@@ -183,6 +288,9 @@ const AdminSidebar = ({ isOpen, isMobileOpen, onClose, currentPath, user }) => {
           <button
             className={`menu-item ${isActive ? 'active' : ''} ${item.expanded ? 'expanded' : ''}`}
             onClick={() => toggleMenu(item.key)}
+            data-tooltip={item.tooltip}
+            aria-expanded={item.expanded}
+            aria-label={`Toggle ${item.label} menu`}
           >
             <div className="menu-item-content">
               <div className="menu-item-left">
@@ -190,7 +298,11 @@ const AdminSidebar = ({ isOpen, isMobileOpen, onClose, currentPath, user }) => {
                 <span className="menu-label">{item.label}</span>
               </div>
               <div className="menu-item-right">
-                {item.badge && <span className="menu-badge">{item.badge}</span>}
+                {item.badge && (
+                  <span className="menu-badge" aria-label={`${item.badge} items`}>
+                    {typeof item.badge === 'number' ? (item.badge > 99 ? '99+' : item.badge) : item.badge}
+                  </span>
+                )}
                 {item.expanded ? (
                   <ChevronDown size={16} className="expand-icon" />
                 ) : (
@@ -201,15 +313,20 @@ const AdminSidebar = ({ isOpen, isMobileOpen, onClose, currentPath, user }) => {
           </button>
 
           {item.expanded && (
-            <div className="submenu">
-              {item.children.map(child => (
+            <div className="submenu" role="group" aria-label={`${item.label} submenu`}>
+              {item.children.map((child) => (
                 <button
                   key={child.key}
                   className={`submenu-item ${child.active ? 'active' : ''}`}
                   onClick={() => handleMenuItemClick(child.path)}
+                  aria-label={child.label}
                 >
                   <span className="submenu-label">{child.label}</span>
-                  {child.badge && <span className="menu-badge small">{child.badge}</span>}
+                  {child.badge && (
+                    <span className="menu-badge small" aria-label={`${child.badge} items`}>
+                      {typeof child.badge === 'number' ? (child.badge > 99 ? '99+' : child.badge) : child.badge}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
@@ -223,13 +340,19 @@ const AdminSidebar = ({ isOpen, isMobileOpen, onClose, currentPath, user }) => {
         key={item.key}
         className={`menu-item ${isActive ? 'active' : ''}`}
         onClick={() => handleMenuItemClick(item.path)}
+        data-tooltip={item.tooltip}
+        aria-label={item.label}
       >
         <div className="menu-item-content">
           <div className="menu-item-left">
             <Icon size={20} className="menu-icon" />
             <span className="menu-label">{item.label}</span>
           </div>
-          {item.badge && <span className="menu-badge">{item.badge}</span>}
+          {item.badge && (
+            <span className="menu-badge" aria-label={`${item.badge} items`}>
+              {typeof item.badge === 'number' ? (item.badge > 99 ? '99+' : item.badge) : item.badge}
+            </span>
+          )}
         </div>
       </button>
     );
@@ -237,72 +360,182 @@ const AdminSidebar = ({ isOpen, isMobileOpen, onClose, currentPath, user }) => {
 
   return (
     <>
+      {/* Mobile overlay */}
+      {isMobileOpen && (
+        <div 
+          className="admin-mobile-overlay show" 
+          onClick={onClose}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              onClose();
+            }
+          }}
+          role="button"
+          tabIndex={0}
+          aria-label="Close sidebar overlay"
+        />
+      )}
+
       <aside
         className={`admin-sidebar ${isOpen ? 'open' : 'closed'} ${
           isMobileOpen ? 'mobile-open' : ''
         }`}
+        role="navigation"
+        aria-label="Admin navigation"
       >
-        <div className="sidebar-header">
-          <div className="sidebar-logo">
-            <div className="logo-icon">SO</div>
-            <div className="logo-text">
-              <h2>ShopOnline</h2>
-              <span>Admin Panel</span>
-            </div>
+        {/* Aligned Navigation Header */}
+        <div className="sidebar-header-navigation">
+          <div className="navigation-title">
+            <span className="nav-text">Navigation</span>
           </div>
 
           {/* Mobile close button */}
-          <button className="mobile-close-btn" onClick={onClose} aria-label="Close sidebar">
-            <X size={20} />
-          </button>
+          {isMobileOpen && (
+            <button 
+              className="mobile-close-btn" 
+              onClick={onClose} 
+              aria-label="Close sidebar"
+              type="button"
+            >
+              <X size={20} />
+            </button>
+          )}
         </div>
 
         <div className="sidebar-content">
-          <nav className="sidebar-nav">
+          <nav className="sidebar-nav" role="navigation" aria-label="Main navigation">
             <div className="nav-section">
-              <h3 className="nav-section-title">Main</h3>
-              <div className="nav-items">{menuItems.slice(0, 1).map(renderMenuItem)}</div>
+              {(isOpen || isMobileOpen) && <h3 className="nav-section-title">Overview</h3>}
+              <div className="nav-items" role="group">
+                {menuItems.slice(0, 1).map(renderMenuItem)}
+              </div>
             </div>
 
             <div className="nav-section">
-              <h3 className="nav-section-title">E-commerce</h3>
-              <div className="nav-items">{menuItems.slice(1, 6).map(renderMenuItem)}</div>
+              {(isOpen || isMobileOpen) && <h3 className="nav-section-title">E-Commerce</h3>}
+              <div className="nav-items" role="group">
+                {menuItems.slice(1, 6).map(renderMenuItem)}
+              </div>
             </div>
 
             <div className="nav-section">
-              <h3 className="nav-section-title">Management</h3>
-              <div className="nav-items">{menuItems.slice(6, 8).map(renderMenuItem)}</div>
+              {(isOpen || isMobileOpen) && <h3 className="nav-section-title">Management</h3>}
+              <div className="nav-items" role="group">
+                {menuItems.slice(6, 9).map(renderMenuItem)}
+              </div>
             </div>
 
             <div className="nav-section">
-              <h3 className="nav-section-title">System</h3>
-              <div className="nav-items">{menuItems.slice(8).map(renderMenuItem)}</div>
+              {(isOpen || isMobileOpen) && <h3 className="nav-section-title">System</h3>}
+              <div className="nav-items" role="group">
+                {menuItems.slice(9).map(renderMenuItem)}
+              </div>
             </div>
           </nav>
-        </div>
 
-        <div className="sidebar-footer">
-          <div className="admin-info">
-            <div className="admin-avatar">
-              {user.profile_image ? (
-                <img src={user.profile_image} alt="Admin" />
-              ) : (
-                <div className="avatar-placeholder">
-                  {user.first_name?.[0]}
-                  {user.last_name?.[0]}
+          {/* Enhanced Sidebar Footer */}
+          {(isOpen || isMobileOpen) && (
+            <div className="sidebar-footer">
+              <div className="admin-info">
+                <div className="admin-avatar">
+                  <div className="avatar-placeholder">
+                    AU
+                  </div>
                 </div>
-              )}
+                <div className="admin-details">
+                  <h4>Admin User</h4>
+                  <p>System Administrator</p>
+                </div>
+                <button 
+                  className="settings-btn"
+                  onClick={() => handleMenuItemClick('/admin/profile')}
+                  aria-label="Admin settings"
+                  type="button"
+                >
+                  <Settings size={16} />
+                </button>
+              </div>
+              
+              <div className="help-section">
+                <button 
+                  className="help-btn"
+                  onClick={() => handleMenuItemClick('/admin/help')}
+                  type="button"
+                >
+                  <HelpCircle size={16} />
+                  <span>Help & Support</span>
+                </button>
+              </div>
+              
+              <div className="version-info">
+                <span>Version 2.1.0</span>
+              </div>
             </div>
-            <div className="admin-details">
-              <h4>{user.full_name}</h4>
-              <p>Administrator</p>
-            </div>
-          </div>
-
-          <button className="settings-btn" onClick={() => handleMenuItemClick('/admin/settings')}>
-            <Settings size={20} />
-          </button>
+          )}
         </div>
+
+        {/* Additional CSS for navigation header */}
+        <style jsx>{`
+          .sidebar-header-navigation {
+            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            display: flex;
+            align-items: center;
+            min-height: 80px;
+          }
+
+          .navigation-title {
+            flex: 1;
+            display: flex;
+            align-items: center;
+          }
+
+          .nav-text {
+            color: white;
+            font-size: 1.25rem;
+            font-weight: 600;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            letter-spacing: 0.025em;
+            opacity: 0.95;
+          }
+
+          .mobile-close-btn {
+            background: rgba(255, 255, 255, 0.15);
+            border: none;
+            border-radius: 8px;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(10px);
+          }
+
+          .mobile-close-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+          }
+
+          @media (min-width: 1024px) {
+            .mobile-close-btn {
+              display: none;
+            }
+          }
+
+          /* Ensure collapsed sidebar still shows properly */
+          .admin-sidebar.closed .sidebar-header-navigation {
+            padding: 1rem;
+            justify-content: center;
+          }
+
+          .admin-sidebar.closed .nav-text {
+            display: none;
+          }
+        `}</style>
       </aside>
     </>
   );

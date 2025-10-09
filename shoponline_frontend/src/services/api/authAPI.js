@@ -1,68 +1,41 @@
 // src/services/api/authAPI.js
 import apiClient, { handleApiResponse, handleApiError } from './apiClient';
 
-// Enhanced token management with multiple fallbacks
+// Fixed: Use consistent storage keys throughout
 const getAccessToken = () => {
-  const sources = [
-    localStorage.getItem('accessToken'),
-    localStorage.getItem('access_token'),
-  ];
-
-  for (const source of sources) {
-    if (source) {
-      try {
-        const parsed = JSON.parse(source);
-        return parsed.access || parsed.access_token || parsed.accessToken;
-      } catch (e) {
-        return source;
-      }
-    }
-  }
-  return null;
+  return localStorage.getItem('access_token') || 
+         localStorage.getItem('accessToken') || 
+         localStorage.getItem('shoponline_access_token');
 };
 
 const getRefreshToken = () => {
-  const sources = [
-    localStorage.getItem('refreshToken'),
-    localStorage.getItem('refresh_token'),
-  ];
-
-  for (const source of sources) {
-    if (source) {
-      try {
-        const parsed = JSON.parse(source);
-        return parsed.refresh || parsed.refresh_token || parsed.refreshToken;
-      } catch (e) {
-        if (source === localStorage.getItem('refresh_token') || 
-            source === localStorage.getItem('refreshToken')) {
-          return source;
-        }
-      }
-    }
-  }
-  return null;
+  return localStorage.getItem('refresh_token') || 
+         localStorage.getItem('refreshToken') || 
+         localStorage.getItem('shoponline_refresh_token');
 };
 
-// Store tokens with multiple keys for compatibility
+// Fixed: Store tokens with consistent keys only
 const storeTokens = (accessToken, refreshToken) => {
   if (accessToken) {
-    localStorage.setItem('accessToken', accessToken);
     localStorage.setItem('access_token', accessToken);
   }
   if (refreshToken) {
-    localStorage.setItem('refreshToken', refreshToken);
     localStorage.setItem('refresh_token', refreshToken);
   }
 };
 
-// Clear all tokens from all storage locations
+// Fixed: Clear all tokens from all storage locations
 const clearAllTokens = () => {
   const keysToRemove = [
-    'accessToken',
-    'access_token', 
-    'refreshToken',
+    'access_token',
     'refresh_token',
     'user',
+    // Legacy keys for backwards compatibility
+    'accessToken',
+    'refreshToken',
+    'shoponline_access_token',
+    'shoponline_refresh_token',
+    'shoponline_user',
   ];
   
   keysToRemove.forEach(key => {
@@ -76,15 +49,16 @@ const authAPI = {
     try {
       const response = await apiClient.post('/auth/register/client/', {
         email: userData.email,
-        first_name: userData.first_name,
-        last_name: userData.last_name,
+        first_name: userData.first_name || userData.firstName,
+        last_name: userData.last_name || userData.lastName,
         password: userData.password,
-        password_confirm: userData.password_confirm,
+        password_confirm: userData.password_confirm || userData.passwordConfirm,
+        phone_number: userData.phone_number || userData.phoneNumber || '',
       });
       
       const data = handleApiResponse(response);
       
-      // Store tokens and user data
+      // Store tokens and user data with consistent keys
       if (data.tokens) {
         storeTokens(data.tokens.access, data.tokens.refresh);
       }
@@ -103,16 +77,16 @@ const authAPI = {
   registerAdmin: async userData => {
     try {
       const response = await apiClient.post('/auth/register/admin/', {
-        first_name: userData.first_name,
-        last_name: userData.last_name,
+        first_name: userData.first_name || userData.firstName,
+        last_name: userData.last_name || userData.lastName,
         password: userData.password,
-        password_confirm: userData.password_confirm,
-        invitation_token: userData.invitation_token,
+        password_confirm: userData.password_confirm || userData.passwordConfirm,
+        invitation_token: userData.invitation_token || userData.invitationToken,
       });
       
       const data = handleApiResponse(response);
       
-      // Store tokens and user data
+      // Store tokens and user data with consistent keys
       if (data.tokens) {
         storeTokens(data.tokens.access, data.tokens.refresh);
       }
@@ -137,7 +111,7 @@ const authAPI = {
       
       const data = handleApiResponse(response);
 
-      // Store tokens and user data
+      // Store tokens and user data with consistent keys
       if (data.tokens) {
         storeTokens(data.tokens.access, data.tokens.refresh);
       }
@@ -156,9 +130,15 @@ const authAPI = {
   logout: async () => {
     try {
       const refreshToken = getRefreshToken();
-      if (refreshToken) {
+      const accessToken = getAccessToken();
+      
+      if (refreshToken && accessToken) {
         await apiClient.post('/auth/logout/', {
           refresh: refreshToken,
+        }, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
         });
       }
     } catch (error) {
@@ -182,8 +162,8 @@ const authAPI = {
 
       const data = handleApiResponse(response);
 
-      // Store new tokens
-      storeTokens(data.access, data.refresh);
+      // Store new tokens with consistent keys
+      storeTokens(data.access, data.refresh || refreshToken);
 
       return data;
     } catch (error) {
@@ -252,6 +232,9 @@ const authAPI = {
       const response = await apiClient.get('/auth/profile/');
       const profileData = handleApiResponse(response);
 
+      // Update stored user data
+      localStorage.setItem('user', JSON.stringify(profileData));
+
       return {
         isAuthenticated: true,
         user: profileData,
@@ -264,10 +247,11 @@ const authAPI = {
     }
   },
 
-  // Helper methods
+  // Fixed: Helper methods with enhanced admin detection
   isAuthenticated: () => {
     const token = getAccessToken();
-    return Boolean(token);
+    const user = localStorage.getItem('user');
+    return Boolean(token && user);
   },
 
   getUserRole: () => {
@@ -275,7 +259,7 @@ const authAPI = {
       const userData = localStorage.getItem('user');
       if (userData) {
         const user = JSON.parse(userData);
-        return user.role;
+        return user.role || (user.is_staff ? 'admin' : 'client');
       }
       return null;
     } catch (error) {
@@ -285,11 +269,33 @@ const authAPI = {
   },
 
   isAdmin: () => {
-    return authAPI.getUserRole() === 'admin';
+    try {
+      const userData = localStorage.getItem('user');
+      if (userData) {
+        const user = JSON.parse(userData);
+        return user.role === 'admin' || 
+               user.is_staff === true ||
+               (user.email && user.email.endsWith('@shoponline.com'));
+      }
+      return false;
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+      return false;
+    }
   },
 
   isClient: () => {
-    return authAPI.getUserRole() === 'client';
+    try {
+      const userData = localStorage.getItem('user');
+      if (userData) {
+        const user = JSON.parse(userData);
+        return user.role === 'client' || (!authAPI.isAdmin() && authAPI.isAuthenticated());
+      }
+      return false;
+    } catch (error) {
+      console.error('Error checking client status:', error);
+      return false;
+    }
   },
 
   getUserData: () => {
@@ -312,6 +318,58 @@ const authAPI = {
 
   getRefreshToken: () => {
     return getRefreshToken();
+  },
+
+  // Additional helper methods
+  hasPermission: (permission) => {
+    if (!authAPI.isAuthenticated()) return false;
+    if (authAPI.isAdmin()) return true; // Admins have all permissions
+    
+    // Basic client permissions
+    const clientPermissions = [
+      'view_profile',
+      'edit_profile', 
+      'place_orders',
+      'view_orders',
+      'make_payments',
+      'view_products',
+      'view_categories',
+      'view_flash_sales',
+    ];
+    
+    return clientPermissions.includes(permission);
+  },
+
+  // Get formatted user display name
+  getUserDisplayName: () => {
+    const user = authAPI.getUserData();
+    if (!user) return '';
+
+    if (user.first_name && user.last_name) {
+      return `${user.first_name} ${user.last_name}`;
+    }
+
+    if (user.full_name) {
+      return user.full_name;
+    }
+
+    return user.email || 'User';
+  },
+
+  // Get user initials for avatar
+  getUserInitials: () => {
+    const user = authAPI.getUserData();
+    if (!user) return 'U';
+
+    if (user.first_name && user.last_name) {
+      return `${user.first_name[0]}${user.last_name[0]}`.toUpperCase();
+    }
+
+    if (user.email) {
+      return user.email.substring(0, 2).toUpperCase();
+    }
+
+    return 'U';
   },
 };
 

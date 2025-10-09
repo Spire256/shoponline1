@@ -2,8 +2,8 @@ import React, { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import './App.css';
 
-// Import contexts
-import { useAuth } from './contexts/AuthContext';
+// Import contexts - Fixed: Use proper hook instead of direct context
+import { useAuth } from './hooks/useAuth';
 import { useNotifications } from './contexts/NotificationContext';
 
 // Import layout components
@@ -57,16 +57,14 @@ import NotificationCenter from './components/admin/Notifications/NotificationCen
 import LoadingOverlay from './components/common/UI/Loading/LoadingOverlay';
 
 function App() {
-  const { user, loading, checkAuthStatus } = useAuth();
+  // Fixed: Use proper hook destructuring with correct property names
+  const { user, isLoading, isAuthenticated, isAdmin } = useAuth();
   const { notifications } = useNotifications();
 
-  // Check authentication status on app load
-  useEffect(() => {
-    checkAuthStatus();
-  }, [checkAuthStatus]);
+  // Fixed: Remove checkAuthStatus as it's handled automatically by AuthContext
 
   // Show loading overlay while checking authentication
-  if (loading) {
+  if (isLoading) {
     return <LoadingOverlay message="Initializing ShopOnline..." />;
   }
 
@@ -128,30 +126,41 @@ function App() {
         </Route>
 
         {/* Authentication Routes - Standalone (no layout) */}
-        <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
-        <Route path="/register" element={user ? <Navigate to="/" replace /> : <Register />} />
+        {/* Fixed: Use proper authentication checks */}
+        <Route 
+          path="/auth/login" 
+          element={isAuthenticated ? <Navigate to={isAdmin() ? "/admin/dashboard" : "/"} replace /> : <Login />} 
+        />
+        <Route 
+          path="/auth/register" 
+          element={isAuthenticated ? <Navigate to={isAdmin() ? "/admin/dashboard" : "/"} replace /> : <Register />} 
+        />
         <Route
-          path="/admin/register/:token"
+          path="/auth/admin/register/:token"
           element={
-            user?.role === 'admin' ? <Navigate to="/admin/dashboard" replace /> : <AdminRegister />
+            isAuthenticated && isAdmin() ? <Navigate to="/admin/dashboard" replace /> : <AdminRegister />
           }
         />
         <Route
-          path="/forgot-password"
-          element={user ? <Navigate to="/" replace /> : <ForgotPassword />}
+          path="/auth/forgot-password"
+          element={isAuthenticated ? <Navigate to={isAdmin() ? "/admin/dashboard" : "/"} replace /> : <ForgotPassword />}
         />
+
+        {/* Legacy routes for backwards compatibility */}
+        <Route path="/login" element={<Navigate to="/auth/login" replace />} />
+        <Route path="/register" element={<Navigate to="/auth/register" replace />} />
 
         {/* Admin Authentication Routes - Standalone */}
         <Route
           path="/admin/login"
           element={
-            user?.role === 'admin' ? <Navigate to="/admin/dashboard" replace /> : <AdminLoginPage />
+            isAuthenticated && isAdmin() ? <Navigate to="/admin/dashboard" replace /> : <AdminLoginPage />
           }
         />
         <Route
-          path="/admin/register-page"
+          path="/admin/register"
           element={
-            user?.role === 'admin' ? (
+            isAuthenticated && isAdmin() ? (
               <Navigate to="/admin/dashboard" replace />
             ) : (
               <AdminRegisterPage />
@@ -182,8 +191,8 @@ function App() {
         <Route path="*" element={<NotFound />} />
       </Routes>
 
-      {/* Admin Notifications */}
-      {user?.role === 'admin' && notifications.length > 0 && <NotificationCenter />}
+      {/* Admin Notifications - Fixed: Use proper admin check */}
+      {isAuthenticated && isAdmin() && notifications.length > 0 && <NotificationCenter />}
     </div>
   );
 }

@@ -2,9 +2,7 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
-//import Loading from '../Loading/Spinner';
-import Loading from '../UI/Loading/Spinner'; // Fixed: Added UI folder
-//import Alert from '../UI/Alert/Alert';        // Fixed: Added UI folder
+import Loading from '../UI/Loading/Spinner';
 
 /**
  * ProtectedRoute component for authenticating users before allowing access to routes
@@ -12,18 +10,22 @@ import Loading from '../UI/Loading/Spinner'; // Fixed: Added UI folder
  */
 const ProtectedRoute = ({
   children,
-  redirectTo = '/login',
+  redirectTo = '/auth/login', // Fixed: Use proper auth route
   requireAuth = true,
   fallback = null,
 }) => {
-  const { user, loading, isAuthenticated } = useAuth();
+  // Fixed: Use proper property names from useAuth hook
+  const { user, isLoading, isAuthenticated, isAdmin } = useAuth();
   const location = useLocation();
 
   // Show loading spinner while checking authentication
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <Loading />
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="text-center">
+          <Loading />
+          <p className="mt-4 text-blue-600 font-medium">Checking authentication...</p>
+        </div>
       </div>
     );
   }
@@ -31,13 +33,13 @@ const ProtectedRoute = ({
   // If authentication is required but user is not authenticated
   if (requireAuth && !isAuthenticated) {
     // Save the current location for redirect after login
-    return <Navigate to={redirectTo} state={{ from: location.pathname }} replace />;
+    return <Navigate to={redirectTo} state={{ from: location }} replace />;
   }
 
   // If authentication is not required but user is authenticated (e.g., login page)
   if (!requireAuth && isAuthenticated) {
-    // Redirect authenticated users away from login/register pages
-    const redirectPath = location.state?.from || (user?.role === 'admin' ? '/admin' : '/');
+    // Fixed: Use proper admin check function and redirect logic
+    const redirectPath = location.state?.from?.pathname || (isAdmin() ? '/admin/dashboard' : '/');
     return <Navigate to={redirectPath} replace />;
   }
 

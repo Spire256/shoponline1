@@ -321,19 +321,16 @@ const HomePage = () => {
 
   const handleAddToCart = (e, product) => {
     e.stopPropagation();
-    // Add to cart logic will be handled by CartContext
     console.log('Add to cart:', product);
   };
 
   const handleAddToWishlist = (e, product) => {
     e.stopPropagation();
-    // Add to wishlist logic
     console.log('Add to wishlist:', product);
   };
 
   const handleQuickView = (e, product) => {
     e.stopPropagation();
-    // Quick view modal logic
     console.log('Quick view:', product);
   };
 
@@ -389,517 +386,503 @@ const HomePage = () => {
 
   return (
     <div className="homepage">
-      <main className="main-content">
-        {/* Hero Section */}
-        <section className="hero-section">
-          <div className="hero-carousel">
-            <div className="hero-slides" style={{ transform: `translateX(-${currentSlide * 100}%)` }}>
-              {pageData.banners.map((banner, index) => (
-                <div key={banner.id} className="hero-slide">
-                  <div className="hero-image">
-                    <img src={banner.image} alt={banner.title} />
-                    <div className="hero-overlay" />
+      {/* Hero Section - Now properly contained */}
+      <section className="hero-section">
+        <div className="hero-carousel">
+          <div className="hero-slides" style={{ transform: `translateX(-${currentSlide * 100}%)` }}>
+            {pageData.banners.map((banner, index) => (
+              <div key={banner.id} className="hero-slide">
+                <div className="hero-image">
+                  <img src={banner.image} alt={banner.title} />
+                  <div className="hero-overlay" />
+                </div>
+                <div className="hero-content-container">
+                  <div className="hero-content">
+                    <h1 className="hero-title">{banner.title}</h1>
+                    <p className="hero-subtitle">{banner.subtitle}</p>
+                    <p className="hero-description">{banner.description}</p>
+                    <div className="hero-actions">
+                      <button 
+                        className="cta-button primary large"
+                        onClick={() => handleNavigation(banner.link_url)}
+                      >
+                        <ShoppingBag className="icon" />
+                        {banner.button_text}
+                      </button>
+                      <button 
+                        className="cta-button secondary large"
+                        onClick={() => handleNavigation('/flash-sales')}
+                      >
+                        <Zap className="icon" />
+                        View Flash Sales
+                      </button>
+                    </div>
                   </div>
-                  <div className="container">
-                    <div className="hero-content">
-                      <h1 className="hero-title">{banner.title}</h1>
-                      <p className="hero-subtitle">{banner.subtitle}</p>
-                      <p className="hero-description">{banner.description}</p>
-                      <div className="hero-actions">
-                        <button 
-                          className="cta-button primary large"
-                          onClick={() => handleNavigation(banner.link_url)}
-                        >
-                          <ShoppingBag className="icon" />
-                          {banner.button_text}
-                        </button>
-                        <button 
-                          className="cta-button secondary large"
-                          onClick={() => handleNavigation('/flash-sales')}
-                        >
-                          <Zap className="icon" />
-                          View Flash Sales
-                        </button>
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          {/* Navigation */}
+          {pageData.banners.length > 1 && (
+            <>
+              <button className="hero-nav-btn prev" onClick={prevSlide}>
+                <ChevronLeft />
+              </button>
+              <button className="hero-nav-btn next" onClick={nextSlide}>
+                <ChevronRight />
+              </button>
+              
+              <div className="hero-indicators">
+                {pageData.banners.map((_, index) => (
+                  <button 
+                    key={index} 
+                    className={`indicator ${index === currentSlide ? 'active' : ''}`}
+                    onClick={() => goToSlide(index)}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Hero Features - Contained within section */}
+        <div className="hero-features">
+          <div className="features-grid">
+            <div className="feature-item">
+              <div className="feature-icon">
+                <Truck />
+              </div>
+              <div className="feature-text">
+                <h4 className="feature-title">Fast Delivery</h4>
+                <p className="feature-desc">Same day delivery in Kampala</p>
+              </div>
+            </div>
+            <div className="feature-item">
+              <div className="feature-icon">
+                <Shield />
+              </div>
+              <div className="feature-text">
+                <h4 className="feature-title">Secure Payments</h4>
+                <p className="feature-desc">Mobile Money & Cash on Delivery</p>
+              </div>
+            </div>
+            <div className="feature-item">
+              <div className="feature-icon">
+                <Award />
+              </div>
+              <div className="feature-text">
+                <h4 className="feature-title">Quality Guaranteed</h4>
+                <p className="feature-desc">100% authentic products</p>
+              </div>
+            </div>
+            <div className="feature-item">
+              <div className="feature-icon">
+                <Phone />
+              </div>
+              <div className="feature-text">
+                <h4 className="feature-title">24/7 Support</h4>
+                <p className="feature-desc">Always here to help</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Flash Sales Section - Properly contained */}
+      {pageData.settings?.enable_flash_sales && pageData.flashSales?.length > 0 && (
+        <section className="flash-sales-homepage">
+          <div className="flash-sales-header">
+            <div className="header-content">
+              <div className="header-badge">
+                <Zap className="icon" />
+                Flash Sale
+              </div>
+              <h2 className="section-title">
+                Limited Time <span className="discount-highlight">Offers</span>
+              </h2>
+              <p className="section-subtitle">Grab these deals before they're gone!</p>
+            </div>
+            <div className="header-actions">
+              <div className="timer-container">
+                <div className="timer-label">Sale Ends In:</div>
+                <div className="countdown-timer">
+                  <div className="timer-segment">
+                    <span className="timer-number">{String(timeLeft.hours).padStart(2, '0')}</span>
+                    <span className="timer-label-small">Hours</span>
+                  </div>
+                  <span className="timer-separator">:</span>
+                  <div className="timer-segment">
+                    <span className="timer-number">{String(timeLeft.minutes).padStart(2, '0')}</span>
+                    <span className="timer-label-small">Minutes</span>
+                  </div>
+                  <span className="timer-separator">:</span>
+                  <div className="timer-segment">
+                    <span className="timer-number">{String(timeLeft.seconds).padStart(2, '0')}</span>
+                    <span className="timer-label-small">Seconds</span>
+                  </div>
+                </div>
+              </div>
+              <button 
+                className="view-all-btn flash"
+                onClick={() => handleNavigation('/flash-sales')}
+              >
+                View All Flash Sales
+                <ArrowRight className="icon" />
+              </button>
+            </div>
+          </div>
+
+          <div className="flash-products-grid">
+            {pageData.flashSales[0]?.products.map(product => (
+              <div 
+                key={product.id} 
+                className="flash-product-card"
+                onClick={() => handleFlashSaleProductClick(product)}
+              >
+                <div className="product-image-container">
+                  <img src={product.image} alt={product.name} />
+                  <div className="flash-badge">
+                    -{product.discount}%
+                  </div>
+                  <div className="product-actions">
+                    <button 
+                      className="action-btn" 
+                      title="Quick View"
+                      onClick={(e) => handleQuickView(e, product)}
+                    >
+                      <Eye />
+                    </button>
+                    <button 
+                      className="action-btn" 
+                      title="Add to Wishlist"
+                      onClick={(e) => handleAddToWishlist(e, product)}
+                    >
+                      <Heart />
+                    </button>
+                    <button 
+                      className="action-btn" 
+                      title="Add to Cart"
+                      onClick={(e) => handleAddToCart(e, product)}
+                    >
+                      <ShoppingCart />
+                    </button>
+                  </div>
+                </div>
+                <div className="product-info">
+                  <h3 className="product-name">{product.name}</h3>
+                  <div className="product-pricing">
+                    <span className="flash-price">{formatPrice(product.flash_price)}</span>
+                    <span className="original-price">{formatPrice(product.original_price)}</span>
+                  </div>
+                  <div className="stock-progress">
+                    <div className="stock-info">
+                      <span>Sold: {product.total_stock - product.stock_remaining}</span>
+                      <span>Available: {product.stock_remaining}</span>
+                    </div>
+                    <div className="progress-bar">
+                      <div 
+                        className="progress-fill" 
+                        style={{ 
+                          width: `${((product.total_stock - product.stock_remaining) / product.total_stock) * 100}%` 
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Featured Products Section - Properly contained */}
+      <section className="featured-products">
+        <div className="section-header">
+          <div className="section-title-group">
+            <h2 className="section-title">Featured Products</h2>
+            <p className="section-subtitle">Hand-picked items just for you</p>
+          </div>
+          <div className="section-actions">
+            <button 
+              className="view-all-btn"
+              onClick={() => handleNavigation('/products?featured=true')}
+            >
+              View All
+              <ArrowRight className="icon" />
+            </button>
+          </div>
+        </div>
+
+        <div className="products-grid">
+          {pageData.featuredProducts.map(product => (
+            <div 
+              key={product.slug} 
+              className="product-card"
+              onClick={() => handleProductClick(product)}
+            >
+              <div className="product-image-container">
+                <img src={product.image} alt={product.name} />
+                <div className="product-badges">
+                  <div className="badge featured">{product.badge}</div>
+                  {product.original_price > product.price && (
+                    <div className="badge sale">
+                      -{calculateDiscount(product.original_price, product.price)}%
+                    </div>
+                  )}
+                </div>
+                <div className="product-overlay">
+                  <div className="product-actions">
+                    <button 
+                      className="action-btn" 
+                      title="Quick View"
+                      onClick={(e) => handleQuickView(e, product)}
+                    >
+                      <Eye />
+                    </button>
+                    <button 
+                      className="action-btn" 
+                      title="Add to Wishlist"
+                      onClick={(e) => handleAddToWishlist(e, product)}
+                    >
+                      <Heart />
+                    </button>
+                    <button 
+                      className="action-btn" 
+                      title="Add to Cart"
+                      onClick={(e) => handleAddToCart(e, product)}
+                    >
+                      <ShoppingCart />
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div className="product-info">
+                <div className="product-category">{product.category}</div>
+                <h3 className="product-name">{product.name}</h3>
+                <p className="product-description">{product.description}</p>
+                <div className="product-rating">
+                  <div className="stars">
+                    {[...Array(5)].map((_, i) => (
+                      <Star 
+                        key={i} 
+                        className={`star ${i < Math.floor(product.rating) ? 'filled' : ''}`} 
+                      />
+                    ))}
+                  </div>
+                  <span className="rating-count">({product.reviews_count})</span>
+                </div>
+                <div className="product-pricing">
+                  <span className="current-price">{formatPrice(product.price)}</span>
+                  {product.original_price > product.price && (
+                    <span className="original-price">{formatPrice(product.original_price)}</span>
+                  )}
+                </div>
+                <div className="product-footer">
+                  <div className={`stock-status ${product.in_stock ? 'in-stock' : 'out-of-stock'}`}>
+                    <CheckCircle className="icon" />
+                    {product.in_stock ? 'In Stock' : 'Out of Stock'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Categories Section - Properly contained */}
+      <section className="category-showcase">
+        <div className="section-header">
+          <div className="section-title-group">
+            <h2 className="section-title">Shop by Category</h2>
+            <p className="section-subtitle">Find what you're looking for</p>
+          </div>
+          <div className="section-actions">
+            <button 
+              className="view-all-btn"
+              onClick={() => handleNavigation('/categories')}
+            >
+              View All
+              <ArrowRight className="icon" />
+            </button>
+          </div>
+        </div>
+
+        <div className="categories-grid">
+          {pageData.categories.map(category => (
+            <div 
+              key={category.slug}
+              className="category-card"
+              onClick={() => handleCategoryClick(category)}
+            >
+              <div className="category-image-container">
+                <img src={category.image} alt={category.name} />
+                <div className="category-overlay">
+                  <div className="overlay-gradient" />
+                </div>
+              </div>
+              <div className="category-content">
+                <h3 className="category-name">{category.name}</h3>
+                <p className="category-description">{category.description}</p>
+                <div className="category-stats">
+                  <span className="product-count">{category.product_count} products</span>
+                </div>
+                <div className="category-cta">
+                  <span>Shop Now</span>
+                  <ArrowRight className="icon" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Testimonials Section - Properly contained */}
+      <section className="testimonials-section">
+        <div className="section-header">
+          <div className="section-title-group">
+            <h2 className="section-title">What Our Customers Say</h2>
+            <p className="section-subtitle">Real reviews from real customers across Uganda</p>
+          </div>
+        </div>
+
+        <div className="testimonials-container">
+          <div className="testimonials-carousel">
+            <div className="testimonials-track" style={{ transform: `translateX(-${currentTestimonial * 100}%)` }}>
+              {pageData.testimonials.map((testimonial, index) => (
+                <div 
+                  key={testimonial.id} 
+                  className={`testimonial-card ${index === currentTestimonial ? 'active' : ''}`}
+                >
+                  <div className="testimonial-content">
+                    <div className="quote-icon">
+                      <Quote />
+                    </div>
+                    <div className="testimonial-text">
+                      <p>"{testimonial.comment}"</p>
+                    </div>
+                    <div className="testimonial-rating">
+                      <div className="stars">
+                        {[...Array(5)].map((_, i) => (
+                          <Star key={i} className={`star ${i < testimonial.rating ? 'filled' : ''}`} />
+                        ))}
                       </div>
+                    </div>
+                  </div>
+                  <div className="testimonial-author">
+                    <div className="author-avatar">
+                      <img src={testimonial.avatar} alt={testimonial.name} />
+                      {testimonial.verified && (
+                        <div className="verified-badge">
+                          <CheckCircle />
+                        </div>
+                      )}
+                    </div>
+                    <div className="author-info">
+                      <h4 className="author-name">{testimonial.name}</h4>
+                      <p className="author-location">
+                        <MapPin className="icon" />
+                        {testimonial.location}
+                      </p>
+                      <span className="purchase-info">Purchased: {testimonial.purchase}</span>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
-            
+
             {/* Navigation */}
-            {pageData.banners.length > 1 && (
+            {pageData.testimonials.length > 1 && (
               <>
-                <button className="hero-nav-btn prev" onClick={prevSlide}>
+                <button 
+                  className="testimonial-nav prev"
+                  onClick={() => setCurrentTestimonial(
+                    (currentTestimonial - 1 + pageData.testimonials.length) % pageData.testimonials.length
+                  )}
+                >
                   <ChevronLeft />
                 </button>
-                <button className="hero-nav-btn next" onClick={nextSlide}>
+                <button 
+                  className="testimonial-nav next"
+                  onClick={() => setCurrentTestimonial(
+                    (currentTestimonial + 1) % pageData.testimonials.length
+                  )}
+                >
                   <ChevronRight />
                 </button>
-                
-                <div className="hero-indicators">
-                  {pageData.banners.map((_, index) => (
-                    <button 
-                      key={index} 
-                      className={`indicator ${index === currentSlide ? 'active' : ''}`}
-                      onClick={() => goToSlide(index)}
-                    />
-                  ))}
-                </div>
               </>
             )}
           </div>
 
-          {/* Hero Features */}
-          <div className="hero-features">
-            <div className="container">
-              <div className="features-grid">
-                <div className="feature-item">
-                  <div className="feature-icon">
-                    <Truck />
-                  </div>
-                  <div className="feature-text">
-                    <h4 className="feature-title">Fast Delivery</h4>
-                    <p className="feature-desc">Same day delivery in Kampala</p>
-                  </div>
-                </div>
-                <div className="feature-item">
-                  <div className="feature-icon">
-                    <Shield />
-                  </div>
-                  <div className="feature-text">
-                    <h4 className="feature-title">Secure Payments</h4>
-                    <p className="feature-desc">Mobile Money & Cash on Delivery</p>
-                  </div>
-                </div>
-                <div className="feature-item">
-                  <div className="feature-icon">
-                    <Award />
-                  </div>
-                  <div className="feature-text">
-                    <h4 className="feature-title">Quality Guaranteed</h4>
-                    <p className="feature-desc">100% authentic products</p>
-                  </div>
-                </div>
-                <div className="feature-item">
-                  <div className="feature-icon">
-                    <Phone />
-                  </div>
-                  <div className="feature-text">
-                    <h4 className="feature-title">24/7 Support</h4>
-                    <p className="feature-desc">Always here to help</p>
-                  </div>
-                </div>
-              </div>
+          <div className="testimonial-indicators">
+            {pageData.testimonials.map((_, index) => (
+              <button 
+                key={index}
+                className={`indicator ${index === currentTestimonial ? 'active' : ''}`}
+                onClick={() => setCurrentTestimonial(index)}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Customer Stats */}
+        <div className="customer-stats">
+          <div className="stats-grid">
+            <div className="stat-item">
+              <span className="stat-number">50K+</span>
+              <span className="stat-label">Happy Customers</span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-number">10K+</span>
+              <span className="stat-label">Products Available</span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-number">99%</span>
+              <span className="stat-label">Delivery Success</span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-number">4.8</span>
+              <span className="stat-label">Average Rating</span>
             </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* Flash Sales Section */}
-        {pageData.settings?.enable_flash_sales && pageData.flashSales?.length > 0 && (
-          <section className="flash-sales-homepage">
-            <div className="container">
-              <div className="flash-sales-header">
-                <div className="header-content">
-                  <div className="header-badge">
-                    <Zap className="icon" />
-                    Flash Sale
-                  </div>
-                  <h2 className="section-title">
-                    Limited Time <span className="discount-highlight">Offers</span>
-                  </h2>
-                  <p className="section-subtitle">Grab these deals before they're gone!</p>
-                </div>
-                <div className="header-actions">
-                  <div className="timer-container">
-                    <div className="timer-label">Sale Ends In:</div>
-                    <div className="countdown-timer">
-                      <div className="timer-segment">
-                        <span className="timer-number">{String(timeLeft.hours).padStart(2, '0')}</span>
-                        <span className="timer-label-small">Hours</span>
-                      </div>
-                      <span className="timer-separator">:</span>
-                      <div className="timer-segment">
-                        <span className="timer-number">{String(timeLeft.minutes).padStart(2, '0')}</span>
-                        <span className="timer-label-small">Minutes</span>
-                      </div>
-                      <span className="timer-separator">:</span>
-                      <div className="timer-segment">
-                        <span className="timer-number">{String(timeLeft.seconds).padStart(2, '0')}</span>
-                        <span className="timer-label-small">Seconds</span>
-                      </div>
-                    </div>
-                  </div>
-                  <button 
-                    className="view-all-btn flash"
-                    onClick={() => handleNavigation('/flash-sales')}
-                  >
-                    View All Flash Sales
-                    <ArrowRight className="icon" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="flash-products-grid">
-                {pageData.flashSales[0]?.products.map(product => (
-                  <div 
-                    key={product.id} 
-                    className="flash-product-card"
-                    onClick={() => handleFlashSaleProductClick(product)}
-                  >
-                    <div className="product-image-container">
-                      <img src={product.image} alt={product.name} />
-                      <div className="flash-badge">
-                        -{product.discount}%
-                      </div>
-                      <div className="product-actions">
-                        <button 
-                          className="action-btn" 
-                          title="Quick View"
-                          onClick={(e) => handleQuickView(e, product)}
-                        >
-                          <Eye />
-                        </button>
-                        <button 
-                          className="action-btn" 
-                          title="Add to Wishlist"
-                          onClick={(e) => handleAddToWishlist(e, product)}
-                        >
-                          <Heart />
-                        </button>
-                        <button 
-                          className="action-btn" 
-                          title="Add to Cart"
-                          onClick={(e) => handleAddToCart(e, product)}
-                        >
-                          <ShoppingCart />
-                        </button>
-                      </div>
-                    </div>
-                    <div className="product-info">
-                      <h3 className="product-name">{product.name}</h3>
-                      <div className="product-pricing">
-                        <span className="flash-price">{formatPrice(product.flash_price)}</span>
-                        <span className="original-price">{formatPrice(product.original_price)}</span>
-                      </div>
-                      <div className="stock-progress">
-                        <div className="stock-info">
-                          <span>Sold: {product.total_stock - product.stock_remaining}</span>
-                          <span>Available: {product.stock_remaining}</span>
-                        </div>
-                        <div className="progress-bar">
-                          <div 
-                            className="progress-fill" 
-                            style={{ 
-                              width: `${((product.total_stock - product.stock_remaining) / product.total_stock) * 100}%` 
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* Featured Products Section */}
-        <section className="featured-products">
-          <div className="container">
-            <div className="section-header">
-              <div className="section-title-group">
-                <h2 className="section-title">Featured Products</h2>
-                <p className="section-subtitle">Hand-picked items just for you</p>
-              </div>
-              <div className="section-actions">
+      {/* Newsletter/Contact Section - Properly contained */}
+      <section className="newsletter-section">
+        <div className="newsletter-content">
+          <div className="newsletter-text">
+            <h2>Stay Connected with ShopOnline Uganda</h2>
+            <p>Get the latest updates on new products, flash sales, and exclusive offers!</p>
+          </div>
+          <div className="contact-info">
+            {pageData.settings?.contact_phone && (
+              <div className="contact-item">
+                <div className="contact-label">Call Us</div>
                 <button 
-                  className="view-all-btn"
-                  onClick={() => handleNavigation('/products?featured=true')}
+                  onClick={handleContactPhone}
+                  className="contact-value"
                 >
-                  View All
-                  <ArrowRight className="icon" />
+                  <Phone className="icon" />
+                  {pageData.settings.contact_phone}
                 </button>
               </div>
-            </div>
-
-            <div className="products-grid">
-              {pageData.featuredProducts.map(product => (
-                <div 
-                  key={product.slug} 
-                  className="product-card"
-                  onClick={() => handleProductClick(product)}
+            )}
+            {pageData.settings?.social_whatsapp && (
+              <div className="contact-item">
+                <div className="contact-label">WhatsApp</div>
+                <button
+                  onClick={handleWhatsAppChat}
+                  className="contact-value"
                 >
-                  <div className="product-image-container">
-                    <img src={product.image} alt={product.name} />
-                    <div className="product-badges">
-                      <div className="badge featured">{product.badge}</div>
-                      {product.original_price > product.price && (
-                        <div className="badge sale">
-                          -{calculateDiscount(product.original_price, product.price)}%
-                        </div>
-                      )}
-                    </div>
-                    <div className="product-overlay">
-                      <div className="product-actions">
-                        <button 
-                          className="action-btn" 
-                          title="Quick View"
-                          onClick={(e) => handleQuickView(e, product)}
-                        >
-                          <Eye />
-                        </button>
-                        <button 
-                          className="action-btn" 
-                          title="Add to Wishlist"
-                          onClick={(e) => handleAddToWishlist(e, product)}
-                        >
-                          <Heart />
-                        </button>
-                        <button 
-                          className="action-btn" 
-                          title="Add to Cart"
-                          onClick={(e) => handleAddToCart(e, product)}
-                        >
-                          <ShoppingCart />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="product-info">
-                    <div className="product-category">{product.category}</div>
-                    <h3 className="product-name">{product.name}</h3>
-                    <p className="product-description">{product.description}</p>
-                    <div className="product-rating">
-                      <div className="stars">
-                        {[...Array(5)].map((_, i) => (
-                          <Star 
-                            key={i} 
-                            className={`star ${i < Math.floor(product.rating) ? 'filled' : ''}`} 
-                          />
-                        ))}
-                      </div>
-                      <span className="rating-count">({product.reviews_count})</span>
-                    </div>
-                    <div className="product-pricing">
-                      <span className="current-price">{formatPrice(product.price)}</span>
-                      {product.original_price > product.price && (
-                        <span className="original-price">{formatPrice(product.original_price)}</span>
-                      )}
-                    </div>
-                    <div className="product-footer">
-                      <div className={`stock-status ${product.in_stock ? 'in-stock' : 'out-of-stock'}`}>
-                        <CheckCircle className="icon" />
-                        {product.in_stock ? 'In Stock' : 'Out of Stock'}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Categories Section */}
-        <section className="category-showcase">
-          <div className="container">
-            <div className="section-header">
-              <div className="section-title-group">
-                <h2 className="section-title">Shop by Category</h2>
-                <p className="section-subtitle">Find what you're looking for</p>
-              </div>
-              <div className="section-actions">
-                <button 
-                  className="view-all-btn"
-                  onClick={() => handleNavigation('/categories')}
-                >
-                  View All
-                  <ArrowRight className="icon" />
+                  <MessageCircle className="icon" />
+                  Chat with Us
                 </button>
               </div>
-            </div>
-
-            <div className="categories-grid">
-              {pageData.categories.map(category => (
-                <div 
-                  key={category.slug}
-                  className="category-card"
-                  onClick={() => handleCategoryClick(category)}
-                >
-                  <div className="category-image-container">
-                    <img src={category.image} alt={category.name} />
-                    <div className="category-overlay">
-                      <div className="overlay-gradient" />
-                    </div>
-                  </div>
-                  <div className="category-content">
-                    <h3 className="category-name">{category.name}</h3>
-                    <p className="category-description">{category.description}</p>
-                    <div className="category-stats">
-                      <span className="product-count">{category.product_count} products</span>
-                    </div>
-                    <div className="category-cta">
-                      <span>Shop Now</span>
-                      <ArrowRight className="icon" />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            )}
           </div>
-        </section>
-
-        {/* Testimonials Section */}
-        <section className="testimonials-section">
-          <div className="container">
-            <div className="section-header">
-              <div className="section-title-group">
-                <h2 className="section-title">What Our Customers Say</h2>
-                <p className="section-subtitle">Real reviews from real customers across Uganda</p>
-              </div>
-            </div>
-
-            <div className="testimonials-container">
-              <div className="testimonials-carousel">
-                <div className="testimonials-track" style={{ transform: `translateX(-${currentTestimonial * 100}%)` }}>
-                  {pageData.testimonials.map((testimonial, index) => (
-                    <div 
-                      key={testimonial.id} 
-                      className={`testimonial-card ${index === currentTestimonial ? 'active' : ''}`}
-                    >
-                      <div className="testimonial-content">
-                        <div className="quote-icon">
-                          <Quote />
-                        </div>
-                        <div className="testimonial-text">
-                          <p>"{testimonial.comment}"</p>
-                        </div>
-                        <div className="testimonial-rating">
-                          <div className="stars">
-                            {[...Array(5)].map((_, i) => (
-                              <Star key={i} className={`star ${i < testimonial.rating ? 'filled' : ''}`} />
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="testimonial-author">
-                        <div className="author-avatar">
-                          <img src={testimonial.avatar} alt={testimonial.name} />
-                          {testimonial.verified && (
-                            <div className="verified-badge">
-                              <CheckCircle />
-                            </div>
-                          )}
-                        </div>
-                        <div className="author-info">
-                          <h4 className="author-name">{testimonial.name}</h4>
-                          <p className="author-location">
-                            <MapPin className="icon" />
-                            {testimonial.location}
-                          </p>
-                          <span className="purchase-info">Purchased: {testimonial.purchase}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Navigation */}
-                {pageData.testimonials.length > 1 && (
-                  <>
-                    <button 
-                      className="testimonial-nav prev"
-                      onClick={() => setCurrentTestimonial(
-                        (currentTestimonial - 1 + pageData.testimonials.length) % pageData.testimonials.length
-                      )}
-                    >
-                      <ChevronLeft />
-                    </button>
-                    <button 
-                      className="testimonial-nav next"
-                      onClick={() => setCurrentTestimonial(
-                        (currentTestimonial + 1) % pageData.testimonials.length
-                      )}
-                    >
-                      <ChevronRight />
-                    </button>
-                  </>
-                )}
-              </div>
-
-              <div className="testimonial-indicators">
-                {pageData.testimonials.map((_, index) => (
-                  <button 
-                    key={index}
-                    className={`indicator ${index === currentTestimonial ? 'active' : ''}`}
-                    onClick={() => setCurrentTestimonial(index)}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Customer Stats */}
-            <div className="customer-stats">
-              <div className="stats-grid">
-                <div className="stat-item">
-                  <span className="stat-number">50K+</span>
-                  <span className="stat-label">Happy Customers</span>
-                </div>
-                <div className="stat-item">
-                  <span className="stat-number">10K+</span>
-                  <span className="stat-label">Products Available</span>
-                </div>
-                <div className="stat-item">
-                  <span className="stat-number">99%</span>
-                  <span className="stat-label">Delivery Success</span>
-                </div>
-                <div className="stat-item">
-                  <span className="stat-number">4.8</span>
-                  <span className="stat-label">Average Rating</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Newsletter/Contact Section */}
-        <section className="newsletter-section">
-          <div className="container">
-            <div className="newsletter-content">
-              <div className="newsletter-text">
-                <h2>Stay Connected with ShopOnline Uganda</h2>
-                <p>Get the latest updates on new products, flash sales, and exclusive offers!</p>
-              </div>
-              <div className="contact-info">
-                {pageData.settings?.contact_phone && (
-                  <div className="contact-item">
-                    <div className="contact-label">Call Us</div>
-                    <button 
-                      onClick={handleContactPhone}
-                      className="contact-value"
-                    >
-                      <Phone className="icon" />
-                      {pageData.settings.contact_phone}
-                    </button>
-                  </div>
-                )}
-                {pageData.settings?.social_whatsapp && (
-                  <div className="contact-item">
-                    <div className="contact-label">WhatsApp</div>
-                    <button
-                      onClick={handleWhatsAppChat}
-                      className="contact-value"
-                    >
-                      <MessageCircle className="icon" />
-                      Chat with Us
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </section>
-      </main>
+        </div>
+      </section>
 
       <style jsx>{`
         /* CSS Variables for Blue Theme */
@@ -957,21 +940,25 @@ const HomePage = () => {
           background: var(--gray-50);
         }
 
-        /* Homepage optimized for layout structure */
+        /* HOMEPAGE LAYOUT - FIXED TO RESPECT SIDEBAR */
         .homepage {
           background-color: var(--gray-50);
           width: 100%;
           min-height: 100vh;
+          /* Key fix: Remove any negative margins or full viewport positioning */
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
         }
 
-        .main-content {
+        /* All sections now properly contained and respect sidebar boundaries */
+        section {
           width: 100%;
-        }
-
-        .container {
-          max-width: 1200px;
           margin: 0 auto;
-          padding: 0 1rem;
+          padding: 0 2rem; /* Consistent padding for all sections */
+          box-sizing: border-box;
+          /* Ensure all sections respect the content area */
+          max-width: none;
         }
 
         .icon {
@@ -1031,19 +1018,25 @@ const HomePage = () => {
           box-shadow: var(--shadow-lg);
         }
 
-        /* Hero Section - Full width */
+        /* HERO SECTION - FIXED TO NOT OVERLAP SIDEBAR */
         .hero-section {
           position: relative;
           min-height: 70vh;
           overflow: hidden;
-          width: 100vw;
-          margin-left: calc(-50vw + 50%);
+          /* Remove full viewport positioning */
+          width: 100%;
+          margin: 2rem 0;
+          padding: 0;
+          border-radius: var(--radius-xl);
+          box-shadow: var(--shadow-md);
         }
 
         .hero-carousel {
           position: relative;
           width: 100%;
           height: 100%;
+          border-radius: var(--radius-xl);
+          overflow: hidden;
         }
 
         .hero-slides {
@@ -1086,9 +1079,17 @@ const HomePage = () => {
           z-index: 1;
         }
 
-        .hero-content {
+        /* Hero content container - ensures proper spacing from sidebar */
+        .hero-content-container {
           position: relative;
           z-index: 2;
+          width: 100%;
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 0 2rem;
+        }
+
+        .hero-content {
           color: var(--white);
           max-width: 600px;
         }
@@ -1212,17 +1213,21 @@ const HomePage = () => {
           background: var(--white);
         }
 
-        /* Hero Features */
+        /* Hero Features - Now properly contained */
         .hero-features {
           background: var(--white);
           border-top: 1px solid var(--gray-200);
-          padding: 2rem 0;
+          padding: 2rem;
+          margin-top: 0;
+          border-radius: 0 0 var(--radius-xl) var(--radius-xl);
         }
 
         .features-grid {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
           gap: 2rem;
+          max-width: 1200px;
+          margin: 0 auto;
         }
 
         .feature-item {
@@ -1265,21 +1270,21 @@ const HomePage = () => {
           color: var(--gray-500);
         }
 
-        /* All content sections - proper spacing */
+        /* ALL CONTENT SECTIONS - PROPERLY CONTAINED */
         .flash-sales-homepage,
         .featured-products,
         .category-showcase,
         .testimonials-section {
-          padding: 4rem 0;
-          margin: 0;
+          padding: 4rem 2rem;
+          margin: 2rem 0;
           width: 100%;
+          box-sizing: border-box;
         }
 
         .flash-sales-homepage {
           background: var(--white);
           border-radius: var(--radius-xl);
           box-shadow: var(--shadow-md);
-          margin: 2rem 0;
         }
 
         .category-showcase,
@@ -1287,16 +1292,18 @@ const HomePage = () => {
           background: var(--gray-50);
         }
 
-        /* Newsletter section - full width */
+        /* Newsletter section - properly contained */
         .newsletter-section {
-          padding: 4rem 0;
+          padding: 4rem 2rem;
           background: var(--gradient-primary);
           color: var(--white);
-          width: 100vw;
-          margin-left: calc(-50vw + 50%);
+          width: 100%;
+          margin: 2rem 0 0 0;
+          border-radius: var(--radius-xl);
+          box-sizing: border-box;
         }
 
-        /* Section Headers */
+        /* Section Headers - with proper max-width */
         .section-header {
           display: flex;
           align-items: flex-end;
@@ -1304,6 +1311,9 @@ const HomePage = () => {
           margin-bottom: 3rem;
           flex-wrap: wrap;
           gap: 1rem;
+          max-width: 1200px;
+          margin-left: auto;
+          margin-right: auto;
         }
 
         .section-title-group {
@@ -1348,7 +1358,7 @@ const HomePage = () => {
           box-shadow: var(--shadow-lg);
         }
 
-        /* Flash Sales Section */
+        /* Flash Sales Section - with proper container */
         .flash-sales-header {
           display: flex;
           align-items: flex-start;
@@ -1356,6 +1366,9 @@ const HomePage = () => {
           margin-bottom: 3rem;
           flex-wrap: wrap;
           gap: 2rem;
+          max-width: 1200px;
+          margin-left: auto;
+          margin-right: auto;
         }
 
         .header-content {
@@ -1452,12 +1465,15 @@ const HomePage = () => {
           to { box-shadow: 0 0 20px var(--primary-blue), 0 0 30px var(--primary-blue); }
         }
 
-        /* Flash Sale Products */
+        /* Flash Sale Products - properly contained */
         .flash-products-grid {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
           gap: 1.5rem;
           margin-bottom: 2rem;
+          max-width: 1200px;
+          margin-left: auto;
+          margin-right: auto;
         }
 
         .flash-product-card {
@@ -1599,11 +1615,13 @@ const HomePage = () => {
           transition: width var(--transition-normal);
         }
 
-        /* Products Grid */
+        /* Products Grid - properly contained */
         .products-grid {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
           gap: 1.5rem;
+          max-width: 1200px;
+          margin: 0 auto;
         }
 
         .product-card {
@@ -1775,11 +1793,13 @@ const HomePage = () => {
           color: var(--error);
         }
 
-        /* Categories Grid */
+        /* Categories Grid - properly contained */
         .categories-grid {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
           gap: 1.5rem;
+          max-width: 1200px;
+          margin: 0 auto;
         }
 
         .category-card {
@@ -1893,10 +1913,13 @@ const HomePage = () => {
           opacity: 1;
         }
 
-        /* Testimonials Section */
+        /* Testimonials Section - properly contained */
         .testimonials-container {
           position: relative;
           margin-bottom: 3rem;
+          max-width: 1200px;
+          margin-left: auto;
+          margin-right: auto;
         }
 
         .testimonials-carousel {
@@ -2070,14 +2093,21 @@ const HomePage = () => {
           justify-content: center;
           gap: 0.5rem;
           margin-top: 2rem;
+          max-width: 1200px;
+          margin-left: auto;
+          margin-right: auto;
         }
 
+        /* Customer Stats - properly contained */
         .customer-stats {
           background: var(--white);
           padding: 3rem;
           border-radius: var(--radius-xl);
           box-shadow: var(--shadow-md);
           margin-bottom: 3rem;
+          max-width: 1200px;
+          margin-left: auto;
+          margin-right: auto;
         }
 
         .stats-grid {
@@ -2105,13 +2135,15 @@ const HomePage = () => {
           font-weight: 500;
         }
 
-        /* Newsletter Section */
+        /* Newsletter Section - properly contained */
         .newsletter-content {
           display: flex;
           align-items: center;
           justify-content: space-between;
           gap: 2rem;
           flex-wrap: wrap;
+          max-width: 1200px;
+          margin: 0 auto;
         }
 
         .newsletter-text h2 {
@@ -2164,8 +2196,16 @@ const HomePage = () => {
           height: 20px;
         }
 
-        /* Responsive Design */
+        /* Responsive Design - maintaining proper containment */
         @media (max-width: 1024px) {
+          section {
+            padding: 0 1.5rem;
+          }
+          
+          .hero-content-container {
+            padding: 0 1.5rem;
+          }
+          
           .hero-title {
             font-size: 3rem;
           }
@@ -2198,8 +2238,17 @@ const HomePage = () => {
         }
 
         @media (max-width: 768px) {
+          section {
+            padding: 0 1rem;
+          }
+          
           .hero-section {
             min-height: 50vh;
+            margin: 1rem 0;
+          }
+          
+          .hero-content-container {
+            padding: 0 1rem;
           }
           
           .hero-title {
@@ -2290,9 +2339,28 @@ const HomePage = () => {
           .contact-info {
             justify-content: center;
           }
+
+          .flash-sales-homepage,
+          .featured-products,
+          .category-showcase,
+          .testimonials-section {
+            padding: 3rem 1rem;
+          }
+
+          .newsletter-section {
+            padding: 3rem 1rem;
+          }
         }
 
         @media (max-width: 480px) {
+          section {
+            padding: 0 0.75rem;
+          }
+          
+          .hero-content-container {
+            padding: 0 0.75rem;
+          }
+          
           .hero-title {
             font-size: 2rem;
           }
@@ -2356,6 +2424,17 @@ const HomePage = () => {
 
           .category-name {
             font-size: 1.25rem;
+          }
+
+          .flash-sales-homepage,
+          .featured-products,
+          .category-showcase,
+          .testimonials-section {
+            padding: 2rem 0.75rem;
+          }
+
+          .newsletter-section {
+            padding: 2rem 0.75rem;
           }
         }
 
@@ -2458,6 +2537,48 @@ const HomePage = () => {
           .section-title {
             color: var(--gray-800);
           }
+
+          section {
+            padding: 1rem;
+          }
+        }
+
+        /* FINAL SAFETY MEASURES - Ensure no content can overlap sidebar */
+        .homepage * {
+          box-sizing: border-box;
+          max-width: 100%;
+        }
+
+        /* Ensure all direct children of sections respect boundaries */
+        section > * {
+          max-width: 1200px;
+          margin-left: auto;
+          margin-right: auto;
+          box-sizing: border-box;
+        }
+
+        /* Override any potential full-width utilities */
+        .w-full,
+        .full-width {
+          width: 100% !important;
+          max-width: 100% !important;
+        }
+
+        /* Ensure containers never exceed their parent */
+        .container,
+        .section-container {
+          width: 100%;
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 0 1rem;
+          box-sizing: border-box;
+        }
+
+        /* Additional safety for any absolute positioned elements */
+        .homepage [style*="position: absolute"],
+        .homepage [style*="position: fixed"] {
+          max-width: calc(100% - 2rem);
+          box-sizing: border-box;
         }
       `}</style>
     </div>

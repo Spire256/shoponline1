@@ -1,4 +1,4 @@
-// src/components/admin/Products/ProductManagement.js - Updated for backend integration
+// src/components/admin/Products/ProductManagement.js - Aligned with backend API
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Plus,
@@ -15,6 +15,7 @@ import {
   TrendingUp,
   BarChart3,
   MoreVertical,
+  X,
 } from 'lucide-react';
 import productsAPI from '../../../services/api/productsAPI';
 import categoriesAPI from '../../../services/api/categoriesAPI';
@@ -53,36 +54,65 @@ const ProductManagement = () => {
   const [sortBy, setSortBy] = useState('-created_at');
   const [error, setError] = useState(null);
 
-  // Load initial data
+  // Load initial data with proper error handling
   useEffect(() => {
     loadInitialData();
   }, []);
 
-  // Fetch products when dependencies change
+  // Fetch products when dependencies change with debouncing
   useEffect(() => {
-    fetchProducts();
+    const timeoutId = setTimeout(() => {
+      fetchProducts();
+    }, 300); // Debounce search
+
+    return () => clearTimeout(timeoutId);
   }, [pagination.page, pagination.page_size, searchTerm, filters, sortBy]);
 
   const loadInitialData = async () => {
     try {
-      const [statsResponse, categoriesResponse] = await Promise.all([
+      setLoading(true);
+      setError(null);
+
+      // Load stats and categories in parallel with proper error handling
+      const [statsResponse, categoriesResponse] = await Promise.allSettled([
         productsAPI.getProductStats(),
-        categoriesAPI.getCategories({ page_size: 100 })
+        categoriesAPI.getCategoriesWithCache({ page_size: 100, is_active: true })
       ]);
 
-      setStats(statsResponse);
-      setCategories(categoriesResponse.results || []);
+      // Handle stats response
+      if (statsResponse.status === 'fulfilled' && statsResponse.value) {
+        setStats(statsResponse.value);
+      } else {
+        console.warn('Failed to load product stats:', statsResponse.reason);
+        // Keep default stats structure
+      }
+
+      // Handle categories response
+      if (categoriesResponse.status === 'fulfilled' && categoriesResponse.value) {
+        const categoriesData = categoriesResponse.value.results || categoriesResponse.value || [];
+        setCategories(categoriesData);
+      } else {
+        console.warn('Failed to load categories:', categoriesResponse.reason);
+        setCategories([]);
+      }
+
     } catch (error) {
       console.error('Error loading initial data:', error);
-      setError('Failed to load initial data');
+      setError('Failed to load initial data. Some features may not work correctly.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Fetch products from API
+  // Enhanced fetch products with better error handling
   const fetchProducts = useCallback(async () => {
     try {
-      setLoading(true);
       setError(null);
+      
+      // Don't show loading spinner for subsequent fetches
+      if (products.length === 0) {
+        setLoading(true);
+      }
 
       const params = {
         page: pagination.page,
@@ -90,35 +120,43 @@ const ProductManagement = () => {
         ordering: sortBy,
       };
 
-      // Add search term
-      if (searchTerm.trim()) {
-        params.search = searchTerm.trim();
+      // Add search term with proper trimming
+      const trimmedSearch = searchTerm.trim();
+      if (trimmedSearch) {
+        params.search = trimmedSearch;
       }
 
-      // Add filters
+      // Add filters with proper backend parameter mapping
       Object.keys(filters).forEach(key => {
-        if (filters[key] && filters[key] !== '') {
+        const value = filters[key];
+        if (value && value !== '') {
           switch (key) {
             case 'category':
-              params.category = filters[key];
+              params.category = value;
               break;
             case 'status':
-              params.status = filters[key];
+              // Map frontend status to backend status values
+              if (['draft', 'published', 'archived'].includes(value)) {
+                params.status = value;
+              }
               break;
             case 'stock':
-              if (filters[key] === 'in_stock') {
-                params.is_in_stock = 'true';
-              } else if (filters[key] === 'low_stock') {
-                params.low_stock = 'true';
-              } else if (filters[key] === 'out_of_stock') {
-                params.is_in_stock = 'false';
+              // Map stock filters to backend parameters
+              if (value === 'in_stock') {
+                params.stock_quantity__gt = 0;
+                params.track_inventory = true;
+              } else if (value === 'low_stock') {
+                params.low_stock = true;
+              } else if (value === 'out_of_stock') {
+                params.stock_quantity = 0;
+                params.track_inventory = true;
               }
               break;
             case 'featured':
-              params.is_featured = filters[key];
+              params.is_featured = value === 'true';
               break;
             case 'active':
-              params.is_active = filters[key];
+              params.is_active = value === 'true';
               break;
           }
         }
@@ -126,29 +164,39 @@ const ProductManagement = () => {
 
       const response = await productsAPI.getProducts(params);
 
-      if (response) {
-        setProducts(response.results || []);
+      if (response && typeof response === 'object') {
+        // Handle both paginated and direct array responses
+        const productsData = response.results || response;
+        const totalCount = response.count || (Array.isArray(productsData) ? productsData.length : 0);
+
+        setProducts(Array.isArray(productsData) ? productsData : []);
         setPagination(prev => ({
           ...prev,
-          total: response.count || 0,
-          total_pages: Math.ceil((response.count || 0) / prev.page_size),
+          total: totalCount,
+          total_pages: Math.ceil(totalCount / prev.page_size),
         }));
+      } else {
+        throw new Error('Invalid response format from server');
       }
     } catch (error) {
       console.error('Error fetching products:', error);
-      setError('Failed to load products. Please try again.');
+      setError(`Failed to load products: ${error.message || 'Please try again.'}`);
+      // Don't clear existing products on error to maintain UI state
+      if (products.length === 0) {
+        setProducts([]);
+      }
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.page_size, searchTerm, filters, sortBy]);
+  }, [pagination.page, pagination.page_size, searchTerm, filters, sortBy, products.length]);
 
-  // Handle search
+  // Handle search with form submission
   const handleSearch = (e) => {
     e.preventDefault();
     setPagination(prev => ({ ...prev, page: 1 }));
   };
 
-  // Handle filter change
+  // Handle filter change with validation
   const handleFilterChange = (filterName, value) => {
     setFilters(prev => ({
       ...prev,
@@ -163,9 +211,11 @@ const ProductManagement = () => {
     setPagination(prev => ({ ...prev, page: 1 }));
   };
 
-  // Handle pagination
+  // Handle pagination with bounds checking
   const handlePageChange = (newPage) => {
-    setPagination(prev => ({ ...prev, page: newPage }));
+    if (newPage >= 1 && newPage <= pagination.total_pages) {
+      setPagination(prev => ({ ...prev, page: newPage }));
+    }
   };
 
   // Handle product selection
@@ -179,82 +229,113 @@ const ProductManagement = () => {
     });
   };
 
-  // Handle select all
+  // Handle select all with current page products
   const handleSelectAll = () => {
-    if (selectedProducts.length === products.length) {
+    const currentPageProductIds = products.map(product => product.id);
+    if (selectedProducts.length === currentPageProductIds.length) {
       setSelectedProducts([]);
     } else {
-      setSelectedProducts(products.map(product => product.id));
+      setSelectedProducts(currentPageProductIds);
     }
   };
 
-  // Handle bulk actions
+  // Enhanced bulk actions with better error handling
   const handleBulkAction = async (action) => {
-    if (selectedProducts.length === 0) return;
+    if (selectedProducts.length === 0) {
+      setError('Please select products to perform bulk actions.');
+      return;
+    }
 
     setActionLoading(true);
     try {
-      const bulkData = {
+      let bulkData = {
         product_ids: selectedProducts,
         action: action,
       };
 
-      // Add specific data for certain actions
-      switch (action) {
-        case 'update_category':
-          // This would need a category selection modal
-          break;
-        case 'update_price':
-          // This would need price adjustment inputs
-          break;
-        case 'update_stock':
-          // This would need stock adjustment inputs
-          break;
+      // Map frontend actions to backend actions
+      const actionMapping = {
+        'activate': 'activate',
+        'deactivate': 'deactivate', 
+        'feature': 'set_featured',
+        'unfeature': 'unset_featured',
+        'delete': 'delete'
+      };
+
+      if (actionMapping[action]) {
+        bulkData.action = actionMapping[action];
       }
 
-      await productsAPI.bulkUpdateProducts(bulkData);
+      // Confirm destructive actions
+      if (action === 'delete') {
+        if (!window.confirm(`Are you sure you want to delete ${selectedProducts.length} products? This action cannot be undone.`)) {
+          return;
+        }
+      }
+
+      const response = await productsAPI.bulkUpdateProducts(bulkData);
       
-      await Promise.all([
-        fetchProducts(),
-        loadInitialData()
-      ]);
-      
-      setSelectedProducts([]);
-      setBulkActionModal(false);
+      if (response) {
+        // Refresh data after successful bulk action
+        await Promise.allSettled([
+          fetchProducts(),
+          loadInitialData()
+        ]);
+        
+        setSelectedProducts([]);
+        setBulkActionModal(false);
+        
+        // Show success message
+        setError(null);
+      }
     } catch (error) {
       console.error('Error performing bulk action:', error);
-      setError(`Failed to perform bulk action: ${error.message}`);
+      setError(`Failed to ${action} products: ${error.message || 'Please try again.'}`);
     } finally {
       setActionLoading(false);
     }
   };
 
-  // Export products
+  // Enhanced export with proper blob handling
   const handleExport = async () => {
     try {
       setActionLoading(true);
+      setError(null);
+      
       const blob = await productsAPI.exportProducts(filters);
       
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
-      a.download = `products_${new Date().toISOString().split('T')[0]}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
+      if (blob instanceof Blob) {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `products_export_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      } else {
+        throw new Error('Invalid export data received');
+      }
     } catch (error) {
       console.error('Error exporting products:', error);
-      setError('Failed to export products');
+      setError(`Export failed: ${error.message || 'Please try again.'}`);
     } finally {
       setActionLoading(false);
     }
   };
 
-  // Handle individual product actions
+  // Enhanced individual product actions
   const handleProductAction = async (action, productId) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) {
+      setError('Product not found.');
+      return;
+    }
+
     try {
       setActionLoading(true);
+      setError(null);
       
       switch (action) {
         case 'duplicate':
@@ -262,50 +343,56 @@ const ProductManagement = () => {
           await fetchProducts();
           break;
         case 'delete':
-          if (window.confirm('Are you sure you want to delete this product?')) {
+          if (window.confirm(`Are you sure you want to delete "${product.name}"? This action cannot be undone.`)) {
             await productsAPI.deleteProduct(productId);
-            await Promise.all([fetchProducts(), loadInitialData()]);
+            await Promise.allSettled([fetchProducts(), loadInitialData()]);
           }
           break;
         case 'toggle_active':
-          const product = products.find(p => p.id === productId);
-          if (product) {
-            await productsAPI.quickEditProduct(productId, {
-              is_active: !product.is_active
-            });
-            await fetchProducts();
-          }
+          await productsAPI.quickEditProduct(productId, {
+            is_active: !product.is_active
+          });
+          await fetchProducts();
           break;
         case 'toggle_featured':
-          const prod = products.find(p => p.id === productId);
-          if (prod) {
-            await productsAPI.quickEditProduct(productId, {
-              is_featured: !prod.is_featured
-            });
-            await fetchProducts();
-          }
+          await productsAPI.quickEditProduct(productId, {
+            is_featured: !product.is_featured
+          });
+          await fetchProducts();
           break;
+        default:
+          throw new Error(`Unknown action: ${action}`);
       }
     } catch (error) {
       console.error(`Error performing ${action}:`, error);
-      setError(`Failed to ${action} product`);
+      setError(`Failed to ${action} product: ${error.message || 'Please try again.'}`);
     } finally {
       setActionLoading(false);
     }
   };
 
+  // Utility functions with proper error handling
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-UG', {
-      style: 'currency',
-      currency: 'UGX',
-      minimumFractionDigits: 0,
-    }).format(amount);
+    try {
+      const numAmount = parseFloat(amount) || 0;
+      return new Intl.NumberFormat('en-UG', {
+        style: 'currency',
+        currency: 'UGX',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(numAmount);
+    } catch (error) {
+      return `UGX ${amount || 0}`;
+    }
   };
 
   const getStockStatusColor = (product) => {
     if (!product.track_inventory) return 'text-blue-600 bg-blue-50';
-    if (product.stock_quantity === 0) return 'text-red-600 bg-red-50';
-    if (product.stock_quantity <= (product.low_stock_threshold || 10)) return 'text-yellow-600 bg-yellow-50';
+    const stockQuantity = parseInt(product.stock_quantity) || 0;
+    const lowStockThreshold = parseInt(product.low_stock_threshold) || 10;
+    
+    if (stockQuantity === 0) return 'text-red-600 bg-red-50';
+    if (stockQuantity <= lowStockThreshold) return 'text-yellow-600 bg-yellow-50';
     return 'text-green-600 bg-green-50';
   };
 
@@ -313,9 +400,26 @@ const ProductManagement = () => {
     if (!product.is_active) return 'text-gray-600 bg-gray-50';
     if (product.status === 'published') return 'text-green-600 bg-green-50';
     if (product.status === 'draft') return 'text-yellow-600 bg-yellow-50';
-    return 'text-gray-600 bg-gray-50';
+    if (product.status === 'archived') return 'text-gray-600 bg-gray-50';
+    return 'text-blue-600 bg-blue-50';
   };
 
+  const getStockStatusText = (product) => {
+    if (!product.track_inventory) return 'Not Tracked';
+    const stockQuantity = parseInt(product.stock_quantity) || 0;
+    const lowStockThreshold = parseInt(product.low_stock_threshold) || 10;
+    
+    if (stockQuantity === 0) return 'Out of Stock';
+    if (stockQuantity <= lowStockThreshold) return 'Low Stock';
+    return 'In Stock';
+  };
+
+  const getStatusText = (product) => {
+    if (!product.is_active) return 'Inactive';
+    return (product.status || 'draft').charAt(0).toUpperCase() + (product.status || 'draft').slice(1);
+  };
+
+  // Show loading screen only on initial load
   if (loading && products.length === 0) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -340,12 +444,16 @@ const ProductManagement = () => {
             <button
               onClick={handleExport}
               disabled={actionLoading}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Download className="w-4 h-4" />
               {actionLoading ? 'Exporting...' : 'Export'}
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors">
+            <button 
+              className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
+              title="Import Products (Coming Soon)"
+              disabled
+            >
               <Upload className="w-4 h-4" />
               Import Products
             </button>
@@ -371,7 +479,7 @@ const ProductManagement = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-600">Total Products</p>
-                <p className="text-2xl font-bold text-slate-900">{stats.total_products}</p>
+                <p className="text-2xl font-bold text-slate-900">{stats.total_products || 0}</p>
               </div>
               <Package className="w-8 h-8 text-blue-600" />
             </div>
@@ -380,7 +488,7 @@ const ProductManagement = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-600">Active Products</p>
-                <p className="text-2xl font-bold text-green-600">{stats.active_products}</p>
+                <p className="text-2xl font-bold text-green-600">{stats.active_products || 0}</p>
               </div>
               <TrendingUp className="w-8 h-8 text-green-600" />
             </div>
@@ -389,7 +497,7 @@ const ProductManagement = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-600">Featured</p>
-                <p className="text-2xl font-bold text-yellow-600">{stats.featured_products}</p>
+                <p className="text-2xl font-bold text-yellow-600">{stats.featured_products || 0}</p>
               </div>
               <BarChart3 className="w-8 h-8 text-yellow-600" />
             </div>
@@ -398,7 +506,7 @@ const ProductManagement = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-600">Low Stock</p>
-                <p className="text-2xl font-bold text-orange-600">{stats.low_stock_products}</p>
+                <p className="text-2xl font-bold text-orange-600">{stats.low_stock_products || 0}</p>
               </div>
               <AlertTriangle className="w-8 h-8 text-orange-600" />
             </div>
@@ -407,7 +515,7 @@ const ProductManagement = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-600">Out of Stock</p>
-                <p className="text-2xl font-bold text-red-600">{stats.out_of_stock_products}</p>
+                <p className="text-2xl font-bold text-red-600">{stats.out_of_stock_products || 0}</p>
               </div>
               <AlertTriangle className="w-8 h-8 text-red-600" />
             </div>
@@ -424,7 +532,7 @@ const ProductManagement = () => {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
                 <input
                   type="text"
-                  placeholder="Search products..."
+                  placeholder="Search products by name, SKU, or description..."
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
                   className="pl-10 pr-4 py-2 w-full border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -435,7 +543,11 @@ const ProductManagement = () => {
           <div className="flex gap-3">
             <button
               onClick={() => setFilterPanel(!filterPanel)}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                filterPanel 
+                  ? 'bg-blue-100 text-blue-700 border border-blue-200' 
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
             >
               <Filter className="w-4 h-4" />
               Filters
@@ -444,7 +556,7 @@ const ProductManagement = () => {
               <button
                 onClick={() => setBulkActionModal(true)}
                 disabled={actionLoading}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {actionLoading ? 'Processing...' : `Bulk Actions (${selectedProducts.length})`}
               </button>
@@ -454,7 +566,7 @@ const ProductManagement = () => {
 
         {/* Filter Panel */}
         {filterPanel && (
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-4 pt-4 border-t border-slate-200">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mt-4 pt-4 border-t border-slate-200">
             <select
               value={filters.category}
               onChange={e => handleFilterChange('category', e.target.value)}
@@ -495,6 +607,15 @@ const ProductManagement = () => {
               <option value="">All Products</option>
               <option value="true">Featured Only</option>
               <option value="false">Not Featured</option>
+            </select>
+            <select
+              value={filters.active}
+              onChange={e => handleFilterChange('active', e.target.value)}
+              className="px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">All Status</option>
+              <option value="true">Active Only</option>
+              <option value="false">Inactive Only</option>
             </select>
             <select
               value={sortBy}
@@ -561,7 +682,9 @@ const ProductManagement = () => {
               ) : products.length === 0 ? (
                 <tr>
                   <td colSpan="7" className="px-6 py-12 text-center text-slate-500">
-                    No products found
+                    {searchTerm || Object.values(filters).some(f => f) 
+                      ? 'No products found matching your criteria' 
+                      : 'No products found. Add your first product to get started.'}
                   </td>
                 </tr>
               ) : (
@@ -581,26 +704,37 @@ const ProductManagement = () => {
                           src={product.image_url || product.thumbnail_url || '/api/placeholder/60/60'}
                           alt={product.name}
                           className="w-12 h-12 rounded-lg object-cover mr-4"
+                          onError={(e) => {
+                            e.target.src = '/api/placeholder/60/60';
+                          }}
                         />
                         <div>
                           <div className="flex items-center">
-                            <p className="font-medium text-slate-900">{product.name}</p>
+                            <p className="font-medium text-slate-900" title={product.name}>
+                              {product.name}
+                            </p>
                             {product.is_featured && (
                               <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                                 Featured
                               </span>
                             )}
                           </div>
-                          <p className="text-sm text-slate-500">SKU: {product.sku || 'N/A'}</p>
+                          <p className="text-sm text-slate-500">
+                            SKU: {product.sku || 'N/A'}
+                          </p>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-900">
-                      {typeof product.category === 'object' ? product.category.name : product.category}
+                      {typeof product.category === 'object' 
+                        ? (product.category?.name || 'Uncategorized')
+                        : (product.category || 'Uncategorized')}
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm">
-                        <p className="font-medium text-slate-900">{formatCurrency(product.price)}</p>
+                        <p className="font-medium text-slate-900">
+                          {formatCurrency(product.price)}
+                        </p>
                         {product.original_price && product.original_price > product.price && (
                           <p className="text-xs text-slate-500 line-through">
                             {formatCurrency(product.original_price)}
@@ -610,63 +744,84 @@ const ProductManagement = () => {
                     </td>
                     <td className="px-6 py-4">
                       <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStockStatusColor(
-                          product
-                        )}`}
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStockStatusColor(product)}`}
                       >
-                        {!product.track_inventory
-                          ? 'Not Tracked'
-                          : product.stock_quantity === 0
-                          ? 'Out of Stock'
-                          : product.stock_quantity <= (product.low_stock_threshold || 10)
-                          ? 'Low Stock'
-                          : 'In Stock'}
+                        {getStockStatusText(product)}
                       </span>
                       {product.track_inventory && (
-                        <p className="text-xs text-slate-500 mt-1">{product.stock_quantity} units</p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          {product.stock_quantity || 0} units
+                        </p>
                       )}
                     </td>
                     <td className="px-6 py-4">
                       <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-                          product
-                        )}`}
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(product)}`}
                       >
-                        {!product.is_active
-                          ? 'Inactive'
-                          : product.status === 'published' 
-                          ? 'Published' 
-                          : product.status === 'draft'
-                          ? 'Draft'
-                          : 'Archived'}
+                        {getStatusText(product)}
                       </span>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center space-x-2">
-                        <button className="text-blue-600 hover:text-blue-700 p-1" title="View">
+                        <button 
+                          className="text-blue-600 hover:text-blue-700 p-1" 
+                          title="View Product"
+                          onClick={() => window.open(`/products/${product.slug || product.id}`, '_blank')}
+                        >
                           <Eye className="h-4 w-4" />
                         </button>
-                        <button className="text-green-600 hover:text-green-700 p-1" title="Edit">
+                        <button 
+                          className="text-green-600 hover:text-green-700 p-1" 
+                          title="Edit Product"
+                          onClick={() => window.location.href = `/admin/products/${product.id}/edit`}
+                        >
                           <Edit className="h-4 w-4" />
                         </button>
                         <button 
                           onClick={() => handleProductAction('duplicate', product.id)}
                           className="text-gray-600 hover:text-gray-700 p-1" 
-                          title="Duplicate"
+                          title="Duplicate Product"
                           disabled={actionLoading}
                         >
                           <Copy className="h-4 w-4" />
                         </button>
-                        <div className="relative">
-                          <button className="text-slate-600 hover:text-slate-700 p-1" title="More actions">
+                        <div className="relative group">
+                          <button 
+                            className="text-slate-600 hover:text-slate-700 p-1" 
+                            title="More actions"
+                          >
                             <MoreVertical className="h-4 w-4" />
                           </button>
-                          {/* Dropdown menu would go here */}
+                          {/* Dropdown menu */}
+                          <div className="absolute right-0 top-8 w-48 bg-white border border-slate-200 rounded-lg shadow-lg z-10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                            <button
+                              onClick={() => handleProductAction('toggle_active', product.id)}
+                              className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 first:rounded-t-lg"
+                              disabled={actionLoading}
+                            >
+                              {product.is_active ? 'Deactivate' : 'Activate'}
+                            </button>
+                            <button
+                              onClick={() => handleProductAction('toggle_featured', product.id)}
+                              className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50"
+                              disabled={actionLoading}
+                            >
+                              {product.is_featured ? 'Remove Featured' : 'Mark Featured'}
+                            </button>
+                            <div className="border-t border-slate-200"></div>
+                            <button
+                              onClick={() => handleProductAction('delete', product.id)}
+                              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 last:rounded-b-lg"
+                              disabled={actionLoading}
+                            >
+                              Delete Product
+                            </button>
+                          </div>
                         </div>
                         <button 
                           onClick={() => handleProductAction('delete', product.id)}
                           className="text-red-600 hover:text-red-700 p-1" 
-                          title="Delete"
+                          title="Delete Product"
                           disabled={actionLoading}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -684,7 +839,7 @@ const ProductManagement = () => {
         {pagination.total_pages > 1 && (
           <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-between">
             <div className="text-sm text-slate-700">
-              Showing {(pagination.page - 1) * pagination.page_size + 1} to{' '}
+              Showing {Math.min((pagination.page - 1) * pagination.page_size + 1, pagination.total)} to{' '}
               {Math.min(pagination.page * pagination.page_size, pagination.total)} of{' '}
               {pagination.total} results
             </div>
@@ -696,25 +851,30 @@ const ProductManagement = () => {
               >
                 Previous
               </button>
-              {[...Array(Math.min(5, pagination.total_pages))].map((_, i) => {
-                const pageNumber = Math.max(1, pagination.page - 2) + i;
-                if (pageNumber <= pagination.total_pages) {
-                  return (
-                    <button
-                      key={pageNumber}
-                      onClick={() => handlePageChange(pageNumber)}
-                      className={`px-3 py-2 text-sm border rounded-lg ${
-                        pagination.page === pageNumber
-                          ? 'bg-blue-600 text-white border-blue-600'
-                          : 'border-slate-200 hover:bg-slate-50'
-                      }`}
-                    >
-                      {pageNumber}
-                    </button>
-                  );
-                }
-                return null;
-              })}
+              {/* Page numbers */}
+              {(() => {
+                const maxVisiblePages = 5;
+                const startPage = Math.max(1, pagination.page - Math.floor(maxVisiblePages / 2));
+                const endPage = Math.min(pagination.total_pages, startPage + maxVisiblePages - 1);
+                const adjustedStartPage = Math.max(1, endPage - maxVisiblePages + 1);
+                
+                return Array.from(
+                  { length: endPage - adjustedStartPage + 1 }, 
+                  (_, i) => adjustedStartPage + i
+                ).map(pageNumber => (
+                  <button
+                    key={pageNumber}
+                    onClick={() => handlePageChange(pageNumber)}
+                    className={`px-3 py-2 text-sm border rounded-lg ${
+                      pagination.page === pageNumber
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    {pageNumber}
+                  </button>
+                ));
+              })()}
               <button
                 onClick={() => handlePageChange(pagination.page + 1)}
                 disabled={pagination.page === pagination.total_pages}
@@ -730,56 +890,76 @@ const ProductManagement = () => {
       {/* Bulk Action Modal */}
       {bulkActionModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold text-slate-900 mb-4">
-              Bulk Actions ({selectedProducts.length} selected)
-            </h3>
+          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-slate-900">
+                Bulk Actions ({selectedProducts.length} selected)
+              </h3>
+              <button
+                onClick={() => setBulkActionModal(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
             <div className="space-y-2">
               <button
                 onClick={() => handleBulkAction('activate')}
                 disabled={actionLoading}
-                className="w-full text-left px-4 py-2 hover:bg-slate-50 rounded-lg disabled:opacity-50"
+                className="w-full text-left px-4 py-3 hover:bg-slate-50 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3"
               >
-                Activate Products
+                <TrendingUp className="w-4 h-4 text-green-600" />
+                <span>Activate Products</span>
               </button>
               <button
                 onClick={() => handleBulkAction('deactivate')}
                 disabled={actionLoading}
-                className="w-full text-left px-4 py-2 hover:bg-slate-50 rounded-lg disabled:opacity-50"
+                className="w-full text-left px-4 py-3 hover:bg-slate-50 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3"
               >
-                Deactivate Products
+                <Package className="w-4 h-4 text-gray-600" />
+                <span>Deactivate Products</span>
               </button>
               <button
                 onClick={() => handleBulkAction('feature')}
                 disabled={actionLoading}
-                className="w-full text-left px-4 py-2 hover:bg-slate-50 rounded-lg disabled:opacity-50"
+                className="w-full text-left px-4 py-3 hover:bg-slate-50 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3"
               >
-                Mark as Featured
+                <BarChart3 className="w-4 h-4 text-yellow-600" />
+                <span>Mark as Featured</span>
               </button>
               <button
                 onClick={() => handleBulkAction('unfeature')}
                 disabled={actionLoading}
-                className="w-full text-left px-4 py-2 hover:bg-slate-50 rounded-lg disabled:opacity-50"
+                className="w-full text-left px-4 py-3 hover:bg-slate-50 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3"
               >
-                Remove from Featured
+                <BarChart3 className="w-4 h-4 text-gray-600" />
+                <span>Remove from Featured</span>
               </button>
+              <div className="border-t border-slate-200 my-2"></div>
               <button
                 onClick={() => handleBulkAction('delete')}
                 disabled={actionLoading}
-                className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 rounded-lg disabled:opacity-50"
+                className="w-full text-left px-4 py-3 hover:bg-red-50 text-red-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3"
               >
-                Delete Products
+                <Trash2 className="w-4 h-4" />
+                <span>Delete Products</span>
               </button>
             </div>
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setBulkActionModal(false)}
                 disabled={actionLoading}
-                className="flex-1 px-4 py-2 text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50"
+                className="flex-1 px-4 py-2 text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancel
               </button>
             </div>
+            {actionLoading && (
+              <div className="mt-4 flex items-center justify-center">
+                <LoadingSpinner size="small" />
+                <span className="ml-2 text-sm text-slate-600">Processing...</span>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -22,6 +22,31 @@ const getBaseURL = () => {
   return `${baseUrl}/api/${API_VERSION}`;
 };
 
+// Fixed: Enhanced token management with consistent storage keys
+const getAccessToken = () => {
+  // Use consistent key first, then fallback to legacy keys
+  return localStorage.getItem('access_token') || 
+         localStorage.getItem('accessToken') || 
+         localStorage.getItem('shoponline_access_token');
+};
+
+const getRefreshToken = () => {
+  // Use consistent key first, then fallback to legacy keys
+  return localStorage.getItem('refresh_token') || 
+         localStorage.getItem('refreshToken') || 
+         localStorage.getItem('shoponline_refresh_token');
+};
+
+// Fixed: Store tokens with consistent keys
+const storeTokens = (accessToken, refreshToken) => {
+  if (accessToken) {
+    localStorage.setItem('access_token', accessToken);
+  }
+  if (refreshToken) {
+    localStorage.setItem('refresh_token', refreshToken);
+  }
+};
+
 // Create axios instance with default configuration
 const apiClient = axios.create({
   baseURL: getBaseURL(),
@@ -31,52 +56,6 @@ const apiClient = axios.create({
     Accept: 'application/json',
   },
 });
-
-// Enhanced token management with multiple fallbacks
-const getAccessToken = () => {
-  // Try multiple storage locations for backward compatibility
-  const sources = [
-    localStorage.getItem('accessToken'),
-    localStorage.getItem('access_token'),
-  ];
-
-  for (const source of sources) {
-    if (source) {
-      try {
-        // Try to parse as JSON first (if it was stored as object)
-        const parsed = JSON.parse(source);
-        return parsed.access || parsed.access_token || parsed.accessToken;
-      } catch (e) {
-        // If not JSON, assume it's a plain token string
-        return source;
-      }
-    }
-  }
-  return null;
-};
-
-const getRefreshToken = () => {
-  const sources = [
-    localStorage.getItem('refreshToken'),
-    localStorage.getItem('refresh_token'),
-  ];
-
-  for (const source of sources) {
-    if (source) {
-      try {
-        const parsed = JSON.parse(source);
-        return parsed.refresh || parsed.refresh_token || parsed.refreshToken;
-      } catch (e) {
-        // If not JSON and this is from refresh_token key, use as is
-        if (source === localStorage.getItem('refresh_token') || 
-            source === localStorage.getItem('refreshToken')) {
-          return source;
-        }
-      }
-    }
-  }
-  return null;
-};
 
 // Request interceptor to add JWT token
 apiClient.interceptors.request.use(
@@ -97,7 +76,7 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Response interceptor to handle token refresh
+// Fixed: Response interceptor with proper token refresh handling
 apiClient.interceptors.response.use(
   response => response,
   async error => {
@@ -120,15 +99,8 @@ apiClient.interceptors.response.use(
 
           const { access } = response.data;
           
-          // Store the new access token
-          localStorage.setItem('accessToken', access);
-          localStorage.setItem('access_token', access); // Backward compatibility
-          
-          // If new refresh token is provided, store it too
-          if (response.data.refresh) {
-            localStorage.setItem('refreshToken', response.data.refresh);
-            localStorage.setItem('refresh_token', response.data.refresh);
-          }
+          // Fixed: Store tokens with consistent keys
+          storeTokens(access, response.data.refresh || refreshToken);
 
           // Retry original request with new token
           originalRequest.headers.Authorization = `Bearer ${access}`;
@@ -137,11 +109,15 @@ apiClient.interceptors.response.use(
       } catch (refreshError) {
         // Refresh failed, clear all tokens and redirect to login
         const keysToRemove = [
-          'accessToken',
-          'access_token', 
-          'refreshToken',
+          'access_token',
           'refresh_token',
-          'user'
+          'user',
+          // Legacy keys for backwards compatibility
+          'accessToken',
+          'refreshToken',
+          'shoponline_access_token',
+          'shoponline_refresh_token',
+          'shoponline_user',
         ];
         
         keysToRemove.forEach(key => {
@@ -201,24 +177,21 @@ fileUploadClient.interceptors.response.use(
           );
 
           const { access } = response.data;
-          localStorage.setItem('accessToken', access);
-          localStorage.setItem('access_token', access);
-          
-          if (response.data.refresh) {
-            localStorage.setItem('refreshToken', response.data.refresh);
-            localStorage.setItem('refresh_token', response.data.refresh);
-          }
+          storeTokens(access, response.data.refresh || refreshToken);
 
           originalRequest.headers.Authorization = `Bearer ${access}`;
           return fileUploadClient(originalRequest);
         }
       } catch (refreshError) {
         const keysToRemove = [
-          'accessToken',
-          'access_token', 
-          'refreshToken',
+          'access_token',
           'refresh_token',
-          'user'
+          'user',
+          'accessToken',
+          'refreshToken',
+          'shoponline_access_token',
+          'shoponline_refresh_token',
+          'shoponline_user',
         ];
         
         keysToRemove.forEach(key => {

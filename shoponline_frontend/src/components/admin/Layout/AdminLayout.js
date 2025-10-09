@@ -1,538 +1,282 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  LayoutDashboard, Package, FolderOpen, Zap, ShoppingCart, 
-  Users, Home, BarChart3, Bell, Settings, ChevronDown, 
-  ChevronRight, X, Menu, Search, User, LogOut 
-} from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../../hooks/useAuth';
+import AdminHeader from './AdminHeader';
+import AdminSidebar from './AdminSidebar';
 import './AdminLayout.css';
 
-// Complete Admin Header Component
-const AdminHeader = ({ user, sidebarOpen, onToggleSidebar, unreadNotifications = 0, notifications = [] }) => {
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [notificationMenuOpen, setNotificationMenuOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-
-  const handleLogout = () => {
-    console.log('Logout clicked');
-    // Implement actual logout logic
-  };
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      console.log('Search query:', searchQuery);
+/**
+ * AdminLayout Component
+ * 
+ * Main layout wrapper for the admin dashboard. Handles authentication,
+ * sidebar state management, and provides the overall structure for admin pages.
+ */
+const AdminLayout = () => {
+  // State management
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    // Persist sidebar state in localStorage for desktop users
+    if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+      const saved = localStorage.getItem('admin-sidebar-open');
+      return saved !== null ? JSON.parse(saved) : true;
     }
-  };
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (!event.target.closest('.notification-dropdown')) {
-        setNotificationMenuOpen(false);
-      }
-      if (!event.target.closest('.user-dropdown')) {
-        setUserMenuOpen(false);
-      }
-    };
-
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
-  }, []);
-
-  return (
-    <header className="admin-header">
-      <div className="admin-header-left">
-        <button
-          className="sidebar-toggle-btn"
-          onClick={onToggleSidebar}
-          aria-label="Toggle sidebar"
-        >
-          <Menu size={20} />
-        </button>
-
-        <div className="admin-logo">
-          <h1>ShopOnline Uganda</h1>
-          <span className="admin-badge">Admin</span>
-        </div>
-      </div>
-
-      <div className="admin-header-center">
-        <div className="admin-search-form">
-          <div className="search-input-wrapper">
-            <Search className="search-icon" size={18} />
-            <input
-              type="text"
-              placeholder="Search products, orders, customers..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSearch(e)}
-              className="admin-search-input"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="admin-header-right">
-        {/* Notifications */}
-        <div className="notification-dropdown">
-          <button
-            className="notification-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              setNotificationMenuOpen(!notificationMenuOpen);
-            }}
-            aria-label="View notifications"
-          >
-            <Bell size={20} />
-            {unreadNotifications > 0 && (
-              <span className="notification-badge">{unreadNotifications}</span>
-            )}
-          </button>
-
-          {notificationMenuOpen && (
-            <div className="notification-menu">
-              <div className="notification-header">
-                <h3>Notifications</h3>
-                <span className="notification-count">{unreadNotifications} new</span>
-              </div>
-
-              <div className="notification-list">
-                {notifications.length > 0 ? (
-                  notifications.map((notification) => (
-                    <div
-                      key={notification.id}
-                      className={`notification-item ${notification.unread ? 'unread' : ''}`}
-                    >
-                      <div className="notification-content">
-                        <h4>{notification.title}</h4>
-                        <p>{notification.message}</p>
-                        <span className="notification-time">{notification.time}</span>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="notification-item">
-                    <div className="notification-content">
-                      <p>No notifications</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="notification-footer">
-                <button className="view-all-btn">View All Notifications</button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* User Menu */}
-        <div className="user-dropdown">
-          <button
-            className="user-menu-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              setUserMenuOpen(!userMenuOpen);
-            }}
-            aria-label="User menu"
-          >
-            <div className="user-avatar">
-              {user?.profile_image ? (
-                <img src={user.profile_image} alt="Profile" />
-              ) : (
-                <div className="avatar-placeholder">
-                  {user?.first_name?.[0]}{user?.last_name?.[0]}
-                </div>
-              )}
-            </div>
-            <div className="user-info">
-              <span className="user-name">{user?.full_name || 'User'}</span>
-              <span className="user-role">Administrator</span>
-            </div>
-            <ChevronDown size={16} className="dropdown-arrow" />
-          </button>
-
-          {userMenuOpen && (
-            <div className="user-menu">
-              <div className="user-menu-header">
-                <div className="user-avatar large">
-                  {user?.profile_image ? (
-                    <img src={user.profile_image} alt="Profile" />
-                  ) : (
-                    <div className="avatar-placeholder">
-                      {user?.first_name?.[0]}{user?.last_name?.[0]}
-                    </div>
-                  )}
-                </div>
-                <div className="user-details">
-                  <h4>{user?.full_name || 'User'}</h4>
-                  <p>{user?.email || 'No email'}</p>
-                </div>
-              </div>
-
-              <div className="user-menu-items">
-                <button className="user-menu-item">
-                  <User size={16} />
-                  <span>Profile Settings</span>
-                </button>
-                <button className="user-menu-item">
-                  <Settings size={16} />
-                  <span>Admin Settings</span>
-                </button>
-                <hr className="menu-divider" />
-                <button className="user-menu-item logout" onClick={handleLogout}>
-                  <LogOut size={16} />
-                  <span>Logout</span>
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </header>
-  );
-};
-
-// Complete Admin Sidebar Component
-const AdminSidebar = ({ isOpen, isMobileOpen, onClose, currentPath, user, menuItems = [] }) => {
-  const [expandedMenus, setExpandedMenus] = useState({
-    products: false,
-    orders: false,
-    analytics: false,
+    return false;
   });
-
-  const toggleMenu = (menuKey) => {
-    setExpandedMenus(prev => ({
-      ...prev,
-      [menuKey]: !prev[menuKey],
-    }));
-  };
-
-  const handleMenuItemClick = (path) => {
-    console.log('Navigate to:', path);
-    if (window.innerWidth < 1024) {
-      onClose();
-    }
-  };
-
-  const defaultMenuItems = [
-    {
-      key: 'dashboard',
-      label: 'Dashboard',
-      icon: LayoutDashboard,
-      path: '/admin/dashboard',
-      active: currentPath === '/admin/dashboard',
-    },
-    {
-      key: 'products',
-      label: 'Products',
-      icon: Package,
-      expandable: true,
-      expanded: expandedMenus.products,
-      children: [
-        {
-          key: 'product-list',
-          label: 'All Products',
-          path: '/admin/products',
-          active: currentPath === '/admin/products',
-        },
-        {
-          key: 'add-product',
-          label: 'Add Product',
-          path: '/admin/products/add',
-          active: currentPath === '/admin/products/add',
-        },
-        {
-          key: 'bulk-actions',
-          label: 'Bulk Actions',
-          path: '/admin/products/bulk',
-          active: currentPath === '/admin/products/bulk',
-        },
-      ],
-    },
-    {
-      key: 'categories',
-      label: 'Categories',
-      icon: FolderOpen,
-      path: '/admin/categories',
-      active: currentPath === '/admin/categories',
-    },
-    {
-      key: 'flash-sales',
-      label: 'Flash Sales',
-      icon: Zap,
-      path: '/admin/flash-sales',
-      active: currentPath === '/admin/flash-sales',
-    },
-    {
-      key: 'orders',
-      label: 'Orders',
-      icon: ShoppingCart,
-      expandable: true,
-      expanded: expandedMenus.orders,
-      children: [
-        {
-          key: 'all-orders',
-          label: 'All Orders',
-          path: '/admin/orders',
-          active: currentPath === '/admin/orders',
-        },
-        {
-          key: 'cod-orders',
-          label: 'COD Orders',
-          path: '/admin/orders/cod',
-          active: currentPath === '/admin/orders/cod',
-        },
-        {
-          key: 'pending-orders',
-          label: 'Pending Orders',
-          path: '/admin/orders/pending',
-          active: currentPath === '/admin/orders/pending',
-        },
-      ],
-    },
-    {
-      key: 'users',
-      label: 'Users',
-      icon: Users,
-      path: '/admin/users',
-      active: currentPath === '/admin/users',
-    },
-    {
-      key: 'homepage',
-      label: 'Homepage',
-      icon: Home,
-      path: '/admin/homepage',
-      active: currentPath === '/admin/homepage',
-    },
-    {
-      key: 'analytics',
-      label: 'Analytics',
-      icon: BarChart3,
-      expandable: true,
-      expanded: expandedMenus.analytics,
-      children: [
-        {
-          key: 'sales-analytics',
-          label: 'Sales Analytics',
-          path: '/admin/analytics/sales',
-          active: currentPath === '/admin/analytics/sales',
-        },
-        {
-          key: 'product-analytics',
-          label: 'Product Analytics',
-          path: '/admin/analytics/products',
-          active: currentPath === '/admin/analytics/products',
-        },
-        {
-          key: 'user-analytics',
-          label: 'User Analytics',
-          path: '/admin/analytics/users',
-          active: currentPath === '/admin/analytics/users',
-        },
-        {
-          key: 'flash-sales-analytics',
-          label: 'Flash Sales Analytics',
-          path: '/admin/analytics/flash-sales',
-          active: currentPath === '/admin/analytics/flash-sales',
-        },
-      ],
-    },
-    {
-      key: 'notifications',
-      label: 'Notifications',
-      icon: Bell,
-      path: '/admin/notifications',
-      active: currentPath === '/admin/notifications',
-    },
-  ];
-
-  const items = menuItems.length > 0 ? menuItems : defaultMenuItems;
-
-  const renderMenuItem = (item) => {
-    const Icon = item.icon;
-    const isActive = item.active;
-    const hasChildren = item.expandable && item.children;
-
-    if (hasChildren) {
-      return (
-        <div key={item.key} className="menu-item-group">
-          <button
-            className={`menu-item ${isActive ? 'active' : ''} ${item.expanded ? 'expanded' : ''}`}
-            onClick={() => toggleMenu(item.key)}
-          >
-            <div className="menu-item-content">
-              <div className="menu-item-left">
-                <Icon size={20} className="menu-icon" />
-                <span className="menu-label">{item.label}</span>
-              </div>
-              <div className="menu-item-right">
-                {item.badge && <span className="menu-badge">{item.badge}</span>}
-                {item.expanded ? (
-                  <ChevronDown size={16} className="expand-icon" />
-                ) : (
-                  <ChevronRight size={16} className="expand-icon" />
-                )}
-              </div>
-            </div>
-          </button>
-
-          {item.expanded && (
-            <div className="submenu">
-              {item.children.map((child) => (
-                <button
-                  key={child.key}
-                  className={`submenu-item ${child.active ? 'active' : ''}`}
-                  onClick={() => handleMenuItemClick(child.path)}
-                >
-                  <span className="submenu-label">{child.label}</span>
-                  {child.badge && <span className="menu-badge small">{child.badge}</span>}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    return (
-      <button
-        key={item.key}
-        className={`menu-item ${isActive ? 'active' : ''}`}
-        onClick={() => handleMenuItemClick(item.path)}
-      >
-        <div className="menu-item-content">
-          <div className="menu-item-left">
-            <Icon size={20} className="menu-icon" />
-            <span className="menu-label">{item.label}</span>
-          </div>
-          {item.badge && <span className="menu-badge">{item.badge}</span>}
-        </div>
-      </button>
-    );
-  };
-
-  return (
-    <>
-      <aside
-        className={`admin-sidebar ${isOpen ? 'open' : 'closed'} ${
-          isMobileOpen ? 'mobile-open' : ''
-        }`}
-      >
-        <div className="sidebar-header">
-          <div className="sidebar-logo">
-            <div className="logo-icon">SO</div>
-            <div className="logo-text">
-              <h2>ShopOnline</h2>
-              <span>Admin Panel</span>
-            </div>
-          </div>
-
-          <button className="mobile-close-btn" onClick={onClose} aria-label="Close sidebar">
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="sidebar-content">
-          <nav className="sidebar-nav">
-            <div className="nav-section">
-              <h3 className="nav-section-title">Main</h3>
-              <div className="nav-items">{items.slice(0, 1).map(renderMenuItem)}</div>
-            </div>
-
-            <div className="nav-section">
-              <h3 className="nav-section-title">E-commerce</h3>
-              <div className="nav-items">{items.slice(1, 6).map(renderMenuItem)}</div>
-            </div>
-
-            <div className="nav-section">
-              <h3 className="nav-section-title">Management</h3>
-              <div className="nav-items">{items.slice(6, 8).map(renderMenuItem)}</div>
-            </div>
-
-            <div className="nav-section">
-              <h3 className="nav-section-title">System</h3>
-              <div className="nav-items">{items.slice(8).map(renderMenuItem)}</div>
-            </div>
-          </nav>
-        </div>
-
-        <div className="sidebar-footer">
-          <div className="admin-info">
-            <div className="admin-avatar">
-              {user?.profile_image ? (
-                <img src={user.profile_image} alt="Admin" />
-              ) : (
-                <div className="avatar-placeholder">
-                  {user?.first_name?.[0]}{user?.last_name?.[0]}
-                </div>
-              )}
-            </div>
-            <div className="admin-details">
-              <h4>{user?.full_name || 'User'}</h4>
-              <p>Administrator</p>
-            </div>
-          </div>
-
-          <button className="settings-btn" onClick={() => handleMenuItemClick('/admin/settings')}>
-            <Settings size={20} />
-          </button>
-        </div>
-      </aside>
-    </>
-  );
-};
-
-// Main Admin Layout Component
-const AdminLayout = ({ 
-  children, 
-  currentPath = '/admin/dashboard',
-  user = null,
-  isAuthenticated = false,
-  loading = false,
-  notifications = [],
-  unreadCount = 0,
-  menuItems = [],
-  onNavigate = () => {}
-}) => {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [menuCounts, setMenuCounts] = useState({});
 
-  const isAdmin = user?.role === 'admin';
+  // Hooks
+  const { user, isLoading, isAuthenticated, isAdmin, logout } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
 
+  // Calculate unread notifications count
+  const unreadCount = useMemo(() => {
+    return notifications.filter(n => n.unread).length;
+  }, [notifications]);
+
+  // Memoized menu badges to prevent unnecessary re-renders
+  const menuBadges = useMemo(() => {
+    return {
+      orders: menuCounts?.totalOrders || 0,
+      pendingOrders: menuCounts?.pendingOrders || 0,
+      codOrders: menuCounts?.codOrders || 0,
+      notifications: unreadCount || 0,
+      reviews: menuCounts?.pendingReviews || 0,
+      lowStock: menuCounts?.lowStockItems || 0,
+      flashSales: menuCounts?.activeFlashSales || 0,
+      invitations: menuCounts?.pendingInvitations || 0,
+      products: menuCounts?.totalProducts || 0
+    };
+  }, [menuCounts, unreadCount]);
+
+  // Persist sidebar state changes
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+      localStorage.setItem('admin-sidebar-open', JSON.stringify(sidebarOpen));
+    }
+  }, [sidebarOpen]);
+
+  // Handle window resize for responsive behavior
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth < 1024) {
+      const isMobile = window.innerWidth < 1024;
+      
+      if (isMobile) {
         setSidebarOpen(false);
+        setMobileSidebarOpen(false);
       } else {
-        setSidebarOpen(true);
+        // Restore desktop sidebar state from localStorage
+        const saved = localStorage.getItem('admin-sidebar-open');
+        setSidebarOpen(saved !== null ? JSON.parse(saved) : true);
         setMobileSidebarOpen(false);
       }
     };
 
-    window.addEventListener('resize', handleResize);
-    handleResize();
+    // Debounce resize handler for better performance
+    let timeoutId;
+    const debouncedHandleResize = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(handleResize, 150);
+    };
 
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener('resize', debouncedHandleResize);
+    handleResize(); // Call on mount
+
+    return () => {
+      window.removeEventListener('resize', debouncedHandleResize);
+      clearTimeout(timeoutId);
+    };
   }, []);
 
-  if (loading) {
+  // Load notifications and menu counts on mount
+  useEffect(() => {
+    const loadNotifications = async () => {
+      try {
+        // Replace with your actual API call
+        // const response = await fetch('/api/admin/notifications');
+        // const data = await response.json();
+        // setNotifications(data);
+        
+        // For now, set empty array - you can add your API call here
+        setNotifications([]);
+      } catch (error) {
+        console.error('Error loading notifications:', error);
+        setNotifications([]);
+      }
+    };
+
+    const loadMenuCounts = async () => {
+      try {
+        // Replace with your actual API call
+        // const response = await fetch('/api/admin/counts');
+        // const data = await response.json();
+        // setMenuCounts(data);
+        
+        // For now, set empty object - you can add your API call here
+        setMenuCounts({});
+      } catch (error) {
+        console.error('Error loading menu counts:', error);
+        setMenuCounts({});
+      }
+    };
+
+    if (isAuthenticated && isAdmin()) {
+      loadNotifications();
+      loadMenuCounts();
+    }
+  }, [isAuthenticated, isAdmin]);
+
+  // Handle logout with error handling and cleanup
+  const handleLogout = useCallback(async () => {
+    try {
+      await logout();
+      // Clear any persisted admin state
+      localStorage.removeItem('admin-sidebar-open');
+      localStorage.removeItem('admin-search-history');
+      navigate('/auth/login', { replace: true });
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Force redirect even if logout fails
+      localStorage.clear();
+      window.location.href = '/auth/login';
+    }
+  }, [logout, navigate]);
+
+  // Handle navigation with proper error handling
+  const handleNavigate = useCallback((path) => {
+    if (!path || typeof path !== 'string') {
+      console.warn('Invalid navigation path:', path);
+      return;
+    }
+
+    try {
+      navigate(path);
+      
+      // Close mobile sidebar after navigation
+      if (window.innerWidth < 1024) {
+        setMobileSidebarOpen(false);
+      }
+    } catch (error) {
+      console.error('Navigation error:', error);
+      // Fallback navigation
+      window.location.href = path;
+    }
+  }, [navigate]);
+
+  // Handle search with history tracking
+  const handleSearch = useCallback((query) => {
+    if (!query || typeof query !== 'string' || !query.trim()) {
+      return;
+    }
+
+    const trimmedQuery = query.trim();
+    
+    try {
+      // Save search to history
+      const searchHistory = JSON.parse(
+        localStorage.getItem('admin-search-history') || '[]'
+      );
+      
+      // Add to history (avoid duplicates and limit to 10 items)
+      const updatedHistory = [
+        trimmedQuery,
+        ...searchHistory.filter(item => item !== trimmedQuery)
+      ].slice(0, 10);
+      
+      localStorage.setItem('admin-search-history', JSON.stringify(updatedHistory));
+      
+      // Navigate to search results
+      navigate(`/admin/search?q=${encodeURIComponent(trimmedQuery)}`);
+    } catch (error) {
+      console.error('Search error:', error);
+      // Fallback: simple navigation without history
+      navigate(`/admin/search?q=${encodeURIComponent(trimmedQuery)}`);
+    }
+  }, [navigate]);
+
+  // Toggle sidebar with responsive handling
+  const toggleSidebar = useCallback(() => {
+    if (window.innerWidth < 1024) {
+      setMobileSidebarOpen(prev => !prev);
+    } else {
+      setSidebarOpen(prev => !prev);
+    }
+  }, []);
+
+  // Close mobile sidebar
+  const closeMobileSidebar = useCallback(() => {
+    setMobileSidebarOpen(false);
+  }, []);
+
+  // Handle notification interactions
+  const handleNotificationClick = useCallback(async (notification) => {
+    try {
+      // Mark notification as read
+      if (notification.unread) {
+        // Update local state
+        setNotifications(prev => 
+          prev.map(n => 
+            n.id === notification.id ? { ...n, unread: false } : n
+          )
+        );
+        
+        // Make API call to mark as read
+        // await fetch(`/api/admin/notifications/${notification.id}/read`, { method: 'POST' });
+      }
+      
+      // Navigate to related page if available
+      if (notification.path) {
+        handleNavigate(notification.path);
+      }
+    } catch (error) {
+      console.error('Error handling notification click:', error);
+      // Still navigate even if marking as read fails
+      if (notification.path) {
+        handleNavigate(notification.path);
+      }
+    }
+  }, [handleNavigate]);
+
+  // Mark all notifications as read
+  const markAllAsRead = useCallback(async () => {
+    try {
+      // Update local state
+      setNotifications(prev => 
+        prev.map(n => ({ ...n, unread: false }))
+      );
+      
+      // Make API call to mark all as read
+      // await fetch('/api/admin/notifications/mark-all-read', { method: 'POST' });
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+    }
+  }, []);
+
+  // Loading state
+  if (isLoading) {
     return (
-      <div className="admin-loading-screen">
+      <div className="admin-loading-screen" role="status" aria-label="Loading admin dashboard">
         <div className="admin-loading-spinner">
-          <div className="spinner-ring" />
+          <div className="spinner-ring" aria-hidden="true" />
           <p>Loading Admin Dashboard...</p>
         </div>
       </div>
     );
   }
 
-  if (!isAuthenticated || !isAdmin) {
+  // Authentication guard
+  if (!isAuthenticated || !isAdmin()) {
     return (
       <div className="admin-auth-required">
         <div className="auth-prompt">
           <h2>Admin Access Required</h2>
           <p>Please log in with admin credentials to access the dashboard.</p>
-          <button className="btn-primary" onClick={() => console.log('Navigate to login')}>
+          <button 
+            className="btn-primary" 
+            onClick={() => navigate('/auth/login', { replace: true })}
+            type="button"
+          >
             Go to Admin Login
           </button>
         </div>
@@ -540,26 +284,16 @@ const AdminLayout = ({
     );
   }
 
-  const toggleSidebar = () => {
-    if (window.innerWidth < 1024) {
-      setMobileSidebarOpen(!mobileSidebarOpen);
-    } else {
-      setSidebarOpen(!sidebarOpen);
-    }
-  };
-
-  const closeMobileSidebar = () => {
-    setMobileSidebarOpen(false);
-  };
-
   return (
     <div className="admin-layout">
       <AdminHeader
         user={user}
-        sidebarOpen={sidebarOpen}
         onToggleSidebar={toggleSidebar}
-        unreadNotifications={unreadCount}
         notifications={notifications}
+        unreadCount={unreadCount}
+        onSearch={handleSearch}
+        onLogout={handleLogout}
+        onNavigate={handleNavigate}
       />
 
       <div className="admin-layout-body">
@@ -567,46 +301,39 @@ const AdminLayout = ({
           isOpen={sidebarOpen}
           isMobileOpen={mobileSidebarOpen}
           onClose={closeMobileSidebar}
-          currentPath={currentPath}
-          user={user}
-          menuItems={menuItems}
+          currentPath={location.pathname}
+          onNavigate={handleNavigate}
+          menuBadges={menuBadges}
         />
 
-        <main className={`admin-main-content ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
+        <main 
+          className={`admin-main-content ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}
+          role="main"
+          aria-label="Admin dashboard content"
+        >
           <div className="admin-content-wrapper">
-            {children || (
-              <div className="admin-dashboard-demo">
-                <h1>Welcome to ShopOnline Uganda Admin Dashboard</h1>
-                <p>Select a menu item to manage your e-commerce platform.</p>
-                <div className="dashboard-stats">
-                  <div className="stat-card">
-                    <h3>Total Orders</h3>
-                    <div className="stat-value">-</div>
-                  </div>
-                  <div className="stat-card">
-                    <h3>Active Products</h3>
-                    <div className="stat-value">-</div>
-                  </div>
-                  <div className="stat-card">
-                    <h3>Flash Sales</h3>
-                    <div className="stat-value">-</div>
-                  </div>
-                  <div className="stat-card">
-                    <h3>Revenue (UGX)</h3>
-                    <div className="stat-value">-</div>
-                  </div>
-                </div>
-              </div>
-            )}
+            <Outlet />
           </div>
         </main>
       </div>
 
+      {/* Mobile overlay */}
       {mobileSidebarOpen && (
-        <div className="admin-mobile-overlay" onClick={closeMobileSidebar} aria-hidden="true" />
+        <div 
+          className="admin-mobile-overlay" 
+          onClick={closeMobileSidebar} 
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              closeMobileSidebar();
+            }
+          }}
+          role="button"
+          tabIndex={0}
+          aria-label="Close sidebar"
+        />
       )}
     </div>
   );
 };
 
-export default AdminLayout;
+export default React.memo(AdminLayout);
